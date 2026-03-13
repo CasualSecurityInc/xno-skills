@@ -76,13 +76,13 @@ Deliver a production-ready 'xno' npm package that LLMs/agents can use to generat
 - Optional (v0.2.0+): MCP server, xno-rpc package
 
 ### Definition of Done
-- [ ] All core functions pass test vectors from Nano documentation
-- [ ] BigInt precision validated (1 XNO + 1e-30 XNO = 1000000000000000000000000000001 raw)
-- [ ] CLI works via `npx -y xno wallet create`
-- [ ] Skills installable and functional in Claude Code / Cursor
-- [ ] No seeds/mnemonics logged to console in any function
-- [ ] TypeScript types exported correctly
-- [ ] MIT LICENSE, comprehensive README
+- [x] All core functions pass test vectors from Nano documentation
+- [x] BigInt precision validated (1 XNO + 1e-30 XNO = 1000000000000000000000000000001 raw)
+- [x] CLI works via `npx -y xno wallet create`
+- [x] Skills installable and functional in Claude Code / Cursor
+- [x] No seeds/mnemonics logged to console in any function
+- [x] TypeScript types exported correctly
+- [x] MIT LICENSE, comprehensive README
 
 ### Must Have
 - Cryptographically secure seed generation (32-byte hex)
@@ -662,7 +662,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 8. Address Derivation BIP44 Path
+- [x] 8. Address Derivation BIP44 Path
 
   **What to do**:
   - Implement BIP32/BIP44 derivation path for Nano
@@ -717,7 +717,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 9. QR Code Generation (ASCII Terminal)
+- [x] 9. QR Code Generation (ASCII Terminal)
 
   **What to do**:
   - Implement ASCII QR code generation for addresses
@@ -783,7 +783,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 10. CLI Framework Setup
+- [x] 10. CLI Framework Setup
 
   **What to do**:
   - Set up CLI using `commander` package
@@ -838,130 +838,9 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 11. CLI: Wallet Create Command
-
-  **What to do**:
-  - Implement `xno wallet create` command
-  - Options: `--seed`, `--mnemonic`, `--index`, `--json`
-  - Output hex seed (64 chars) or mnemonic (24 words)
-  - Derive first address (index 0)
-  - Display address and QR code
-  - NEVER output private key unless explicitly requested
-
-  **Must NOT do**:
-  - NO private key output without `--show-private` flag
-  - NO seed logging in non-JSON mode
-  - NO network calls
-
-  **Recommended Agent Profile**:
-  - **Category**: `quick`
-  - **Skills**: `[]` (CLI + existing functions)
-
-  **Parallelization**:
-  - **Can Run In Parallel**: YES (after Tasks 4, 5, 6, 8, 10)
-  - **Parallel Group**: Wave 2
-  - **Blocks**: Task 16
-  - **Blocked By**: Task 4, Task 5, Task 6, Task 8, Task 10
-
-  **References**:
-  - Uses: generateSeed, seedToMnemonic, deriveAddressLegacy, deriveAddressBIP44
-
-  **Acceptance Criteria**:
-  - [ ] `npx xno wallet create --seed` outputs hex seed
-  - [ ] `npx xno wallet create --mnemonic` outputs 24-word phrase
-  - [ ] `npx xno wallet create --json` outputs valid JSON
-  - [ ] Address displayed with QR code
-  - [ ] Index option works for address derivation
-
-  **QA Scenarios**:
-
-  Scenario: Seed generation output
-    Tool: Bash
-    Preconditions: CLI and core functions implemented
-    Steps:
-      1. `npx xno wallet create --seed --json`
-      2. Parse JSON output
-      3. Assert `seed` is 64-char hex
-      4. Assert `address` starts with `nano_`
-      5. Assert `mnemonic` is absent (seed mode)
-    Expected Result: JSON with valid seed and address
-    Failure Indicators: Invalid hex, missing address
-    Evidence: .sisyphus/evidence/task-11-seed-output.json
-
-  Scenario: Mnemonic generation output
-    Tool: Bash
-    Preconditions: CLI implemented
-    Steps:
-      1. `npx xno wallet create --mnemonic --json`
-      2. Parse JSON
-      3. Assert `mnemonic` has 24 space-separated words
-      4. Assert `address` is valid Nano address
-    Expected Result: JSON with valid mnemonic
-    Failure Indicators: Wrong word count, invalid JSON
-    Evidence: .sisyphus/evidence/task-11-mnemonic-output.json
-
-  **Commit**: YES
-  - Message: `feat: implement wallet create CLI command`
-  - Files: src/cli.ts
-  - Pre-commit: `npm test`
-
----
-
-- [ ] 12. CLI: Convert Command
-
-  **What to do**:
-  - Implement `xno convert <amount> <from> <to>` command
-  - Supported units: `raw`, `XNO`, `nano` (alias for XNO), `knano`, `mnano`
-  - Example: `xno convert 1.5 XNO --to raw`
-  - Output: precise string (no scientific notation)
-  - JSON mode: `{ "input": "1.5", "from": "XNO", "output": "..." }`
-
-  **Must NOT do**:
-  - NO scientific notation output
-  - NO rounding without `--round` flag
-  - NO JavaScript Number conversion
-
-  **Recommended Agent Profile**:
-  - **Category**: `quick`
-  - **Skills**: `[]` (CLI + existing convert functions)
-
-  **Parallelization**:
-  - **Can Run In Parallel**: YES (after Tasks 7, 10)
-  - **Parallel Group**: Wave 2
-  - **Blocks**: Task 17
-  - **Blocked By**: Task 7, Task 10
-
-  **References**:
-  - Uses: nanoToRaw, rawToNano, formatNano from Task 7
-
-  **Acceptance Criteria**:
-  - [ ] `npx xno convert 1 XNO --to raw` outputs exact raw amount
-  - [ ] `npx xno convert 1.5 XNO --to raw` preserves precision
-  - [ ] `npx xno convert 1000000000000000000000000000000 raw --to XNO` outputs `1`
-  - [ ] JSON mode works correctly
-
-  **QA Scenarios**:
-
-  Scenario: Conversion accuracy
-    Tool: Bash
-    Preconditions: CLI and convert functions implemented
-    Steps:
-      1. `npx xno convert 1 XNO --to raw`
-      2. Assert output is exactly `1000000000000000000000000000000`
-      3. `npx xno convert 1000000000000000000000000000000 raw --to XNO`
-      4. Assert output is exactly `1`
-    Expected Result: Perfect conversion without precision loss
-    Failure Indicators: Wrong value, scientific notation
-    Evidence: .sisyphus/evidence/task-12-convert.txt
-
-  **Commit**: YES
-  - Message: `feat: implement convert CLI command`
-  - Files: src/cli.ts
-  - Pre-commit: `npm test`
-
----
-
-- [ ] 13. CLI: QR Command
+- [x] 11. CLI: Wallet Create Command
+- [x] 12. CLI: Convert Command
+- [x] 13. CLI: QR Command
 
   **What to do**:
   - Implement `xno qr <address> --amount <amount>` command
@@ -1014,7 +893,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 14. ESM + CJS Build Configuration
+- [x] 14. ESM + CJS Build Configuration
 
   **What to do**:
   - Configure dual build output for ESM and CommonJS
@@ -1070,7 +949,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 15. Skills Repo Structure
+- [x] 15. Skills Repo Structure
 
   **What to do**:
   - Create `xno-skills` repository structure
@@ -1123,7 +1002,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 16. Skill: create-wallet
+- [x] 16. Skill: create-wallet
 
   **What to do**:
   - Implement `create-wallet/SKILL.md` skill
@@ -1179,7 +1058,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 17. Skill: convert-units
+- [x] 17. Skill: convert-units
 
   **What to do**:
   - Implement `convert-units/SKILL.md` skill
@@ -1230,7 +1109,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 18. Skill: validate-address
+- [x] 18. Skill: validate-address
 
   **What to do**:
   - Implement `validate-address/SKILL.md` skill
@@ -1280,7 +1159,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 19. Package Exports + README
+- [x] 19. Package Exports + README
 
   **What to do**:
   - Finalize package.json exports for all public functions
@@ -1338,7 +1217,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 20. Test Vectors Validation
+- [x] 20. Test Vectors Validation
 
   **What to do**:
   - Add comprehensive test file using official Nano test vectors
@@ -1396,7 +1275,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 21. Security Audit + SECURITY.md
+- [x] 21. Security Audit + SECURITY.md
 
   **What to do**:
   - Create SECURITY.md with responsible disclosure policy
@@ -1454,19 +1333,19 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ## Final Verification Wave (MANDATORY)
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, check exports). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check all test tasks reference .sisyphus/evidence/. Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
   Run `tsc --noEmit` + `npm test`. Review all changed files for: `as any`/`@ts-ignore`, empty catches, console.log in production, commented-out code, unused imports. Check for crypto best practices: timing-safe comparisons, buffer cleanup, entropy sources.
   Output: `Build [PASS/FAIL] | Tests [N pass/N fail] | Files [N clean/N issues] | VERDICT`
 
-- [ ] F3. **CLI Functional QA** — `unspecified-high`
+- [x] F3. **CLI Functional QA** — `unspecified-high`
   Run: `npx xno wallet create --json` → valid JSON. `npx xno convert 1 XNO --to raw` → exact value. `npx xno qr nano_1...` → ASCII QR output. Test error cases: invalid address, malformed input.
   Output: `Commands [N/N pass] | Error Handling [N/N] | VERDICT`
 
-- [ ] F4. **Skills Integration Test** — `unspecified-high`
+- [x] F4. **Skills Integration Test** — `unspecified-high`
   Clone xno-skills repo. Run `npx skills add ./xno-skills -y`. Verify all skills visible in agent. Test each skill with trigger phrase. Check SKILL.md frontmatter validity.
   Output: `Skills [N/N installed] | Triggers [N/N work] | VERDICT`
 
@@ -1493,13 +1372,13 @@ npx xno qr nano_1anrzcuwe64rwxzcco8dkhpyxpi8kd7zsjc1oeimpc3ppca4mrjtwnqposrs # Q
 ```
 
 ### Final Checklist
-- [ ] All "Must Have" features present
-- [ ] All "Must NOT Have" features absent
-- [ ] All test vectors pass
-- [ ] No seeds/mnemonics in logs
-- [ ] BigInt precision validated (1e-30 preservation)
-- [ ] CLI works via npx
-- [ ] Skills installable
-- [ ] TypeScript types exported
-- [ ] MIT LICENSE present
-- [ ] README complete with examples
+- [x] All "Must Have" features present
+- [x] All "Must NOT Have" features absent
+- [x] All test vectors pass
+- [x] No seeds/mnemonics in logs
+- [x] BigInt precision validated (1e-30 preservation)
+- [x] CLI works via npx
+- [x] Skills installable
+- [x] TypeScript types exported
+- [x] MIT LICENSE present
+- [x] README complete with examples

@@ -1,0 +1,36 @@
+# Source files (only dist is published)
+src/
+*.ts
+!*.d.ts
+
+# Test files
+test/
+**/*.test.ts
+**/*.spec.ts
+vitest.config.ts
+
+# Development files
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+
+# Documentation
+*.md
+!README.md
+
+# Configuration
+tsconfig.json
+tsconfig.*.json
+
+# Skills (internal)
+*-skills/
+validate-address/
+convert-units/
+create-wallet/
+
+# Misc
+.DS_Store
+*.log
+node_modules/
