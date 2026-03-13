@@ -1,11 +1,15 @@
 {
   "name": "xno",
   "version": "0.1.0",
-  "description": "XNO core package",
+  "description": "XNO CLI - Interact with the Nano cryptocurrency",
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
+  "bin": {
+    "xno": "./bin/xno",
+    "xno-mcp": "./bin/xno-mcp"
+  },
   "exports": {
     ".": {
       "import": "./dist/esm/index.js",
@@ -22,16 +26,40 @@
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "nano",
+    "xno",
+    "cryptocurrency",
+    "wallet",
+    "bip39",
+    "bip44",
+    "ed25519",
+    "blake2b",
+    "blockchain"
+  ],
+  "author": "Casual Security Inc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casualsecurity/xno-skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/casualsecurity/xno-skills/issues"
+  },
+  "homepage": "https://github.com/casualsecurity/xno-skills#readme",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/qrcode-terminal": "^0.12.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^1.7.0",
-    "@scure/bip39": "^2.0.1"
+    "@scure/bip39": "^2.0.1",
+    "commander": "^14.0.3",
+    "micro-key-producer": "^0.8.5",
+    "qrcode-terminal": "^0.12.0"
   }
 }

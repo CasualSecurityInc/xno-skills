@@ -9,4 +9,15 @@ export {
   publicKeyToAddress,
   type LegacyAddressResult 
 } from './address-legacy';
+export { 
+  deriveAddressBIP44,
+  derivePrivateKeyBIP44,
+  derivePublicKeyBIP44,
+  publicKeyToAddressBIP44,
+  validateMnemonicBIP44,
+  mnemonicToBIP39Seed,
+  type BIP44AddressResult 
+} from './address-bip44';
 export { validateAddress, type ValidateAddressResult } from './validate';
+export { nanoToRaw, rawToNano, formatNano, knanoToRaw, mnanoToRaw } from './convert';
+export { generateAsciiQr } from './qr';
