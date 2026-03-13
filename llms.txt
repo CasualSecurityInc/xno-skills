@@ -1,0 +1,38 @@
+# xno
+
+A TypeScript library and CLI for offline Nano ($XNO) cryptocurrency operations.
+
+## Key Information
+- **Purpose**: Offline wallet generation, address derivation (Legacy + BIP44), unit conversion, and QR code generation.
+- **Precision**: Uses BigInt for all amount calculations. Never use JS Number for raw units.
+- **Security**: No network calls in core library. Seeds/mnemonics should be handled via environment variables.
+
+## AI Skills
+To install AI-assisted workflows for this repo:
+`npx skills add casualsecurity/xno-skills`
+
+## MCP Server
+A built-in Model Context Protocol (MCP) server is available for AI agents.
+To start: `npx xno-mcp`
+
+Tools included:
+- `generate_wallet`: New wallet generation.
+- `derive_address`: Mnemonic/seed derivation.
+- `convert_units`: Precision unit conversion.
+- `validate_address`: Address format and checksum check.
+
+## Installation
+`npm install xno`
+
+## CLI Usage
+Available via `npx xno <command>` or global install.
+- `xno wallet create [--json]`: Generate new wallet.
+- `xno wallet from-mnemonic <phrase> [--json]`: Restore wallet.
+- `xno convert <amount> <from> --to <to>`: Convert between raw, XNO, knano, mnano.
+- `xno qr <address> [--amount <val>]`: Generate ASCII QR code.
+- `xno validate <address> [--json]`: Check address format and checksum.
+
+## Entry Points
+- `src/index.ts`: Public API exports.
+- `src/cli.ts`: CLI implementation.
+- `test/integration.test.ts`: End-to-end integration tests.
