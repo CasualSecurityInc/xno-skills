@@ -28,5 +28,10 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^1.7.0",
+    "@scure/bip39": "^2.0.1"
   }
 }
