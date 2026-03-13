@@ -263,7 +263,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 2. Nano-Base32 Encoding Implementation
+- [x] 2. Nano-Base32 Encoding Implementation
 
   **What to do**:
   - Implement custom Base32 encoding/decoding for Nano addresses
@@ -332,7 +332,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 3. Blake2b Hash Utilities
+- [x] 3. Blake2b Hash Utilities
 
   **What to do**:
   - Implement Blake2b hash function wrapper using @noble/hashes
@@ -387,7 +387,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 4. Seed Generation (Hex + BIP39 Mnemonic)
+- [x] 4. Seed Generation (Hex + BIP39 Mnemonic)
 
   **What to do**:
   - Implement cryptographically secure 32-byte seed generation
@@ -456,7 +456,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 5. Address Derivation (Legacy Blake2b Path)
+- [x] 5. Address Derivation (Legacy Blake2b Path)
 
   **What to do**:
   - Implement address derivation using legacy Nano path (Blake2b-based)
@@ -525,7 +525,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 6. Address Validation + Checksum
+- [x] 6. Address Validation + Checksum
 
   **What to do**:
   - Implement Nano address validation
@@ -593,7 +593,7 @@ Max Concurrent: 7 (Waves 1 & 2)
 
 ---
 
-- [ ] 7. Unit Conversion Utilities
+- [x] 7. Unit Conversion Utilities
 
   **What to do**:
   - Implement precise unit conversions using BigInt
