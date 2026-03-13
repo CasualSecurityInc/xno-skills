@@ -7,8 +7,8 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "bin": {
-    "xno": "./bin/xno",
-    "xno-mcp": "./bin/xno-mcp"
+    "xno": "bin/xno",
+    "xno-mcp": "bin/xno-mcp"
   },
   "exports": {
     ".": {
