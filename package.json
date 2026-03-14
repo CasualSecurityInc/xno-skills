@@ -40,7 +40,7 @@
   "author": "Casual Security Inc",
   "repository": {
     "type": "git",
-    "url": "https://github.com/casualsecurity/xno-skills.git"
+    "url": "git+https://github.com/casualsecurity/xno-skills.git"
   },
   "bugs": {
     "url": "https://github.com/casualsecurity/xno-skills/issues"
