@@ -1,4 +1,4 @@
-# xno
+# xno-skills
 
 A TypeScript library and CLI for offline Nano ($XNO) cryptocurrency operations.
 
@@ -22,15 +22,15 @@ Tools included:
 - `validate_address`: Address format and checksum check.
 
 ## Installation
-`npm install xno`
+`npm install xno-skills`
 
 ## CLI Usage
-Available via `npx xno <command>` or global install.
-- `xno wallet create [--json]`: Generate new wallet.
-- `xno wallet from-mnemonic <phrase> [--json]`: Restore wallet.
-- `xno convert <amount> <from> --to <to>`: Convert between raw, XNO, knano, mnano.
-- `xno qr <address> [--amount <val>]`: Generate ASCII QR code.
-- `xno validate <address> [--json]`: Check address format and checksum.
+Available via `npx xno-skills <command>` or global install.
+- `xno-skills wallet create [--json]`: Generate new wallet.
+- `xno-skills wallet from-mnemonic <phrase> [--json]`: Restore wallet.
+- `xno-skills convert <amount> <from> --to <to>`: Convert between raw, XNO, knano, mnano.
+- `xno-skills qr <address> [--amount <val>]`: Generate ASCII QR code.
+- `xno-skills validate <address> [--json]`: Check address format and checksum.
 
 ## Entry Points
 - `src/index.ts`: Public API exports.

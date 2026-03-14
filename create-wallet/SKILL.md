@@ -1,13 +1,13 @@
 ---
 name: Create XNO Wallet
-description: Generate a new XNO wallet with a 24-word seed phrase and derived address. Uses npx xno wallet create command.
+description: Generate a new XNO wallet with a 24-word seed phrase and derived address. Uses npx xno-skills wallet create command.
 triggers:
   - create wallet
   - generate wallet
   - new wallet
   - wallet create
-  - xno wallet
-  - create xno wallet
+  - xno-skills wallet
+  - create xno-skills wallet
   - nano wallet
   - cryptocurrency wallet
   - xno
@@ -27,7 +27,7 @@ This skill creates a new XNO wallet by generating a cryptographically secure 24-
 ### Basic Wallet Creation
 
 ```bash
-npx -y xno wallet create
+npx -y xno-skills wallet create
 ```
 
 Output:
@@ -39,7 +39,7 @@ Address: xno_1abc123...
 ### Create with Mnemonic Output
 
 ```bash
-npx -y xno wallet create --mnemonic
+npx -y xno-skills wallet create --mnemonic
 ```
 
 Explicitly requests mnemonic (seed phrase) format output.
@@ -47,7 +47,7 @@ Explicitly requests mnemonic (seed phrase) format output.
 ### Create with JSON Output
 
 ```bash
-npx -y xno wallet create --json
+npx -y xno-skills wallet create --json
 ```
 
 Returns structured JSON output:
@@ -61,7 +61,7 @@ Returns structured JSON output:
 ### Create with Existing Seed
 
 ```bash
-npx -y xno wallet create --seed "your existing seed phrase here"
+npx -y xno-skills wallet create --seed "your existing seed phrase here"
 ```
 
 Derives an address from an existing 24-word seed phrase.
@@ -69,7 +69,7 @@ Derives an address from an existing 24-word seed phrase.
 ### Combined Flags
 
 ```bash
-npx -y xno wallet create --seed "your seed phrase" --json
+npx -y xno-skills wallet create --seed "your seed phrase" --json
 ```
 
 ## Step-by-Step Workflow
@@ -77,7 +77,7 @@ npx -y xno wallet create --seed "your seed phrase" --json
 ### 1. Generate New Wallet
 
 ```bash
-npx -y xno wallet create --json
+npx -y xno-skills wallet create --json
 ```
 
 ### 2. Securely Store the Seed
@@ -98,7 +98,7 @@ Option B - Secure Key Store:
 ### 3. Verify the Address
 
 ```bash
-npx -y xno wallet create --seed "$XNO_SEED" --json
+npx -y xno-skills wallet create --seed "$XNO_SEED" --json
 ```
 
 Confirm the derived address matches your records.
@@ -108,7 +108,7 @@ Confirm the derived address matches your records.
 ### TypeScript/JavaScript
 
 ```typescript
-import { createWallet } from 'xno';
+import { createWallet } from 'xno-skills';
 
 // Generate new wallet
 const wallet = createWallet();
@@ -123,7 +123,7 @@ console.log(existingWallet.address);
 ### With Error Handling
 
 ```typescript
-import { createWallet, validateSeed } from 'xno';
+import { createWallet, validateSeed } from 'xno-skills';
 
 function safeCreateWallet(seed?: string) {
   try {
@@ -259,7 +259,7 @@ if (!validateAddress(address)) {
 
 ```bash
 # Generate new wallet for testing
-npx -y xno wallet create --json | jq .
+npx -y xno-skills wallet create --json | jq .
 
 # Output:
 # {
@@ -274,7 +274,7 @@ npx -y xno wallet create --json | jq .
 #!/bin/bash
 # create-wallet.sh
 
-WALLET=$(npx -y xno wallet create --json)
+WALLET=$(npx -y xno-skills wallet create --json)
 ADDRESS=$(echo "$WALLET" | jq -r '.address')
 
 echo "Wallet created: $ADDRESS"
