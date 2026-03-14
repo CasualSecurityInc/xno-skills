@@ -1,5 +1,5 @@
 {
-  "name": "xno",
+  "name": "xno-skills",
   "version": "0.1.0",
   "description": "XNO CLI - Interact with the Nano cryptocurrency",
   "type": "module",
@@ -7,7 +7,7 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "bin": {
-    "xno": "bin/xno",
+    "xno-skills": "bin/xno-skills",
     "xno-mcp": "bin/xno-mcp"
   },
   "exports": {
