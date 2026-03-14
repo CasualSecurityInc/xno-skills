@@ -6,7 +6,19 @@ import { deriveAddressLegacy } from './address-legacy.js';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 
+const logo = `
+\x1b[34m   _   ___ ___ _____\x1b[0m
+\x1b[34m  | | / __| _ \\ _ \\__|\x1b[0m
+\x1b[34m  | |_| (_|  _/ __/ _|\x1b[0m
+\x1b[34m   _\\___|___|_|\\___(_)\x1b[0m
+\x1b[34m  |_|\\___| Nano cryptocurrency\x1b[0m
+`;
+
 const program = new Command();
+
+console.log(logo);
+
+program
 
 program
   .name('xno')
@@ -247,4 +259,8 @@ program
     }
   });
 
-program.parse();
+program.configureHelp({
+  showGlobalOptions: true
+});
+
+program.parse(process.argv);
