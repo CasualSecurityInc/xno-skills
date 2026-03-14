@@ -1,6 +1,6 @@
-# xno
+# xno-skills
 
-[![npm version](https://img.shields.io/npm/v/xno.svg)](https://www.npmjs.com/package/xno)
+[![npm version](https://img.shields.io/npm/v/xno-skills.svg)](https://www.npmjs.com/package/xno-skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
@@ -45,7 +45,7 @@ Exposed tools:
 ## Installation
 
 ```bash
-npm install xno
+npm install xno-skills
 ```
 
 ## Quick Start
@@ -58,7 +58,7 @@ import {
   validateAddress,
   nanoToRaw,
   rawToNano
-} from 'xno';
+} from 'xno-skills';
 
 // Generate a new wallet
 const seed = generateSeed();
@@ -173,7 +173,7 @@ xno validate nano_1abc123...
 Generate a cryptographically secure 32-byte seed (256 bits).
 
 ```typescript
-import { generateSeed } from 'xno';
+import { generateSeed } from 'xno-skills';
 
 const seed = generateSeed();
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -184,7 +184,7 @@ const seed = generateSeed();
 Convert a hex-encoded seed to a BIP39 mnemonic phrase.
 
 ```typescript
-import { seedToMnemonic } from 'xno';
+import { seedToMnemonic } from 'xno-skills';
 
 const mnemonic = seedToMnemonic(seed);
 // Returns: "word1 word2 word3 ... word24"
@@ -195,7 +195,7 @@ const mnemonic = seedToMnemonic(seed);
 Convert a BIP39 mnemonic phrase back to a hex-encoded seed.
 
 ```typescript
-import { mnemonicToSeed } from 'xno';
+import { mnemonicToSeed } from 'xno-skills';
 
 const seed = mnemonicToSeed(mnemonic);
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -206,7 +206,7 @@ const seed = mnemonicToSeed(mnemonic);
 Validate a BIP39 mnemonic phrase.
 
 ```typescript
-import { validateMnemonic } from 'xno';
+import { validateMnemonic } from 'xno-skills';
 
 const isValid = validateMnemonic(mnemonic);
 // Returns: true or false
@@ -219,7 +219,7 @@ const isValid = validateMnemonic(mnemonic);
 Derive a Nano address from a seed using the legacy derivation method.
 
 ```typescript
-import { deriveAddressLegacy } from 'xno';
+import { deriveAddressLegacy } from 'xno-skills';
 
 const result = deriveAddressLegacy(seed, 0);
 // Returns: { address, privateKey, publicKey }
@@ -230,7 +230,7 @@ const result = deriveAddressLegacy(seed, 0);
 Derive a private key from a seed at the specified index.
 
 ```typescript
-import { derivePrivateKeyLegacy } from 'xno';
+import { derivePrivateKeyLegacy } from 'xno-skills';
 
 const privateKey = derivePrivateKeyLegacy(seed, 0);
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -241,7 +241,7 @@ const privateKey = derivePrivateKeyLegacy(seed, 0);
 Derive a public key from a private key.
 
 ```typescript
-import { derivePublicKeyLegacy } from 'xno';
+import { derivePublicKeyLegacy } from 'xno-skills';
 
 const publicKey = derivePublicKeyLegacy(privateKey);
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -252,7 +252,7 @@ const publicKey = derivePublicKeyLegacy(privateKey);
 Convert a public key to a Nano address.
 
 ```typescript
-import { publicKeyToAddress } from 'xno';
+import { publicKeyToAddress } from 'xno-skills';
 
 const address = publicKeyToAddress(publicKey);
 // Returns: "nano_1abc123..."
@@ -265,7 +265,7 @@ const address = publicKeyToAddress(publicKey);
 Derive a Nano address from a mnemonic using BIP44 path `m/44'/165'/[index]'`.
 
 ```typescript
-import { deriveAddressBIP44 } from 'xno';
+import { deriveAddressBIP44 } from 'xno-skills';
 
 const result = deriveAddressBIP44(mnemonic, 0);
 // Returns: { address, privateKey, publicKey }
@@ -279,7 +279,7 @@ const result = deriveAddressBIP44(mnemonic, 0, 'my-passphrase');
 Derive a private key from a mnemonic using BIP44.
 
 ```typescript
-import { derivePrivateKeyBIP44 } from 'xno';
+import { derivePrivateKeyBIP44 } from 'xno-skills';
 
 const privateKey = derivePrivateKeyBIP44(mnemonic, 0);
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -290,7 +290,7 @@ const privateKey = derivePrivateKeyBIP44(mnemonic, 0);
 Derive a public key from a BIP44-derived private key.
 
 ```typescript
-import { derivePublicKeyBIP44 } from 'xno';
+import { derivePublicKeyBIP44 } from 'xno-skills';
 
 const publicKey = derivePublicKeyBIP44(privateKey);
 // Returns: "0123456789abcdef..." (64 hex characters)
@@ -301,7 +301,7 @@ const publicKey = derivePublicKeyBIP44(privateKey);
 Convert a BIP44-derived public key to a Nano address.
 
 ```typescript
-import { publicKeyToAddressBIP44 } from 'xno';
+import { publicKeyToAddressBIP44 } from 'xno-skills';
 
 const address = publicKeyToAddressBIP44(publicKey);
 // Returns: "nano_1abc123..."
@@ -312,7 +312,7 @@ const address = publicKeyToAddressBIP44(publicKey);
 Validate a BIP39 mnemonic phrase for BIP44 usage.
 
 ```typescript
-import { validateMnemonicBIP44 } from 'xno';
+import { validateMnemonicBIP44 } from 'xno-skills';
 
 const isValid = validateMnemonicBIP44(mnemonic);
 // Returns: true or false
@@ -323,7 +323,7 @@ const isValid = validateMnemonicBIP44(mnemonic);
 Convert a mnemonic to a BIP39 seed (512-bit).
 
 ```typescript
-import { mnemonicToBIP39Seed } from 'xno';
+import { mnemonicToBIP39Seed } from 'xno-skills';
 
 const seed = mnemonicToBIP39Seed(mnemonic);
 // Returns: "0123456789abcdef..." (128 hex characters)
@@ -336,7 +336,7 @@ const seed = mnemonicToBIP39Seed(mnemonic);
 Validate a Nano address and extract the public key.
 
 ```typescript
-import { validateAddress } from 'xno';
+import { validateAddress } from 'xno-skills';
 
 const result = validateAddress('nano_1abc123...');
 // Returns: { valid: true, publicKey: "..." }
@@ -350,7 +350,7 @@ const result = validateAddress('nano_1abc123...');
 Convert Nano (XNO) to raw units.
 
 ```typescript
-import { nanoToRaw } from 'xno';
+import { nanoToRaw } from 'xno-skills';
 
 const raw = nanoToRaw('1.5');
 // Returns: "1500000000000000000000000000000"
@@ -361,7 +361,7 @@ const raw = nanoToRaw('1.5');
 Convert raw units to Nano (XNO).
 
 ```typescript
-import { rawToNano } from 'xno';
+import { rawToNano } from 'xno-skills';
 
 const nano = rawToNano('1500000000000000000000000000000');
 // Returns: "1.5"
@@ -376,7 +376,7 @@ const nano = rawToNano(raw, 6);
 Format raw units as Nano with full precision.
 
 ```typescript
-import { formatNano } from 'xno';
+import { formatNano } from 'xno-skills';
 
 const formatted = formatNano('1500000000000000000000000000000');
 // Returns: "1.5"
@@ -387,7 +387,7 @@ const formatted = formatNano('1500000000000000000000000000000');
 Convert kilo-nano to raw units.
 
 ```typescript
-import { knanoToRaw } from 'xno';
+import { knanoToRaw } from 'xno-skills';
 
 const raw = knanoToRaw('1.5');
 // Returns: "1500000000000000000000000000000000"
@@ -398,7 +398,7 @@ const raw = knanoToRaw('1.5');
 Convert mega-nano to raw units.
 
 ```typescript
-import { mnanoToRaw } from 'xno';
+import { mnanoToRaw } from 'xno-skills';
 
 const raw = mnanoToRaw('1.5');
 // Returns: "1500000000000000000000000000000000000"
@@ -411,7 +411,7 @@ const raw = mnanoToRaw('1.5');
 Compute BLAKE2b-256 hash (32 bytes).
 
 ```typescript
-import { blake2b256 } from 'xno';
+import { blake2b256 } from 'xno-skills';
 
 const hash = blake2b256(new TextEncoder().encode('hello'));
 // Returns: Uint8Array(32)
@@ -422,7 +422,7 @@ const hash = blake2b256(new TextEncoder().encode('hello'));
 Compute BLAKE2b-512 hash (64 bytes).
 
 ```typescript
-import { blake2b512 } from 'xno';
+import { blake2b512 } from 'xno-skills';
 
 const hash = blake2b512(new TextEncoder().encode('hello'));
 // Returns: Uint8Array(64)
@@ -433,7 +433,7 @@ const hash = blake2b512(new TextEncoder().encode('hello'));
 Compute BLAKE2b-256 hash and return as hex string.
 
 ```typescript
-import { blake2b256Hex } from 'xno';
+import { blake2b256Hex } from 'xno-skills';
 
 const hash = blake2b256Hex(new TextEncoder().encode('hello'));
 // Returns: "abc123..." (64 hex characters)
@@ -446,7 +446,7 @@ const hash = blake2b256Hex(new TextEncoder().encode('hello'));
 Encode bytes to Nano's Base32 format.
 
 ```typescript
-import { base32Encode } from 'xno';
+import { base32Encode } from 'xno-skills';
 
 const encoded = base32Encode(new Uint8Array([0x00, 0xff]));
 // Returns: "1z"
@@ -457,7 +457,7 @@ const encoded = base32Encode(new Uint8Array([0x00, 0xff]));
 Decode Nano's Base32 format to bytes.
 
 ```typescript
-import { base32Decode } from 'xno';
+import { base32Decode } from 'xno-skills';
 
 const bytes = base32Decode('1z');
 // Returns: Uint8Array([0x00, 0xff])
@@ -470,7 +470,7 @@ const bytes = base32Decode('1z');
 Generate an ASCII QR code for a Nano address.
 
 ```typescript
-import { generateAsciiQr } from 'xno';
+import { generateAsciiQr } from 'xno-skills';
 
 const qr = await generateAsciiQr('nano_1abc123...');
 console.log(qr);
