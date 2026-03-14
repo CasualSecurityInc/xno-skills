@@ -1,6 +1,6 @@
 ---
 name: Convert XNO Units
-description: Convert between XNO cryptocurrency units (raw, XNO, knano, mnano) using BigInt precision. Handles 30 decimal places without floating-point errors.
+description: Convert between XNO units (raw/xno/knano/mnano) with exact BigInt precision.
 triggers:
   - convert units
   - unit conversion
@@ -24,7 +24,7 @@ Convert between different XNO cryptocurrency units with BigInt precision. XNO us
 | Unit | Raw Value | Decimal Places | Description |
 |------|-----------|----------------|-------------|
 | **raw** | 1 | 0 | Smallest unit (base unit) |
-| **mnano** | 10^24 | 24 | Millinano (0.000001 XNO) |
+| **mnano** | 10^24 | 24 | Mega-nano (0.000001 XNO) |
 | **knano** | 10^27 | 27 | Kilonano (0.001 XNO) |
 | **XNO** | 10^30 | 30 | Base unit (1 XNO) |
 

@@ -1,6 +1,6 @@
 ---
-name: Create XNO Wallet
-description: Generate a new XNO wallet with a 24-word seed phrase and derived address. Uses npx xno-skills wallet create command.
+name: Nano Wallet Operations
+description: Create or restore a Nano (XNO) wallet offline (seed, mnemonic, address).
 triggers:
   - create wallet
   - generate wallet
@@ -10,8 +10,6 @@ triggers:
   - create xno-skills wallet
   - nano wallet
   - cryptocurrency wallet
-  - xno
-  - nano
 ---
 
 # Create XNO Wallet
@@ -20,7 +18,7 @@ Generates a new XNO cryptocurrency wallet with a 24-word BIP-39 seed phrase and 
 
 ## Overview
 
-This skill creates a new XNO wallet by generating a cryptographically secure 24-word mnemonic seed phrase and deriving the corresponding XNO address. The entire process runs offline - no network connection required.
+This skill creates or restores a Nano (XNO) wallet offline. The CLI can generate a random 32-byte seed (hex), show a 24-word BIP-39 mnemonic, and derive the corresponding Nano address.
 
 ## CLI Commands
 
@@ -32,8 +30,9 @@ npx -y xno-skills wallet create
 
 Output:
 ```
-Seed: word1 word2 word3 ... word24
-Address: xno_1abc123...
+Seed: 0123456789abcdef... (64 hex chars)
+Mnemonic: word1 word2 ... word24
+Address: nano_1abc123...
 ```
 
 ### Create with Mnemonic Output
@@ -53,23 +52,27 @@ npx -y xno-skills wallet create --json
 Returns structured JSON output:
 ```json
 {
-  "seed": "word1 word2 word3 ... word24",
-  "address": "xno_1abc123..."
+  "seed": "0123456789abcdef... (64 hex chars)",
+  "mnemonic": "word1 word2 ... word24",
+  "address": "nano_1abc123..."
 }
 ```
 
-### Create with Existing Seed
+### Output Only The Seed (Hex)
 
 ```bash
-npx -y xno-skills wallet create --seed "your existing seed phrase here"
+npx -y xno-skills wallet create --seed
 ```
 
-Derives an address from an existing 24-word seed phrase.
+Prints only the 64-hex-character seed.
 
-### Combined Flags
+### Restore From Mnemonic
 
 ```bash
-npx -y xno-skills wallet create --seed "your seed phrase" --json
+npx -y xno-skills wallet from-mnemonic "word1 word2 ... word24"
+
+# JSON output
+npx -y xno-skills wallet from-mnemonic "word1 word2 ... word24" --json
 ```
 
 ## Step-by-Step Workflow
@@ -87,7 +90,8 @@ npx -y xno-skills wallet create --json
 Option A - Environment Variable:
 ```bash
 # Add to shell profile or .env file
-export XNO_SEED="word1 word2 ... word24"
+export XNO_SEED_HEX="0123456789abcdef... (64 hex chars)"
+export XNO_MNEMONIC="word1 word2 ... word24"
 ```
 
 Option B - Secure Key Store:
@@ -98,7 +102,7 @@ Option B - Secure Key Store:
 ### 3. Verify the Address
 
 ```bash
-npx -y xno-skills wallet create --seed "$XNO_SEED" --json
+npx -y xno-skills wallet from-mnemonic "$XNO_MNEMONIC" --json
 ```
 
 Confirm the derived address matches your records.
@@ -108,42 +112,40 @@ Confirm the derived address matches your records.
 ### TypeScript/JavaScript
 
 ```typescript
-import { createWallet } from 'xno-skills';
+import { generateSeed, seedToMnemonic, deriveAddressLegacy } from 'xno-skills';
 
-// Generate new wallet
-const wallet = createWallet();
-console.log(wallet.address);  // xno_1abc123...
-console.log(wallet.seed);     // 24-word seed phrase
+// Generate seed + mnemonic
+const seed = generateSeed();
+const mnemonic = seedToMnemonic(seed);
 
-// Derive from existing seed
-const existingWallet = createWallet({ seed: process.env.XNO_SEED });
-console.log(existingWallet.address);
+// Derive the first legacy address (index 0)
+const { address } = deriveAddressLegacy(seed, 0);
+console.log(address); // nano_...
+
+// Derive from existing seed (hex)
+const existingSeed = process.env.XNO_SEED_HEX!;
+console.log(deriveAddressLegacy(existingSeed, 0).address);
 ```
 
 ### With Error Handling
 
 ```typescript
-import { createWallet, validateSeed } from 'xno-skills';
+import { deriveAddressLegacy, seedToMnemonic, validateMnemonic } from 'xno-skills';
 
-function safeCreateWallet(seed?: string) {
+function safeDeriveAddress(seedHex: string) {
   try {
-    if (seed && !validateSeed(seed)) {
-      throw new Error('Invalid seed phrase format');
-    }
-    
-    const wallet = createWallet(seed ? { seed } : undefined);
-    
-    return {
-      success: true,
-      address: wallet.address,
-      // Never log or return seed in production
-    };
+    return { ok: true as const, address: deriveAddressLegacy(seedHex, 0).address };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    return { ok: false as const, error: error instanceof Error ? error.message : 'Unknown error' };
   }
+}
+
+function safeMnemonicRoundtrip(seedHex: string) {
+  const mnemonic = seedToMnemonic(seedHex);
+  if (!validateMnemonic(mnemonic)) {
+    throw new Error('Generated mnemonic failed validation');
+  }
+  return mnemonic;
 }
 ```
 
