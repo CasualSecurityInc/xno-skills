@@ -1,6 +1,6 @@
 ---
 name: Validate XNO Address
-description: Validate XNO cryptocurrency addresses offline. Checks format, prefix, length, and checksum. No network required.
+description: Validate Nano (XNO) addresses offline (format, checksum); no network.
 triggers:
   - validate address
   - check address
@@ -21,7 +21,7 @@ Validates XNO (Nano) cryptocurrency addresses offline. No network connection req
 Nano addresses follow a specific format:
 
 ```
-[nano_|xrb_][60 characters][8 character checksum]
+[nano_|xrb_][60 characters]
 ```
 
 ### Components
@@ -29,8 +29,8 @@ Nano addresses follow a specific format:
 | Part | Description | Length |
 |------|-------------|--------|
 | Prefix | `nano_` (current) or `xrb_` (legacy) | 5 or 4 chars |
-| Account | Base32 encoded public key | 60 chars |
-| Checksum | Blake2b hash verification | 8 chars |
+| Account | Base32 encoded public key + checksum | 60 chars |
+| Checksum | Blake2b hash verification (last 8 chars of account) | 8 chars |
 
 ### Valid Prefixes
 
