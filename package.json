@@ -8,6 +8,7 @@
   "types": "./dist/esm/index.d.ts",
   "bin": {
     "xno": "bin/xno",
+    "xno-skills": "bin/xno",
     "xno-mcp": "bin/xno-mcp"
   },
   "exports": {
