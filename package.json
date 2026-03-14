@@ -21,6 +21,9 @@
     "dist"
   ],
   "scripts": {
+    "prebuild": "node scripts/update-version.js",
+    "prebuild:esm": "node scripts/update-version.js",
+    "prebuild:cjs": "node scripts/update-version.js",
     "test": "vitest",
     "build": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
@@ -30,6 +33,7 @@
     "nano",
     "xno",
     "cryptocurrency",
+    "nanocurrency",
     "wallet",
     "bip39",
     "bip44",
