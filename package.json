@@ -44,12 +44,12 @@
   "author": "Casual Security Inc",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/casualsecurity/xno-skills.git"
+    "url": "git+https://github.com/CasualSecurityInc/xno-skills.git"
   },
   "bugs": {
-    "url": "https://github.com/casualsecurity/xno-skills/issues"
+    "url": "https://github.com/CasualSecurityInc/xno-skills/issues"
   },
-  "homepage": "https://github.com/casualsecurity/xno-skills#readme",
+  "homepage": "https://github.com/CasualSecurityInc/xno-skills#readme",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.5.0",

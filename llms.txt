@@ -9,7 +9,7 @@ A TypeScript library and CLI for offline Nano ($XNO) cryptocurrency operations.
 
 ## AI Skills
 To install AI-assisted workflows for this repo:
-`npx skills add casualsecurity/xno-skills`
+`npx skills add CasualSecurityInc/xno-skills`
 
 ## MCP Server
 A built-in Model Context Protocol (MCP) server is available for AI agents.

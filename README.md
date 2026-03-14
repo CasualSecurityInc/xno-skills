@@ -11,7 +11,7 @@ A TypeScript library for interacting with the Nano (XNO) cryptocurrency. Generat
 This repository includes built-in skills for AI agents (Claude Code, Cursor, etc.). To install them:
 
 ```bash
-npx skills add casualsecurity/xno-skills
+npx skills add CasualSecurityInc/xno-skills
 ```
 
 Available skills:
