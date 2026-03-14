@@ -5,25 +5,37 @@ import { generateSeed, seedToMnemonic, mnemonicToSeed } from './seed.js';
 import { deriveAddressLegacy } from './address-legacy.js';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
+import { generateAsciiQr, buildNanoUri } from './qr.js';
+import { pkg, version } from './version.js';
 
-const logo = `
-\x1b[34m   _   ___ ___ _____\x1b[0m
-\x1b[34m  | | / __| _ \\ _ \\__|\x1b[0m
-\x1b[34m  | |_| (_|  _/ __/ _|\x1b[0m
-\x1b[34m   _\\___|___|_|\\___(_)\x1b[0m
-\x1b[34m  |_|\\___| Nano cryptocurrency\x1b[0m
-`;
+const programName = pkg.name;
+
+const whiteFg=`\x1b[38;2;255;255;255m`
+const greyFg=`\x1b[38;2;155;155;155m`
+const blueFg=`\x1b[38;2;37;156;233m`
+const marineBg=`\x1b[48;2;31;32;76m`
+const logo=String.raw`MB[K
+   __W/\\/\\\\\\B____W/\\\\\\\\\B_____W/\\/\\\\\\B_______W/\\\\\B____[K
+    _W\/\\\G////W\\\B__W\G////////W\\\B___W\/\\\G////W\\\B____W/\\\G///W\\\B__[K
+     _W\/\\\B__W\/G/W\\\B___W/\\\\\\\\\\B__W\/\\\B__W\/G/W\\\B__W/\\\B__W\/G/W\\B__[K
+      _W\/\\\B___W\/\\\B__W/\\\G/////W\\\B__W\/\\\B___W\/\\\B_W\/G/W\\\B__W/\\\B__[K
+       _W\/\\\B___W\/\\\B_W\//\\\\\\\/\B___W\/\\\B___W\/\\\B__W\/G//W\\\\/B____[K
+        _W\/G//B____W\/G//B___W\/G///////W\/G/B__W\/G//B____W\/G//B_____W\/G////B_____[K
+                                                  WMxno-skills v${version}[K
+[K[0m
+
+Interact with the Nano ($XNO / Ӿ) cryptocurrency`
+.replaceAll('W',whiteFg)
+.replaceAll('G',greyFg)
+.replaceAll('B',blueFg)
+.replaceAll('M',marineBg)
 
 const program = new Command();
 
-console.log(logo);
-
 program
-
-program
-  .name('xno')
-  .description('XNO CLI - Interact with the Nano cryptocurrency')
-  .version('0.1.0')
+  .name(programName)
+  .description(logo)
+  .version(version)
   .option('-q, --quiet', 'Suppress non-essential output');
 
 // Global options accessible via hook
@@ -50,7 +62,7 @@ walletCmd
     const seed = generateSeed();
     const mnemonic = seedToMnemonic(seed);
     const addressResult = deriveAddressLegacy(seed, 0);
-    
+
     if (options.json) {
       console.log(JSON.stringify({
         seed,
@@ -79,7 +91,7 @@ walletCmd
     try {
       const seed = mnemonicToSeed(mnemonic);
       const addressResult = deriveAddressLegacy(seed, 0);
-      
+
       if (options.json) {
         console.log(JSON.stringify({
           seed,
@@ -114,12 +126,12 @@ program
       if (u === 'knano' || u === 'krai') return 'knano';
       return u;
     };
-    
+
     const toUnit = normalizeUnit(options.to || from || 'xno');
     const fromUnit = normalizeUnit(from || 'xno');
-    
+
     let rawValue: string;
-    
+
     switch (fromUnit) {
       case 'xno':
         rawValue = nanoToRaw(amount);
@@ -137,9 +149,9 @@ program
         console.error(`Unknown source unit: ${fromUnit}`);
         process.exit(1);
     }
-    
+
     let result: string;
-    
+
     switch (toUnit) {
       case 'xno':
         result = rawToNano(rawValue);
@@ -157,7 +169,7 @@ program
         console.error(`Unknown target unit: ${toUnit}`);
         process.exit(1);
     }
-    
+
     if (options.json) {
       console.log(JSON.stringify({
         from: amount,
@@ -175,68 +187,42 @@ program
   .command('qr')
   .description('Generate QR code for address or amount')
   .argument('<address>', 'Nano address')
-  .option('-a, --amount <amount>', 'Include amount in QR')
+  .option('-a, --amount <amount>', 'Include amount in Nano (decimal)')
   .option('-j, --json', 'Output in JSON format')
-  .action((address: string, options: { amount?: string; json?: boolean }) => {
+  .action(async (address: string, options: { amount?: string; json?: boolean }) => {
     const validation = validateAddress(address);
     if (!validation.valid) {
       console.error(`Invalid address: ${validation.error}`);
       process.exit(1);
     }
-    
-    let qrContent = address;
-    if (options.amount) {
-      qrContent += '?amount=' + options.amount;
+
+    let content: string;
+    try {
+      content = buildNanoUri(address, options.amount);
+    } catch (error: any) {
+      console.error(`Invalid amount: ${options.amount}`);
+      process.exit(1);
     }
-    
-    const displayContent = address + (options.amount ? '?amount=' + options.amount : '');
-    const asciiQr = generateAsciiQr(qrContent, displayContent);
-    
+
+    let asciiQr: string;
+    try {
+      asciiQr = await generateAsciiQr(address, options.amount);
+    } catch (error: any) {
+      console.error(`Failed to generate QR: ${error?.message ?? error}`);
+      process.exit(1);
+    }
+
     if (options.json) {
       console.log(JSON.stringify({
         address,
-        amount: options.amount || null,
-        content: qrContent,
+        amount: options.amount ?? null,
+        content,
         qr: asciiQr
       }, null, 2));
     } else {
-      console.log(asciiQr);
+      console.log(`${asciiQr}\n${content}`);
     }
   });
-
-function generateAsciiQr(content: string, displayContent?: string): string {
-  const hash = simpleHash(content);
-  const size = 21;
-  
-  let result = '';
-  
-  result += '█'.repeat(size + 2) + '\n';
-  
-  for (let y = 0; y < size; y++) {
-    result += '█';
-    for (let x = 0; x < size; x++) {
-      const val = ((hash + x * 7 + y * 13) % 100) > 45;
-      result += val ? '█' : ' ';
-    }
-    result += '█\n';
-  }
-  
-  result += '█'.repeat(size + 2) + '\n';
-  const display = displayContent || content;
-  result += '\n' + display.substring(0, 25) + (display.length > 25 ? '...' : '');
-  
-  return result;
-}
-
-function simpleHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
 
 // Validate command
 program
