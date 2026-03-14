@@ -47,13 +47,13 @@ Addresses use Base32 encoding with these characters:
 ## CLI Validation
 
 ```bash
-npx xno validate <address>
+npx xno-skills validate <address>
 ```
 
 Or via QR generation (also validates):
 
 ```bash
-npx xno qr <address>
+npx xno-skills qr <address>
 ```
 
 ## Checksum Verification

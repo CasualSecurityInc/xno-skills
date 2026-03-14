@@ -83,10 +83,10 @@ Install globally or use with `npx`:
 
 ```bash
 # Install globally
-npm install -g xno
+npm install -g xno-skills
 
 # Or use with npx
-npx xno --help
+npx xno-skills --help
 ```
 
 ### Wallet Commands
@@ -95,25 +95,25 @@ npx xno --help
 
 ```bash
 # Default output (seed + mnemonic + address)
-xno wallet create
+xno-skills wallet create
 
 # Output only the seed
-xno wallet create --seed
+xno-skills wallet create --seed
 
 # Output only the mnemonic
-xno wallet create --mnemonic
+xno-skills wallet create --mnemonic
 
 # JSON output
-xno wallet create --json
+xno-skills wallet create --json
 ```
 
 #### Restore from mnemonic
 
 ```bash
-xno wallet from-mnemonic "word1 word2 ... word24"
+xno-skills wallet from-mnemonic "word1 word2 ... word24"
 
 # JSON output
-xno wallet from-mnemonic "word1 word2 ... word24" --json
+xno-skills wallet from-mnemonic "word1 word2 ... word24" --json
 ```
 
 Output example:
@@ -127,16 +127,16 @@ Address: nano_1abc123...
 
 ```bash
 # Convert XNO to raw
-xno convert 1.5 xno --to raw
+xno-skills convert 1.5 xno --to raw
 
 # Convert raw to XNO
-xno convert 1500000000000000000000000000000 raw --to xno
+xno-skills convert 1500000000000000000000000000000 raw --to xno
 
 # Convert between units
-xno convert 1 mnano --to knano
+xno-skills convert 1 mnano --to knano
 
 # JSON output
-xno convert 1 xno --to raw --json
+xno-skills convert 1 xno --to raw --json
 ```
 
 Supported units:
@@ -149,19 +149,19 @@ Supported units:
 
 ```bash
 # QR code for address
-xno qr nano_1abc123...
+xno-skills qr nano_1abc123...
 
 # QR code with amount
-xno qr nano_1abc123... --amount 1.5
+xno-skills qr nano_1abc123... --amount 1.5
 
 # JSON output
-xno qr nano_1abc123... --json
+xno-skills qr nano_1abc123... --json
 ```
 
 ### Validate Addresses
 
 ```bash
-xno validate nano_1abc123...
+xno-skills validate nano_1abc123...
 ```
 
 ## API Reference
