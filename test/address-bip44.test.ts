@@ -195,7 +195,7 @@ describe('publicKeyToAddressBIP44', () => {
   it('should produce valid Nano address format', () => {
     const publicKey = '5b65b0e8173ee0802c2c3e6c9080d1a16b06de1176c938a924f58670904e82c4';
     const address = publicKeyToAddressBIP44(publicKey);
-    expect(address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+    expect(address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
   });
 
   it('should produce 65-character address (5 + 60)', () => {
@@ -258,7 +258,7 @@ describe('deriveAddressBIP44', () => {
 
   it('should produce valid Nano address', () => {
     const result = deriveAddressBIP44(MNEMONIC_12_WORD, 0);
-    expect(result.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+    expect(result.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
   });
 
   it('should derive different addresses for different indices', () => {
@@ -287,9 +287,9 @@ describe('deriveAddressBIP44', () => {
     const result100 = deriveAddressBIP44(MNEMONIC_12_WORD, 100);
     
     // All should be valid addresses
-    expect(result0.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
-    expect(result1.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
-    expect(result100.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+    expect(result0.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
+    expect(result1.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
+    expect(result100.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
     
     // All should be different
     expect(result0.address).not.toBe(result1.address);
@@ -391,7 +391,7 @@ describe('integration tests', () => {
       expect(result.privateKey.length).toBe(64);
       expect(result.publicKey.length).toBe(64);
       expect(result.address.length).toBe(65);
-      expect(result.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+      expect(result.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
     }
   });
 

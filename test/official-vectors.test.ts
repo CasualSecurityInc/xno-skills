@@ -154,7 +154,7 @@ describe('Official Nano Test Vectors', () => {
       it('should derive correct address from zero public key', () => {
         const publicKey = '19D3D919475DEED4696B5D13018151D1AF88B2BD3BCFF048B45031C1F36D1858';
         const address = publicKeyToAddress(publicKey);
-        expect(address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+        expect(address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
         expect(address.length).toBe(65);
       });
     });

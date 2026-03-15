@@ -1,7 +1,7 @@
 // xno core package
 export { base32Encode, base32Decode } from './base32';
 export { blake2b256, blake2b512, blake2b256Hex } from './blake2b';
-export { generateSeed, seedToMnemonic, mnemonicToSeed, validateMnemonic } from './seed';
+export { generateSeed, generateMnemonic, seedToMnemonic, mnemonicToSeed, validateMnemonic } from './seed';
 export { 
   deriveAddressLegacy, 
   derivePrivateKeyLegacy, 
@@ -9,6 +9,7 @@ export {
   publicKeyToAddress,
   type LegacyAddressResult 
 } from './address-legacy';
+export { decodeNanoAddress, publicKeyToNanoAddress, type NanoAddressPrefix } from './nano-address';
 export { 
   deriveAddressBIP44,
   derivePrivateKeyBIP44,
@@ -21,3 +22,13 @@ export {
 export { validateAddress, type ValidateAddressResult } from './validate';
 export { nanoToRaw, rawToNano, formatNano, knanoToRaw, mnanoToRaw } from './convert';
 export { generateAsciiQr } from './qr';
+export {
+  nanoRpcCall,
+  rpcAccountBalance,
+  rpcAccountsBalances,
+  rpcAccountsFrontiers,
+  type AccountBalanceResponse,
+  type AccountsBalancesResponse,
+  type AccountsFrontiersResponse,
+  type RpcCallOptions,
+} from './rpc';

@@ -77,19 +77,19 @@ describe('validateAddress', () => {
     it('should reject address with invalid base32 character 0', () => {
       const result = validateAddress('nano_0' + 'a'.repeat(59));
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Invalid base32 encoding');
+      expect(result.error).toContain('Invalid Base32 character');
     });
 
     it('should reject address with invalid base32 character O', () => {
       const result = validateAddress('nano_O' + 'a'.repeat(59));
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Invalid base32 encoding');
+      expect(result.error).toContain('Invalid Base32 character');
     });
 
     it('should reject address with invalid base32 character I', () => {
       const result = validateAddress('nano_I' + 'a'.repeat(59));
       expect(result.valid).toBe(false);
-      expect(result.error).toContain('Invalid base32 encoding');
+      expect(result.error).toContain('Invalid Base32 character');
     });
   });
 
