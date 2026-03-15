@@ -51,16 +51,6 @@ Exposed tools:
 - `convert_units`: Converts between XNO and raw units.
 - `validate_address`: Validates address format and checksum.
 
-## Installation
-
-```bash
-npm install xno-skills
-```
-
-## Releasing
-
-See `RELEASING.md`.
-
 ## Quick Start
 
 ```typescript
@@ -565,6 +555,10 @@ npm run build:esm
 # Build CJS
 npm run build:cjs
 ```
+
+## Releasing
+
+See `RELEASING.md`.
 
 ## License
 
