@@ -1,5 +1,5 @@
 ---
-name: Check XNO Balance (RPC)
+name: check-balance
 description: Check a Nano account’s balance and pending amount via a Nano node RPC URL.
 triggers:
   - check balance

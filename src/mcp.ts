@@ -3,6 +3,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourceTemplatesRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { generateSeed, generateMnemonic, seedToMnemonic, mnemonicToSeed, validateMnemonic } from "./seed.js";
 import { deriveAddressLegacy } from "./address-legacy.js";
@@ -31,6 +34,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -39,13 +43,13 @@ type McpConfig = {
   rpcUrl?: string;
   workUrl?: string;
   timeoutMs?: number;
-  persistPurses?: boolean;
+  persistWallets?: boolean;
   defaultRepresentative?: string;
 };
 
-type PurseFormat = "bip39" | "legacy";
+type WalletFormat = "bip39" | "legacy";
 
-type Purse =
+type Wallet =
   | {
       name: string;
       format: "bip39";
@@ -64,7 +68,7 @@ type Purse =
 const DEFAULT_TIMEOUT_MS = 15000;
 const state = {
   config: {} as McpConfig,
-  purses: new Map<string, Purse>(),
+  wallets: new Map<string, Wallet>(),
 };
 
 function getHomeDir(): string {
@@ -79,10 +83,10 @@ function getConfigPath(): string {
   return path.join(getHomeDir(), "config.json");
 }
 
-function getPursesPath(): string {
+function getWalletsPath(): string {
   const envPath = process.env.XNO_MCP_PURSES_PATH;
   if (envPath && envPath.trim()) return path.resolve(envPath);
-  return path.join(getHomeDir(), "purses.json");
+  return path.join(getHomeDir(), "wallets.json");
 }
 
 function loadJsonFile<T>(filePath: string): T | null {
@@ -107,10 +111,10 @@ function loadStateFromDisk() {
   const config = loadJsonFile<McpConfig>(getConfigPath());
   if (config) state.config = config;
 
-  if (state.config.persistPurses) {
-    const persisted = loadJsonFile<{ purses: Purse[] }>(getPursesPath());
-    if (persisted?.purses?.length) {
-      for (const p of persisted.purses) state.purses.set(p.name, p);
+  if (state.config.persistWallets) {
+    const persisted = loadJsonFile<{ wallets: Wallet[] }>(getWalletsPath());
+    if (persisted?.wallets?.length) {
+      for (const p of persisted.wallets) state.wallets.set(p.name, p);
     }
   }
 }
@@ -119,9 +123,9 @@ function persistConfig() {
   saveJsonFile(getConfigPath(), state.config);
 }
 
-function persistPurses() {
-  if (!state.config.persistPurses) return;
-  saveJsonFile(getPursesPath(), { purses: Array.from(state.purses.values()) });
+function persistWallets() {
+  if (!state.config.persistWallets) return;
+  saveJsonFile(getWalletsPath(), { wallets: Array.from(state.wallets.values()) });
 }
 
 function effectiveRpcUrl(explicit?: string): string {
@@ -143,10 +147,10 @@ function effectiveTimeoutMs(explicit?: number): number {
   return explicit ?? state.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 }
 
-function derivePurseAccount(purse: Purse, index: number) {
+function deriveWalletAccount(wallet: Wallet, index: number) {
   if (!Number.isInteger(index) || index < 0) throw new Error("index must be a non-negative integer");
-  if (purse.format === "bip39") return deriveAddressBIP44(purse.mnemonic, index, purse.passphrase);
-  return deriveAddressLegacy(purse.seed, index);
+  if (wallet.format === "bip39") return deriveAddressBIP44(wallet.mnemonic, index, wallet.passphrase);
+  return deriveAddressLegacy(wallet.seed, index);
 }
 
 const ZERO_32_HEX = "0".repeat(64);
@@ -159,21 +163,153 @@ function requireRepresentativeAddress(explicit?: string): string {
   return rep;
 }
 
-function purseToPublicSummary(purse: Purse, count: number = 1) {
+function walletToPublicSummary(wallet: Wallet, count: number = 1) {
   const accounts: { index: number; address: string }[] = [];
   for (let i = 0; i < count; i++) {
-    const d = derivePurseAccount(purse, i);
+    const d = deriveWalletAccount(wallet, i);
     accounts.push({ index: i, address: d.address });
   }
   return {
-    name: purse.name,
-    format: purse.format,
-    createdAt: purse.createdAt,
+    name: wallet.name,
+    format: wallet.format,
+    createdAt: wallet.createdAt,
     accounts,
   };
 }
 
 loadStateFromDisk();
+
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+  return {
+    resourceTemplates: [
+      {
+        uriTemplate: "wallet://{name}",
+        name: "Wallet Status",
+        description: "Status and balances for a named xno-mcp wallet",
+        mimeType: "application/json",
+      },
+      {
+        uriTemplate: "wallet://{name}/account/{index}",
+        name: "Wallet Account Details",
+        description: "Specific details and pending blocks for a wallet account",
+        mimeType: "application/json",
+      },
+    ],
+  };
+});
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  const resources = Array.from(state.wallets.keys()).map((name) => ({
+    uri: `wallet://${name}`,
+    name: `Wallet ${name}`,
+    description: `Wallet ${name} in xno-mcp`,
+    mimeType: "application/json",
+  }));
+  return { resources };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const uri = request.params.uri;
+  const walletMatch = /^wallet:\/\/([^/]+)$/.exec(uri);
+  const accountMatch = /^wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
+
+  const rpcUrl = effectiveRpcUrl();
+  const timeoutMs = effectiveTimeoutMs();
+
+  if (walletMatch) {
+    const name = walletMatch[1];
+    const wallet = state.wallets.get(name);
+    if (!wallet) throw new Error(`Wallet not found: ${name}`);
+
+    const count = 5;
+    const addresses: string[] = [];
+    const accounts: { index: number; address: string }[] = [];
+    for (let i = 0; i < count; i++) {
+      const address = deriveWalletAccount(wallet, i).address;
+      accounts.push({ index: i, address });
+      addresses.push(address);
+    }
+
+    let balances: any = {};
+    let frontiers: any = {};
+    if (rpcUrl) {
+      try {
+        balances = await rpcAccountsBalances(rpcUrl, addresses, { timeoutMs }).catch(() => ({}));
+        frontiers = await rpcAccountsFrontiers(rpcUrl, addresses, { timeoutMs }).catch(() => ({}));
+      } catch (e) {}
+    }
+
+    const rows = accounts.map((a) => {
+      const b = balances?.balances?.[a.address];
+      const opened = Boolean(frontiers?.frontiers?.[a.address]);
+      return {
+        ...a,
+        opened,
+        balanceRaw: b?.balance ?? "0",
+        pendingRaw: b?.pending ?? "0",
+        balanceXno: rawToNano(b?.balance ?? "0"),
+        pendingXno: rawToNano(b?.pending ?? "0"),
+      };
+    });
+
+    const data = {
+      name: wallet.name,
+      format: wallet.format,
+      createdAt: wallet.createdAt,
+      rows,
+    };
+
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
+  if (accountMatch) {
+    const name = accountMatch[1];
+    const index = parseInt(accountMatch[2], 10);
+    const wallet = state.wallets.get(name);
+    if (!wallet) throw new Error(`Wallet not found: ${name}`);
+
+    const acct = deriveWalletAccount(wallet, index);
+    let info: any = { error: "Account unopened or network error" };
+    let receivable: any[] = [];
+
+    if (rpcUrl) {
+      try {
+        info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs }).catch((e) => ({ error: String(e) }));
+        receivable = await rpcReceivable(rpcUrl, acct.address, 10, { timeoutMs }).catch(() => []);
+      } catch (e) {}
+    }
+
+    const opened = !(typeof info?.error === "string");
+    const data = {
+      name: wallet.name,
+      index,
+      address: acct.address,
+      opened,
+      info,
+      pendingBlocks: receivable,
+    };
+
+    return {
+      contents: [
+        {
+          uri,
+          mimeType: "application/json",
+          text: JSON.stringify(data, null, 2),
+        },
+      ],
+    };
+  }
+
+  throw new Error(`Unsupported resource URI: ${uri}`);
+});
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
@@ -192,45 +328,47 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             rpcUrl: { type: "string", description: "Default Nano node RPC URL" },
             workUrl: { type: "string", description: "Optional work_generate RPC URL (defaults to rpcUrl)" },
             timeoutMs: { type: "number", description: "Default RPC timeout in ms", default: DEFAULT_TIMEOUT_MS },
-            persistPurses: {
+            persistWallets: {
               type: "boolean",
               description:
-                "Persist purses to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
+                "Persist wallets to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
               default: false,
             },
             defaultRepresentative: {
               type: "string",
               description:
-                "Default representative address for opening accounts (used by purse_receive when account is unopened).",
+                "Default representative address for opening accounts (used by wallet_receive when account is unopened).",
             },
           },
         },
       },
       {
-        name: "purse_create",
+        name: "wallet_create",
         description:
-          "Create a named purse (custodial wallet in xno-mcp). Returns addresses only (no seed/mnemonic).",
+          "Create a named wallet (custodial wallet in xno-mcp). Returns addresses only (no seed/mnemonic).",
         inputSchema: {
           type: "object",
           properties: {
-            name: { type: "string", description: "Purse name (unique key)" },
+            name: { type: "string", description: "Wallet name (unique key)" },
             format: { type: "string", description: "bip39 (default) or legacy", default: "bip39" },
             words: { type: "number", description: "BIP39 word count (12/15/18/21/24). Only for format=bip39.", default: 24 },
             passphrase: { type: "string", description: "Optional BIP39 passphrase (only for format=bip39)", default: "" },
+            mnemonic: { type: "string", description: "Optional existing mnemonic to import" },
+            seed: { type: "string", description: "Optional existing raw seed to import (legacy format only)" },
             count: { type: "number", description: "How many initial account indexes to return", default: 1 },
-            overwrite: { type: "boolean", description: "Overwrite if purse already exists", default: false },
+            overwrite: { type: "boolean", description: "Overwrite if wallet already exists", default: false },
           },
           required: ["name"],
         },
       },
       {
-        name: "purse_list",
-        description: "List purses currently held by xno-mcp",
+        name: "wallet_list",
+        description: "List wallets currently held by xno-mcp",
         inputSchema: { type: "object", properties: {} },
       },
       {
-        name: "purse_addresses",
-        description: "Get addresses for a named purse (derive on demand; secrets stay in xno-mcp)",
+        name: "wallet_addresses",
+        description: "Get addresses for a named wallet (derive on demand; secrets stay in xno-mcp)",
         inputSchema: {
           type: "object",
           properties: {
@@ -242,8 +380,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "purse_balance",
-        description: "Check balance/pending for a purse account index via RPC (uses xno-mcp defaults)",
+        name: "wallet_balance",
+        description: "Check balance/pending for a wallet account index via RPC (uses xno-mcp defaults)",
         inputSchema: {
           type: "object",
           properties: {
@@ -257,9 +395,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "purse_probe_balances",
+        name: "wallet_probe_balances",
         description:
-          "Check first N account indexes for a purse via RPC, including whether each account is opened (frontier exists)",
+          "Check first N account indexes for a wallet via RPC, including whether each account is opened (frontier exists)",
         inputSchema: {
           type: "object",
           properties: {
@@ -272,9 +410,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "purse_receive",
+        name: "wallet_receive",
         description:
-          "Receive pending blocks for a purse account index (sign + work_generate + process). Requires RPC + work support.",
+          "Receive pending blocks for a wallet account index (sign + work_generate + process). Requires RPC + work support.",
         inputSchema: {
           type: "object",
           properties: {
@@ -292,9 +430,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "purse_send",
+        name: "wallet_send",
         description:
-          "Send funds from a purse account index (sign + work_generate + process). Requires opened account with balance.",
+          "Send funds from a wallet account index (sign + work_generate + process). Requires opened account with balance.",
         inputSchema: {
           type: "object",
           properties: {
@@ -409,50 +547,65 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const rpcUrl = (args as any)?.rpcUrl as string | undefined;
         const workUrl = (args as any)?.workUrl as string | undefined;
         const timeoutMs = (args as any)?.timeoutMs as number | undefined;
-        const persistPursesFlag = (args as any)?.persistPurses as boolean | undefined;
+        const persistWalletsFlag = (args as any)?.persistWallets as boolean | undefined;
         const defaultRepresentative = (args as any)?.defaultRepresentative as string | undefined;
 
         if (rpcUrl !== undefined) state.config.rpcUrl = rpcUrl;
         if (workUrl !== undefined) state.config.workUrl = workUrl;
         if (timeoutMs !== undefined) state.config.timeoutMs = timeoutMs;
-        if (persistPursesFlag !== undefined) state.config.persistPurses = persistPursesFlag;
+        if (persistWalletsFlag !== undefined) state.config.persistWallets = persistWalletsFlag;
         if (defaultRepresentative !== undefined) state.config.defaultRepresentative = defaultRepresentative;
 
         persistConfig();
-        if (state.config.persistPurses) persistPurses();
+        if (state.config.persistWallets) persistWallets();
 
         return { content: [{ type: "text", text: JSON.stringify(state.config, null, 2) }] };
       }
 
-      case "purse_create": {
-        const purseName = String((args as any)?.name || "").trim();
-        if (!purseName) throw new Error("Purse name is required");
+      case "wallet_create": {
+        const walletName = String((args as any)?.name || "").trim();
+        if (!walletName) throw new Error("Wallet name is required");
 
         const overwrite = Boolean((args as any)?.overwrite);
-        if (!overwrite && state.purses.has(purseName)) throw new Error(`Purse already exists: ${purseName}`);
+        if (!overwrite && state.wallets.has(walletName)) throw new Error(`Wallet already exists: ${walletName}`);
 
-        const format = String((args as any)?.format || "bip39").toLowerCase() as PurseFormat;
+        const format = String((args as any)?.format || "bip39").toLowerCase() as WalletFormat;
+        const importedMnemonic = (args as any)?.mnemonic as string | undefined;
+        const importedSeed = (args as any)?.seed as string | undefined;
         const createdAt = new Date().toISOString();
-        let purse: Purse;
+        let wallet: Wallet;
 
         if (format === "bip39") {
-          const words = (args as any)?.words ?? 24;
           const passphrase = String((args as any)?.passphrase || "");
-          const mnemonic = generateMnemonic(words);
-          purse = { name: purseName, format: "bip39", mnemonic, passphrase, createdAt };
+          if (importedMnemonic) {
+             if (!validateMnemonic(importedMnemonic)) throw new Error("Invalid BIP39 mnemonic");
+             wallet = { name: walletName, format: "bip39", mnemonic: importedMnemonic, passphrase, createdAt };
+          } else {
+             const words = (args as any)?.words ?? 24;
+             const mnemonic = generateMnemonic(words);
+             wallet = { name: walletName, format: "bip39", mnemonic, passphrase, createdAt };
+          }
         } else if (format === "legacy") {
-          const seed = generateSeed();
-          const mnemonic = seedToMnemonic(seed);
-          purse = { name: purseName, format: "legacy", seed, mnemonic, createdAt };
+          if (importedSeed) {
+             const mnemonic = seedToMnemonic(importedSeed);
+             wallet = { name: walletName, format: "legacy", seed: importedSeed, mnemonic, createdAt };
+          } else if (importedMnemonic) {
+             const seed = mnemonicToSeed(importedMnemonic);
+             wallet = { name: walletName, format: "legacy", seed, mnemonic: importedMnemonic, createdAt };
+          } else {
+             const seed = generateSeed();
+             const mnemonic = seedToMnemonic(seed);
+             wallet = { name: walletName, format: "legacy", seed, mnemonic, createdAt };
+          }
         } else {
           throw new Error("Invalid format. Use bip39 or legacy.");
         }
 
-        state.purses.set(purseName, purse);
-        persistPurses();
+        state.wallets.set(walletName, wallet);
+        persistWallets();
 
         const count = Math.max(1, Math.min(100, (args as any)?.count ?? 1));
-        const summary = purseToPublicSummary(purse, count);
+        const summary = walletToPublicSummary(wallet, count);
 
         return {
           content: [
@@ -462,8 +615,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 {
                   ...summary,
                   note:
-                    "This is a custodial purse held by xno-mcp. Secrets are not returned by default.",
-                  persistence: state.config.persistPurses ? "enabled" : "memory-only",
+                    "This is a custodial wallet held by xno-mcp. Secrets are not returned by default.",
+                  persistence: state.config.persistWallets ? "enabled" : "memory-only",
                 },
                 null,
                 2
@@ -473,19 +626,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case "purse_list": {
-        const list = Array.from(state.purses.values()).map((p) => ({
+      case "wallet_list": {
+        const list = Array.from(state.wallets.values()).map((p) => ({
           name: p.name,
           format: p.format,
           createdAt: p.createdAt,
         }));
-        return { content: [{ type: "text", text: JSON.stringify({ purses: list }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ wallets: list }, null, 2) }] };
       }
 
-      case "purse_addresses": {
-        const purseName = String((args as any)?.name || "").trim();
-        const purse = state.purses.get(purseName);
-        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+      case "wallet_addresses": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
 
         const fromIndex = Math.max(0, (args as any)?.fromIndex ?? 0);
         const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
@@ -493,16 +646,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const accounts: { index: number; address: string }[] = [];
         for (let i = 0; i < count; i++) {
           const idx = fromIndex + i;
-          accounts.push({ index: idx, address: derivePurseAccount(purse, idx).address });
+          accounts.push({ index: idx, address: deriveWalletAccount(wallet, idx).address });
         }
 
-        return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, accounts }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ name: wallet.name, format: wallet.format, accounts }, null, 2) }] };
       }
 
-      case "purse_balance": {
-        const purseName = String((args as any)?.name || "").trim();
-        const purse = state.purses.get(purseName);
-        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+      case "wallet_balance": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
 
         const index = ((args as any)?.index as number | undefined) ?? 0;
         const includeXno = ((args as any)?.includeXno as boolean | undefined) ?? true;
@@ -510,10 +663,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
 
-        const address = derivePurseAccount(purse, index).address;
+        const address = deriveWalletAccount(wallet, index).address;
 
         const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
-        const out: any = { name: purse.name, format: purse.format, index, address, balanceRaw: bal.balance, pendingRaw: bal.pending };
+        const out: any = { name: wallet.name, format: wallet.format, index, address, balanceRaw: bal.balance, pendingRaw: bal.pending };
         if (includeXno) {
           out.balanceXno = rawToNano(bal.balance);
           out.pendingXno = rawToNano(bal.pending);
@@ -521,10 +674,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
       }
 
-      case "purse_probe_balances": {
-        const purseName = String((args as any)?.name || "").trim();
-        const purse = state.purses.get(purseName);
-        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+      case "wallet_probe_balances": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
 
         const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
@@ -534,7 +687,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const addresses: string[] = [];
         const accounts: { index: number; address: string }[] = [];
         for (let i = 0; i < count; i++) {
-          const address = derivePurseAccount(purse, i).address;
+          const address = deriveWalletAccount(wallet, i).address;
           accounts.push({ index: i, address });
           addresses.push(address);
         }
@@ -555,13 +708,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         });
 
-        return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, rows }, null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify({ name: wallet.name, format: wallet.format, rows }, null, 2) }] };
       }
 
-      case "purse_receive": {
-        const purseName = String((args as any)?.name || "").trim();
-        const purse = state.purses.get(purseName);
-        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+      case "wallet_receive": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
 
         const index = Math.max(0, (args as any)?.index ?? 0);
         const maxCount = Math.max(1, Math.min(100, (args as any)?.count ?? 10));
@@ -576,7 +729,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
 
-        const acct = derivePurseAccount(purse, index);
+        const acct = deriveWalletAccount(wallet, index);
         const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
 
         const openedBefore = !(typeof (info as any)?.error === "string");
@@ -594,8 +747,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (!pending.length) {
           const out: any = {
-            name: purse.name,
-            format: purse.format,
+            name: wallet.name,
+            format: wallet.format,
             index,
             address: acct.address,
             openedBefore,
@@ -652,8 +805,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const out: any = {
-          name: purse.name,
-          format: purse.format,
+          name: wallet.name,
+          format: wallet.format,
           index,
           address: acct.address,
           representative: representativeAddress,
@@ -665,10 +818,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
       }
 
-      case "purse_send": {
-        const purseName = String((args as any)?.name || "").trim();
-        const purse = state.purses.get(purseName);
-        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+      case "wallet_send": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
 
         const index = Math.max(0, (args as any)?.index ?? 0);
         const destination = String((args as any)?.destination || "").trim();
@@ -692,9 +845,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
 
-        const acct = derivePurseAccount(purse, index);
+        const acct = deriveWalletAccount(wallet, index);
         const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
-        if (typeof (info as any)?.error === "string") throw new Error("Account is unopened. Receive funds first (purse_receive).");
+        if (typeof (info as any)?.error === "string") throw new Error("Account is unopened. Receive funds first (wallet_receive).");
 
         const previous = String((info as any).frontier);
         const representativeAddress = String((info as any).representative || "");
@@ -729,8 +882,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const processed = await rpcProcess(rpcUrl, block, "send", { timeoutMs });
 
         const out: any = {
-          name: purse.name,
-          format: purse.format,
+          name: wallet.name,
+          format: wallet.format,
           index,
           from: acct.address,
           to: destination,

@@ -1,5 +1,5 @@
 ---
-name: Generate Nano QR Code
+name: generate-qr
 description: Generate an ASCII QR code for a Nano address (optionally with an amount).
 triggers:
   - qr code
@@ -64,4 +64,4 @@ In interactive flows, ask for:
 - The receiving address (or confirm it).
 - Optional amount in XNO.
 
-If the user asks to send XNO “to the agent / to you”, respond that the agent can’t receive funds, and pivot to helping them generate/validate a wallet **they** control.
+If the user asks to send XNO “to the agent” or “to you”, initialize or import a wallet via the MCP server (`mcp-wallet` skill) and generate a QR code for its active address. Remember that you must subsequently call `wallet_receive` from the `mcp-wallet` skill to actually pocket the funds once they send them.

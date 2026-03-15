@@ -39,41 +39,41 @@ describe('MCP Server Integration', () => {
     expect(toolNames).toContain('derive_address');
     expect(toolNames).toContain('convert_units');
     expect(toolNames).toContain('validate_address');
-    expect(toolNames).toContain('purse_create');
-    expect(toolNames).toContain('purse_list');
-    expect(toolNames).toContain('purse_addresses');
-    expect(toolNames).toContain('purse_receive');
-    expect(toolNames).toContain('purse_send');
+    expect(toolNames).toContain('wallet_create');
+    expect(toolNames).toContain('wallet_list');
+    expect(toolNames).toContain('wallet_addresses');
+    expect(toolNames).toContain('wallet_receive');
+    expect(toolNames).toContain('wallet_send');
     expect(toolNames).toContain('config_get');
     expect(toolNames).toContain('config_set');
   });
 
-  it('should create a purse and return an address without secrets', async () => {
+  it('should create a wallet and return an address without secrets', async () => {
     const result = await client.callTool({
-      name: "purse_create",
+      name: "wallet_create",
       arguments: { name: "A", format: "bip39", count: 1 }
     });
 
     expect(result.isError).toBeFalsy();
-    const purse = JSON.parse((result.content[0] as any).text);
-    expect(purse.name).toBe("A");
-    expect(purse.format).toBe("bip39");
-    expect(purse.accounts[0].index).toBe(0);
-    expect(purse.accounts[0].address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
-    expect(purse.mnemonic).toBeUndefined();
-    expect(purse.seed).toBeUndefined();
+    const wallet = JSON.parse((result.content[0] as any).text);
+    expect(wallet.name).toBe("A");
+    expect(wallet.format).toBe("bip39");
+    expect(wallet.accounts[0].index).toBe(0);
+    expect(wallet.accounts[0].address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
+    expect(wallet.mnemonic).toBeUndefined();
+    expect(wallet.seed).toBeUndefined();
   });
 
-  it('should list purses after creation', async () => {
-    const result = await client.callTool({ name: "purse_list", arguments: {} });
+  it('should list wallets after creation', async () => {
+    const result = await client.callTool({ name: "wallet_list", arguments: {} });
     expect(result.isError).toBeFalsy();
     const out = JSON.parse((result.content[0] as any).text);
-    expect(out.purses.some((p: any) => p.name === "A")).toBe(true);
+    expect(out.wallets.some((p: any) => p.name === "A")).toBe(true);
   });
 
-  it('should derive additional purse addresses on demand', async () => {
+  it('should derive additional wallet addresses on demand', async () => {
     const result = await client.callTool({
-      name: "purse_addresses",
+      name: "wallet_addresses",
       arguments: { name: "A", fromIndex: 0, count: 3 }
     });
     expect(result.isError).toBeFalsy();

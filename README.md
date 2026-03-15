@@ -22,7 +22,7 @@ Available skills:
 - `generate-qr`: Terminal-friendly Nano payment QR codes (address + optional amount).
 - `validate-address`: Address format and checksum verification guide.
 - `check-balance`: Check balance/pending via Nano node RPC.
-- `mcp-purse`: Use `xno-mcp` as a private “purse” custody blackbox (addresses only; no seed leakage).
+- `mcp-wallet`: Use `xno-mcp` as a private “wallet” custody blackbox (addresses only; no seed leakage).
 
 ## MCP Server
 
@@ -42,10 +42,10 @@ To use it, add the following to your MCP client configuration:
 ```
 
 Exposed tools:
-- `purse_create` / `purse_list` / `purse_addresses`: Named “purses” (custody inside MCP; return addresses only).
-- `purse_balance` / `purse_probe_balances`: Balance/pending checks for purse accounts via RPC.
-- `purse_receive` / `purse_send`: Receive pending blocks and send funds (sign + work + `process` via RPC).
-- `config_get` / `config_set`: Store defaults (RPC URL, work URL, timeouts, default representative; optional purse persistence).
+- `wallet_create` / `wallet_list` / `wallet_addresses`: Named “wallets” (custody inside MCP; return addresses only).
+- `wallet_balance` / `wallet_probe_balances`: Balance/pending checks for wallet accounts via RPC.
+- `wallet_receive` / `wallet_send`: Receive pending blocks and send funds (sign + work + `process` via RPC).
+- `config_get` / `config_set`: Store defaults (RPC URL, work URL, timeouts, default representative; optional wallet persistence).
 - `generate_wallet`: Generate a wallet (default: BIP39 derivation).
 - `derive_address`: Derive an address (supports `bip39` + `legacy`, with `auto` preference).
 - `probe_mnemonic`: Probe both derivations via RPC (helps resolve 24-word ambiguity).
