@@ -42,6 +42,8 @@ describe('MCP Server Integration', () => {
     expect(toolNames).toContain('purse_create');
     expect(toolNames).toContain('purse_list');
     expect(toolNames).toContain('purse_addresses');
+    expect(toolNames).toContain('purse_receive');
+    expect(toolNames).toContain('purse_send');
     expect(toolNames).toContain('config_get');
     expect(toolNames).toContain('config_set');
   });

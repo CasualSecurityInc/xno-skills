@@ -9,7 +9,17 @@ import { deriveAddressLegacy } from "./address-legacy.js";
 import { deriveAddressBIP44 } from "./address-bip44.js";
 import { validateAddress } from "./validate.js";
 import { nanoToRaw, rawToNano } from "./convert.js";
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers } from "./rpc.js";
+import {
+  rpcAccountBalance,
+  rpcAccountsBalances,
+  rpcAccountsFrontiers,
+  rpcAccountInfo,
+  rpcReceivable,
+  rpcWorkGenerate,
+  rpcProcess,
+} from "./rpc.js";
+import { hashNanoStateBlock } from "./state-block.js";
+import { nanoSignBlake2b } from "./ed25519-blake2b.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -27,8 +37,10 @@ const server = new Server(
 
 type McpConfig = {
   rpcUrl?: string;
+  workUrl?: string;
   timeoutMs?: number;
   persistPurses?: boolean;
+  defaultRepresentative?: string;
 };
 
 type PurseFormat = "bip39" | "legacy";
@@ -123,20 +135,35 @@ function effectiveRpcUrl(explicit?: string): string {
   );
 }
 
+function effectiveWorkUrl(explicit?: string): string {
+  return explicit || state.config.workUrl || effectiveRpcUrl() || "";
+}
+
 function effectiveTimeoutMs(explicit?: number): number {
   return explicit ?? state.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+}
+
+function derivePurseAccount(purse: Purse, index: number) {
+  if (!Number.isInteger(index) || index < 0) throw new Error("index must be a non-negative integer");
+  if (purse.format === "bip39") return deriveAddressBIP44(purse.mnemonic, index, purse.passphrase);
+  return deriveAddressLegacy(purse.seed, index);
+}
+
+const ZERO_32_HEX = "0".repeat(64);
+
+function requireRepresentativeAddress(explicit?: string): string {
+  const rep = (explicit || state.config.defaultRepresentative || "").trim();
+  if (!rep) throw new Error("Missing representative. Pass representative or set config_set { defaultRepresentative: \"nano_...\" }.");
+  const v = validateAddress(rep);
+  if (!v.valid) throw new Error(`Invalid representative address: ${v.error}`);
+  return rep;
 }
 
 function purseToPublicSummary(purse: Purse, count: number = 1) {
   const accounts: { index: number; address: string }[] = [];
   for (let i = 0; i < count; i++) {
-    if (purse.format === "bip39") {
-      const d = deriveAddressBIP44(purse.mnemonic, i, purse.passphrase);
-      accounts.push({ index: i, address: d.address });
-    } else {
-      const d = deriveAddressLegacy(purse.seed, i);
-      accounts.push({ index: i, address: d.address });
-    }
+    const d = derivePurseAccount(purse, i);
+    accounts.push({ index: i, address: d.address });
   }
   return {
     name: purse.name,
@@ -163,12 +190,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             rpcUrl: { type: "string", description: "Default Nano node RPC URL" },
+            workUrl: { type: "string", description: "Optional work_generate RPC URL (defaults to rpcUrl)" },
             timeoutMs: { type: "number", description: "Default RPC timeout in ms", default: DEFAULT_TIMEOUT_MS },
             persistPurses: {
               type: "boolean",
               description:
                 "Persist purses to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
               default: false,
+            },
+            defaultRepresentative: {
+              type: "string",
+              description:
+                "Default representative address for opening accounts (used by purse_receive when account is unopened).",
             },
           },
         },
@@ -236,6 +269,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
           },
           required: ["name"],
+        },
+      },
+      {
+        name: "purse_receive",
+        description:
+          "Receive pending blocks for a purse account index (sign + work_generate + process). Requires RPC + work support.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            index: { type: "number", default: 0 },
+            count: { type: "number", description: "Max pending blocks to receive", default: 10 },
+            onlyHash: { type: "string", description: "If set, only receive this pending send block hash" },
+            representative: { type: "string", description: "Representative address to use when opening an unopened account" },
+            rpcUrl: { type: "string" },
+            workUrl: { type: "string" },
+            includeXno: { type: "boolean", default: true },
+            timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "purse_send",
+        description:
+          "Send funds from a purse account index (sign + work_generate + process). Requires opened account with balance.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            index: { type: "number", default: 0 },
+            destination: { type: "string", description: "Destination nano_... address" },
+            amountRaw: { type: "string", description: "Amount in raw (string)" },
+            amountXno: { type: "string", description: "Amount in XNO (string; will be converted to raw)" },
+            rpcUrl: { type: "string" },
+            workUrl: { type: "string" },
+            includeXno: { type: "boolean", default: true },
+            timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+          },
+          required: ["name", "destination"],
         },
       },
       {
@@ -334,12 +407,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "config_set": {
         const rpcUrl = (args as any)?.rpcUrl as string | undefined;
+        const workUrl = (args as any)?.workUrl as string | undefined;
         const timeoutMs = (args as any)?.timeoutMs as number | undefined;
         const persistPursesFlag = (args as any)?.persistPurses as boolean | undefined;
+        const defaultRepresentative = (args as any)?.defaultRepresentative as string | undefined;
 
         if (rpcUrl !== undefined) state.config.rpcUrl = rpcUrl;
+        if (workUrl !== undefined) state.config.workUrl = workUrl;
         if (timeoutMs !== undefined) state.config.timeoutMs = timeoutMs;
         if (persistPursesFlag !== undefined) state.config.persistPurses = persistPursesFlag;
+        if (defaultRepresentative !== undefined) state.config.defaultRepresentative = defaultRepresentative;
 
         persistConfig();
         if (state.config.persistPurses) persistPurses();
@@ -416,11 +493,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const accounts: { index: number; address: string }[] = [];
         for (let i = 0; i < count; i++) {
           const idx = fromIndex + i;
-          const address =
-            purse.format === "bip39"
-              ? deriveAddressBIP44(purse.mnemonic, idx, purse.passphrase).address
-              : deriveAddressLegacy(purse.seed, idx).address;
-          accounts.push({ index: idx, address });
+          accounts.push({ index: idx, address: derivePurseAccount(purse, idx).address });
         }
 
         return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, accounts }, null, 2) }] };
@@ -437,10 +510,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
 
-        const address =
-          purse.format === "bip39"
-            ? deriveAddressBIP44(purse.mnemonic, index, purse.passphrase).address
-            : deriveAddressLegacy(purse.seed, index).address;
+        const address = derivePurseAccount(purse, index).address;
 
         const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
         const out: any = { name: purse.name, format: purse.format, index, address, balanceRaw: bal.balance, pendingRaw: bal.pending };
@@ -464,10 +534,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const addresses: string[] = [];
         const accounts: { index: number; address: string }[] = [];
         for (let i = 0; i < count; i++) {
-          const address =
-            purse.format === "bip39"
-              ? deriveAddressBIP44(purse.mnemonic, i, purse.passphrase).address
-              : deriveAddressLegacy(purse.seed, i).address;
+          const address = derivePurseAccount(purse, i).address;
           accounts.push({ index: i, address });
           addresses.push(address);
         }
@@ -489,6 +556,194 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
 
         return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, rows }, null, 2) }] };
+      }
+
+      case "purse_receive": {
+        const purseName = String((args as any)?.name || "").trim();
+        const purse = state.purses.get(purseName);
+        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+
+        const index = Math.max(0, (args as any)?.index ?? 0);
+        const maxCount = Math.max(1, Math.min(100, (args as any)?.count ?? 10));
+        const onlyHash = (args as any)?.onlyHash ? String((args as any)?.onlyHash).trim() : "";
+        if (onlyHash && !/^[0-9a-fA-F]{64}$/.test(onlyHash)) throw new Error("onlyHash must be 32-byte hex (64 hex characters)");
+
+        const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
+        const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
+
+        const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
+        const includeXno = (args as any)?.includeXno ?? true;
+
+        const acct = derivePurseAccount(purse, index);
+        const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
+
+        const openedBefore = !(typeof (info as any)?.error === "string");
+        let previous = openedBefore ? String((info as any).frontier) : ZERO_32_HEX;
+        let balanceRaw = openedBefore ? String((info as any).balance) : "0";
+        const representativeAddress = openedBefore
+          ? String((info as any).representative || "")
+          : requireRepresentativeAddress((args as any)?.representative as string | undefined);
+
+        const repVal = validateAddress(representativeAddress);
+        if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative address: ${repVal.error}`);
+
+        const receivable = await rpcReceivable(rpcUrl, acct.address, maxCount, { timeoutMs });
+        const pending = onlyHash ? receivable.filter((r) => r.hash.toLowerCase() === onlyHash.toLowerCase()) : receivable;
+
+        if (!pending.length) {
+          const out: any = {
+            name: purse.name,
+            format: purse.format,
+            index,
+            address: acct.address,
+            openedBefore,
+            representative: representativeAddress,
+            received: [],
+            balanceRaw,
+            pendingCount: receivable.length,
+          };
+          if (includeXno) out.balanceXno = rawToNano(balanceRaw);
+          return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+        }
+
+        const received: any[] = [];
+        for (const p of pending.slice(0, maxCount)) {
+          const amountRaw = String(p.amount);
+          const newBalance = (BigInt(balanceRaw) + BigInt(amountRaw)).toString();
+
+          const workRoot = previous !== ZERO_32_HEX ? previous : acct.publicKey;
+          const link = p.hash;
+
+          const blockHash = hashNanoStateBlock({
+            accountPublicKey: acct.publicKey,
+            previous,
+            representativePublicKey: repVal.publicKey,
+            balanceRaw: newBalance,
+            link,
+          });
+          const signature = nanoSignBlake2b(blockHash, acct.privateKey);
+          const work = (await rpcWorkGenerate(workUrl, workRoot, { timeoutMs })).work;
+
+          const subtype = previous === ZERO_32_HEX ? "open" : "receive";
+          const block = {
+            type: "state",
+            account: acct.address,
+            previous,
+            representative: representativeAddress,
+            balance: newBalance,
+            link,
+            signature,
+            work,
+          };
+
+          const processed = await rpcProcess(rpcUrl, block, subtype as any, { timeoutMs });
+          received.push({
+            sendHash: p.hash,
+            source: p.source,
+            amountRaw,
+            receiveHash: processed.hash,
+            subtype,
+          });
+
+          previous = processed.hash;
+          balanceRaw = newBalance;
+        }
+
+        const out: any = {
+          name: purse.name,
+          format: purse.format,
+          index,
+          address: acct.address,
+          representative: representativeAddress,
+          openedBefore,
+          received,
+          balanceRaw,
+        };
+        if (includeXno) out.balanceXno = rawToNano(balanceRaw);
+        return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+      }
+
+      case "purse_send": {
+        const purseName = String((args as any)?.name || "").trim();
+        const purse = state.purses.get(purseName);
+        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+
+        const index = Math.max(0, (args as any)?.index ?? 0);
+        const destination = String((args as any)?.destination || "").trim();
+        const destVal = validateAddress(destination);
+        if (!destVal.valid || !destVal.publicKey) throw new Error(`Invalid destination address: ${destVal.error}`);
+
+        const amountRawArg = (args as any)?.amountRaw as string | undefined;
+        const amountXnoArg = (args as any)?.amountXno as string | undefined;
+        if ((amountRawArg && amountXnoArg) || (!amountRawArg && !amountXnoArg)) {
+          throw new Error("Provide exactly one of amountRaw or amountXno");
+        }
+        const amountRaw = amountRawArg ? String(amountRawArg) : nanoToRaw(String(amountXnoArg));
+        if (!/^\d+$/.test(amountRaw)) throw new Error("amount must be a non-negative integer string");
+        if (BigInt(amountRaw) <= 0n) throw new Error("amount must be > 0");
+
+        const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
+        const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
+
+        const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
+        const includeXno = (args as any)?.includeXno ?? true;
+
+        const acct = derivePurseAccount(purse, index);
+        const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
+        if (typeof (info as any)?.error === "string") throw new Error("Account is unopened. Receive funds first (purse_receive).");
+
+        const previous = String((info as any).frontier);
+        const representativeAddress = String((info as any).representative || "");
+        const repVal = validateAddress(representativeAddress);
+        if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative from RPC: ${repVal.error}`);
+
+        const currentBalance = BigInt(String((info as any).balance));
+        const sendAmount = BigInt(amountRaw);
+        if (sendAmount > currentBalance) throw new Error("Insufficient balance");
+        const newBalance = (currentBalance - sendAmount).toString();
+
+        const blockHash = hashNanoStateBlock({
+          accountPublicKey: acct.publicKey,
+          previous,
+          representativePublicKey: repVal.publicKey,
+          balanceRaw: newBalance,
+          link: destVal.publicKey,
+        });
+        const signature = nanoSignBlake2b(blockHash, acct.privateKey);
+        const work = (await rpcWorkGenerate(workUrl, previous, { timeoutMs })).work;
+
+        const block = {
+          type: "state",
+          account: acct.address,
+          previous,
+          representative: representativeAddress,
+          balance: newBalance,
+          link: destVal.publicKey,
+          signature,
+          work,
+        };
+        const processed = await rpcProcess(rpcUrl, block, "send", { timeoutMs });
+
+        const out: any = {
+          name: purse.name,
+          format: purse.format,
+          index,
+          from: acct.address,
+          to: destination,
+          amountRaw,
+          sendHash: processed.hash,
+          balanceRaw: newBalance,
+        };
+        if (includeXno) {
+          out.amountXno = rawToNano(amountRaw);
+          out.balanceXno = rawToNano(newBalance);
+        }
+
+        return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
       }
 
       case "generate_wallet": {

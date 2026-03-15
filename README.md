@@ -44,7 +44,8 @@ To use it, add the following to your MCP client configuration:
 Exposed tools:
 - `purse_create` / `purse_list` / `purse_addresses`: Named “purses” (custody inside MCP; return addresses only).
 - `purse_balance` / `purse_probe_balances`: Balance/pending checks for purse accounts via RPC.
-- `config_get` / `config_set`: Store defaults (RPC URL, timeouts; optional purse persistence).
+- `purse_receive` / `purse_send`: Receive pending blocks and send funds (sign + work + `process` via RPC).
+- `config_get` / `config_set`: Store defaults (RPC URL, work URL, timeouts, default representative; optional purse persistence).
 - `generate_wallet`: Generate a wallet (default: BIP39 derivation).
 - `derive_address`: Derive an address (supports `bip39` + `legacy`, with `auto` preference).
 - `probe_mnemonic`: Probe both derivations via RPC (helps resolve 24-word ambiguity).
