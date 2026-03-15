@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-A TypeScript library for interacting with the Nano (XNO) cryptocurrency. Generate wallets, convert units, validate addresses, and more.
+A TypeScript library, executable, and MCP server, for interacting with the Nano (XNO) cryptocurrency. Generate wallets, convert units, validate addresses, and more.
 
 ![xno-skills CLI preview](assets/xno-skills-cli.png)
 
