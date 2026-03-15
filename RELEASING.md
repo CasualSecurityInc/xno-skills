@@ -2,16 +2,22 @@
 
 This repo publishes to npm automatically when a **GitHub Release** is published.
 
-## One-time setup
+## One-time setup (recommended): npm Trusted Publishing (no tokens)
 
-1. **Create an npm automation token**
-   - Create a token with publish access for the `xno-skills` package.
-2. **Add GitHub Actions secret**
-   - In GitHub → Settings → Secrets and variables → Actions → New repository secret:
-     - Name: `NPM_TOKEN`
-     - Value: the npm token
-3. **Permissions**
-   - The publish workflow uses npm provenance (`--provenance`) and OIDC (`id-token: write`). No extra setup is usually required beyond `NPM_TOKEN`.
+This repo is set up to publish via **npm Trusted Publishing** (OIDC), so you don’t need to manage `NPM_TOKEN`.
+
+1. **Verify GitHub Actions workflow requirements**
+   - The publish workflow uses Node `24` (includes a recent npm) and requests `id-token: write`.
+2. **Enable Trusted Publishing on npm**
+   - Go to npm → `xno-skills` package page → **Settings**
+   - Find **Trusted publishing** → add a **GitHub Actions** publisher
+   - Fill in:
+     - **Owner/org:** `CasualSecurityInc`
+     - **Repository:** `xno-skills`
+     - **Workflow file:** `.github/workflows/publish.yml`
+   - Save.
+
+If you previously created `NPM_TOKEN` in GitHub Secrets, it’s no longer required for publishing with Trusted Publishing.
 
 ## Release process (recommended)
 
@@ -48,3 +54,6 @@ If automation is down, you can publish locally:
 
 Then fix the automation for next time.
 
+## Fallback: token publishing (not recommended)
+
+If you can’t use Trusted Publishing for some reason, you can switch the workflow back to using `NODE_AUTH_TOKEN` and add an npm token as `NPM_TOKEN` in GitHub Secrets.
