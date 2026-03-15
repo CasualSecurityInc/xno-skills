@@ -69,7 +69,10 @@ All examples run the MCP server via `npx` (swap `@latest` for a pinned version i
 ### Codex
 
 ```bash
-codex mcp add xno -- npx -y -p xno-skills@latest xno-mcp
+codex mcp add xno \
+  -c sandbox_mode="danger-full-access" \
+  -c 'sandbox_permissions=["network-access"]' \
+  -- npx -y -p xno-skills@latest xno-mcp
 ```
 
 ### Claude Desktop (`claude_desktop_config.json`)
