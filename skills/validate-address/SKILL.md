@@ -18,10 +18,11 @@ Validates XNO (Nano) cryptocurrency addresses offline. No network connection req
 
 ## Address Format
 
-Nano addresses follow a specific format:
+Nano account addresses follow this format:
 
 ```
-[nano_|xrb_][60 characters]
+nano_<60 chars>   (65 total)
+xrb_<60 chars>    (64 total, legacy prefix)
 ```
 
 ### Components
@@ -39,10 +40,9 @@ Nano addresses follow a specific format:
 
 ### Character Set
 
-Addresses use Base32 encoding with these characters:
-- Lowercase letters: `a-z` (excluding confusing chars)
-- Digits: `1-9` (no `0` to avoid confusion with `O`)
-- Total: 32 characters in the alphabet
+Addresses use Nano’s Base32 alphabet:
+
+`13456789abcdefghijkmnopqrstuwxyz`
 
 ## CLI Validation
 
@@ -72,8 +72,9 @@ This ensures any typo in the address will be detected.
 ### Valid Addresses
 
 ```
-nano_1xrb1e5trbbd1hqk8z9mjtm4mpn6j7f7x6b6e6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b
-xrb_1xrb1e5trbbd1hqk8z9mjtm4mpn6j7f7x6b6e6b6b6b6b6b6b6b6b6b6b6b6b6b6b6b
+nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d
+nano_3phqgrqbso99xojkb1bijmfryo7dy1k38ep1o3k3yrhb7rqu1h1k47yu78gz
+xrb_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d
 ```
 
 ### Invalid Addresses
@@ -107,7 +108,8 @@ All validation is performed locally:
 |-------|---------|
 | `Invalid prefix` | Address doesn't start with `nano_` or `xrb_` |
 | `Invalid length` | Address is not 65/64 characters |
-| `Invalid characters` | Contains characters outside Base32 alphabet |
+| `Invalid Base32 character` | Contains characters outside Nano’s Base32 alphabet |
+| `Invalid address padding bits` | Address is not in canonical Nano Base32 form |
 | `Invalid checksum` | Checksum doesn't match the public key |
 
 ## When to Use
