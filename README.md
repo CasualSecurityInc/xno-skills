@@ -35,7 +35,7 @@ To use it, add the following to your MCP client configuration:
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@^0.3.0", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
     }
   }
 }
