@@ -54,12 +54,14 @@ Returns:
 
 ## Top-Up Requests
 
-Use this when the user needs to receive XNO:
+Use this when the **user** needs to receive XNO (fund their own wallet):
 
-- If the user wants a simple "send to me" QR, generate an address-only QR.
+- If they want an easy “fund this address” QR, generate an address-only QR.
 - If the user wants a specific amount, generate a QR with `--amount`; the resulting `nano:` URI includes the raw amount parameter.
 
 In interactive flows, ask for:
 
 - The receiving address (or confirm it).
 - Optional amount in XNO.
+
+If the user asks to send XNO “to the agent / to you”, respond that the agent can’t receive funds, and pivot to helping them generate/validate a wallet **they** control.
