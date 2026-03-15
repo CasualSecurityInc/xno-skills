@@ -1,5 +1,5 @@
 ---
-name: Validate XNO Address
+name: validate-address
 description: Validate Nano (XNO) addresses offline (format, checksum); no network.
 triggers:
   - validate address

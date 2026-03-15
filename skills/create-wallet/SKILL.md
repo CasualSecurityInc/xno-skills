@@ -1,5 +1,5 @@
 ---
-name: Nano Wallet Operations
+name: create-wallet
 description: Create or restore a Nano (XNO) wallet offline (seed, mnemonic, address).
 triggers:
   - create wallet
@@ -20,8 +20,8 @@ Creates or restores a Nano wallet locally using `xno-skills`. This is useful for
 
 If a user says “I want to send you XNO” or “can you receive it?”:
 
-- Do **not** imply the agent can accept funds.
-- Offer to help them **create a wallet for themselves** (or validate/QR their existing address).
+- The agent **can** accept funds! You should use the `mcp-wallet` skill to initialize a custody wallet (`wallet_create`) or use an existing one, or import keys you generate here, and provide the user with the address.
+- If the user wants a wallet for themselves, offer to help them **create a wallet for themselves** (or validate/QR their existing address).
 - If they want a throwaway test wallet, remind them that anything printed in chat (seed/mnemonic/private key) should be considered **compromised** and **not used for real funds**.
 
 If a user asks to **import/restore** an existing wallet:
@@ -32,8 +32,8 @@ If a user asks to **import/restore** an existing wallet:
 
 If the agent has access to **`xno-mcp`**:
 
-- Prefer using `xno-mcp` as a private “purse” blackbox (custody inside MCP), so the LLM never needs to see seeds/mnemonics.
-- Create a named purse (e.g. `"A"`) and only return the address(es) needed for funding/checking balances.
+- Prefer using `xno-mcp` (`mcp-wallet` skill) as a private wallet blackbox (custody inside MCP), so the agent never leaks seeds/mnemonics.
+- Create a named wallet (e.g. `"A"`) and only return the address(es) needed for funding/checking balances.
 
 ## Two common Nano mnemonic schemes (both supported)
 

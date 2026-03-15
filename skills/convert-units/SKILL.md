@@ -1,5 +1,5 @@
 ---
-name: Convert XNO Units
+name: convert-units
 description: Convert between XNO units (raw/xno/knano/mnano) with exact BigInt precision.
 triggers:
   - convert units
