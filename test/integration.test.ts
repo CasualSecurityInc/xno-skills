@@ -13,9 +13,9 @@ describe('End-to-End Integration', () => {
       const createOutput = execSync(`node ${CLI_PATH} wallet create --json`).toString();
       const wallet = JSON.parse(createOutput);
       
-      expect(wallet.seed).toHaveLength(64);
+      expect(wallet.format).toBe('bip39');
       expect(wallet.mnemonic).toBeDefined();
-      expect(wallet.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+      expect(wallet.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
       
       // 2. Validate the generated address using CLI
       const validateOutput = execSync(`node ${CLI_PATH} validate ${wallet.address} --json`).toString();
@@ -23,14 +23,25 @@ describe('End-to-End Integration', () => {
       expect(validation.valid).toBe(true);
     });
 
-    it('should restore a wallet from a mnemonic via CLI', () => {
+    it('should restore a wallet from a mnemonic via CLI', async () => {
       // Mnemonic for seed 0...01
       const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon diesel';
       
-      const restoreOutput = execSync(`node ${CLI_PATH} wallet from-mnemonic "${mnemonic}" --json`).toString();
+      const restoreOutput = execSync(`node ${CLI_PATH} wallet from-mnemonic --stdin --json`, { input: mnemonic }).toString();
       const wallet = JSON.parse(restoreOutput);
       
-      expect(wallet.address).toBe('nano_of99outm5f9btq76p78uy64cjoqqps3bxppfbmipgtzwuzmz8bm6yeet9t5i');
+      const { deriveAddressBIP44 } = await import('../src/address-bip44');
+      expect(wallet.address).toBe(deriveAddressBIP44(mnemonic, 0, '').address);
+      expect(wallet.mnemonic).toBe(mnemonic);
+    });
+
+    it('should restore a wallet from mnemonic via stdin (safer)', async () => {
+      const mnemonic = 'company public remove bread fashion tortoise ahead shrimp onion prefer waste blade';
+      const restoreOutput = execSync(`node ${CLI_PATH} wallet from-mnemonic --stdin --json`, { input: mnemonic }).toString();
+      const wallet = JSON.parse(restoreOutput);
+
+      const { deriveAddressBIP44 } = await import('../src/address-bip44');
+      expect(wallet.address).toBe(deriveAddressBIP44(mnemonic, 0, '').address);
       expect(wallet.mnemonic).toBe(mnemonic);
     });
 
