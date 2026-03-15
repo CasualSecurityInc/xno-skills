@@ -55,6 +55,10 @@ Exposed tools:
 npm install xno-skills
 ```
 
+## Releasing
+
+See `RELEASING.md`.
+
 ## Quick Start
 
 ```typescript
