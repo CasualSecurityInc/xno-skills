@@ -1,8 +1,9 @@
 name: Publish (npm)
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -11,8 +12,12 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -25,7 +30,7 @@ jobs:
           if [ -n "$TAG_INPUT" ]; then
             echo "tag=$TAG_INPUT" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout tag
@@ -56,3 +61,9 @@ jobs:
       - name: Publish
         run: |
           npm publish --provenance --access public
+
+      - name: Create GitHub Release (if missing)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
