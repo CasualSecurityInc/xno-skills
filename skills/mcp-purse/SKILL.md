@@ -37,7 +37,7 @@ Expected result shape:
 
 To avoid each agent having to remember an RPC endpoint, set xno-mcp defaults once:
 
-- `config_set` with `{ "rpcUrl": "<node-rpc-url>", "timeoutMs": 15000 }`
+- `config_set` with `{ "rpcUrl": "<node-rpc-url>", "workUrl": "<optional-work-rpc-url>", "timeoutMs": 15000, "defaultRepresentative": "nano_..." }`
 
 Then `purse_balance` / `purse_probe_balances` can omit `rpcUrl`.
 
@@ -45,6 +45,18 @@ Then `purse_balance` / `purse_probe_balances` can omit `rpcUrl`.
 
 - `purse_balance` with `{ "name": "A", "index": 0, "includeXno": true }`
 - `purse_probe_balances` with `{ "name": "A", "count": 5 }`
+
+## Receive pending (opens account if needed)
+
+- `purse_receive` with `{ "name": "A", "index": 0, "count": 10 }`
+
+Notes:
+- If the account is unopened, `purse_receive` needs a representative (pass `representative` or set `defaultRepresentative` in `config_set`).
+- This publishes signed blocks via RPC `process` and requires `work_generate` to be available via `workUrl` (or `rpcUrl`).
+
+## Send funds (requires opened account + balance)
+
+- `purse_send` with `{ "name": "A", "index": 0, "destination": "nano_...", "amountXno": "0.01" }`
 
 ## Notes
 
