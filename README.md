@@ -15,9 +15,12 @@ npx skills add CasualSecurityInc/xno-skills
 ```
 
 Available skills:
-- `create-wallet`: Workflow for generating and securing new wallets.
+- `create-wallet`: Wallet creation/import guidance (BIP39 default; legacy supported; safe `--stdin` workflows).
 - `convert-units`: High-precision unit conversion reference.
+- `generate-qr`: Terminal-friendly Nano payment QR codes (address + optional amount).
 - `validate-address`: Address format and checksum verification guide.
+- `check-balance`: Check balance/pending via Nano node RPC.
+- `mcp-purse`: Use `xno-mcp` as a private “purse” custody blackbox (addresses only; no seed leakage).
 
 ## MCP Server
 
@@ -30,15 +33,19 @@ To use it, add the following to your MCP client configuration:
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@^0.3.0", "xno-mcp"]
     }
   }
 }
 ```
 
 Exposed tools:
-- `generate_wallet`: Returns a new mnemonic, seed, and address.
-- `derive_address`: Derives an address from a mnemonic or seed and index.
+- `purse_create` / `purse_list` / `purse_addresses`: Named “purses” (custody inside MCP; return addresses only).
+- `purse_balance` / `purse_probe_balances`: Balance/pending checks for purse accounts via RPC.
+- `config_get` / `config_set`: Store defaults (RPC URL, timeouts; optional purse persistence).
+- `generate_wallet`: Generate a wallet (default: BIP39 derivation).
+- `derive_address`: Derive an address (supports `bip39` + `legacy`, with `auto` preference).
+- `probe_mnemonic`: Probe both derivations via RPC (helps resolve 24-word ambiguity).
 - `convert_units`: Converts between XNO and raw units.
 - `validate_address`: Validates address format and checksum.
 
@@ -52,18 +59,16 @@ npm install xno-skills
 
 ```typescript
 import { 
-  generateSeed, 
-  seedToMnemonic, 
-  deriveAddressLegacy,
+  generateMnemonic,
+  deriveAddressBIP44,
   validateAddress,
   nanoToRaw,
   rawToNano
 } from 'xno-skills';
 
-// Generate a new wallet
-const seed = generateSeed();
-const mnemonic = seedToMnemonic(seed);
-const { address, privateKey, publicKey } = deriveAddressLegacy(seed, 0);
+// Generate a new BIP39 wallet + first account (index 0)
+const mnemonic = generateMnemonic(24);
+const { address, privateKey, publicKey } = deriveAddressBIP44(mnemonic, 0);
 
 console.log('Address:', address);
 // nano_1abc123...
@@ -91,17 +96,21 @@ npx xno-skills --help
 
 ### Wallet Commands
 
+Security note: avoid pasting mnemonics/seeds into chat logs. Prefer `--stdin` (or `--mnemonic-env`) for import/probing commands.
+
 #### Create a new wallet
 
 ```bash
-# Default output (seed + mnemonic + address)
+# Default: BIP39 derivation
 xno-skills wallet create
 
-# Output only the seed
-xno-skills wallet create --seed
+# Choose legacy derivation (24-word “seed phrase” style)
+xno-skills wallet create --format legacy
 
-# Output only the mnemonic
-xno-skills wallet create --mnemonic
+# Control BIP39 word count / passphrase / index
+xno-skills wallet create --words 12
+xno-skills wallet create --passphrase "optional passphrase"
+xno-skills wallet create --index 0
 
 # JSON output
 xno-skills wallet create --json
@@ -110,17 +119,20 @@ xno-skills wallet create --json
 #### Restore from mnemonic
 
 ```bash
-xno-skills wallet from-mnemonic "word1 word2 ... word24"
+# Safer import via stdin (recommended)
+echo "word1 word2 ... word24" | xno-skills wallet from-mnemonic --stdin --json
 
 # JSON output
-xno-skills wallet from-mnemonic "word1 word2 ... word24" --json
+xno-skills wallet from-mnemonic --stdin --json
 ```
 
-Output example:
-```
-Seed: 0123456789abcdef...
-Mnemonic: word1 word2 word3 ... word24
-Address: nano_1abc123...
+#### Probe mnemonic ambiguity (24-word)
+
+If you have a Nano RPC endpoint, you can probe the first few indexes for both derivations and see which accounts are opened / have balances:
+
+```bash
+export NANO_RPC_URL="http://127.0.0.1:7076"
+echo "word1 word2 ... word24" | xno-skills wallet probe-mnemonic --stdin --json
 ```
 
 ### Convert Units
@@ -164,9 +176,26 @@ xno-skills qr nano_1abc123... --json
 xno-skills validate nano_1abc123...
 ```
 
+### RPC (balance/pending)
+
+```bash
+export NANO_RPC_URL="http://127.0.0.1:7076"
+xno-skills rpc account-balance nano_1abc123... --json --xno
+```
+
 ## API Reference
 
 ### Seed Generation
+
+#### `generateMnemonic(wordCount = 24): string`
+
+Generate a BIP39 mnemonic (12/15/18/21/24 words).
+
+```typescript
+import { generateMnemonic } from 'xno-skills';
+
+const mnemonic = generateMnemonic(24);
+```
 
 #### `generateSeed(): string`
 
@@ -192,7 +221,9 @@ const mnemonic = seedToMnemonic(seed);
 
 #### `mnemonicToSeed(mnemonic: string): string`
 
-Convert a BIP39 mnemonic phrase back to a hex-encoded seed.
+Convert a BIP39 mnemonic phrase back to its underlying entropy (hex).
+
+Note: this is **not** the BIP39 PBKDF2 “seed”; it’s the raw entropy the mnemonic encodes.
 
 ```typescript
 import { mnemonicToSeed } from 'xno-skills';
@@ -200,6 +231,10 @@ import { mnemonicToSeed } from 'xno-skills';
 const seed = mnemonicToSeed(mnemonic);
 // Returns: "0123456789abcdef..." (64 hex characters)
 ```
+
+#### `mnemonicToBIP39Seed(mnemonic: string, passphrase?: string): string`
+
+Convert a BIP39 mnemonic (+ optional passphrase) to the PBKDF2 “seed” hex used for HD derivation.
 
 #### `validateMnemonic(mnemonic: string): boolean`
 
