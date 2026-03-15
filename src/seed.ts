@@ -2,6 +2,19 @@
 import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 
+function wordCountToStrength(wordCount: number): number {
+  // BIP39: 12/15/18/21/24 words correspond to 128/160/192/224/256 bits entropy.
+  switch (wordCount) {
+    case 12: return 128;
+    case 15: return 160;
+    case 18: return 192;
+    case 21: return 224;
+    case 24: return 256;
+    default:
+      throw new Error('Word count must be one of: 12, 15, 18, 21, 24');
+  }
+}
+
 /**
  * Generate a cryptographically secure 32-byte seed (256 bits)
  * Uses crypto.getRandomValues for browser and Node.js compatibility
@@ -15,8 +28,19 @@ export function generateSeed(): string {
 }
 
 /**
+ * Generate a BIP39 mnemonic phrase (default: 24 words).
+ *
+ * Note: This returns the mnemonic sentence only. How that mnemonic is used to
+ * derive Nano accounts depends on the derivation scheme (BIP39 HD vs legacy).
+ */
+export function generateMnemonic(wordCount: number = 24): string {
+  const strength = wordCountToStrength(wordCount);
+  return bip39.generateMnemonic(wordlist, strength);
+}
+
+/**
  * Convert a hex-encoded seed to a BIP39 mnemonic phrase
- * Supports both 128-bit (32-char hex = 12 words) and 256-bit (64-char hex = 24 words) seeds
+ * Supports any valid BIP39 entropy length (128-256 bits, in 32-bit increments)
  * @param seed - Hex-encoded seed string (32 or 64 hex characters)
  * @returns BIP39 mnemonic phrase (12 or 24 words)
  */
@@ -26,7 +50,9 @@ export function seedToMnemonic(seed: string): string {
 }
 
 /**
- * Convert a BIP39 mnemonic phrase back to a hex-encoded seed
+ * Convert a BIP39 mnemonic phrase back to its underlying entropy (hex).
+ *
+ * This is *not* the BIP39 PBKDF2 “seed”; it is the raw entropy that the mnemonic encodes.
  * @param mnemonic - BIP39 mnemonic phrase (12 or 24 words)
  * @returns Hex-encoded seed string
  */
