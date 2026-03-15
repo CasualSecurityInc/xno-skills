@@ -5,6 +5,7 @@
 
 import { blake2b } from '@noble/hashes/blake2b.js';
 import { ed25519 } from '@noble/curves/ed25519.js';
+import { publicKeyToNanoAddress } from './nano-address.js';
 
 function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0) {
@@ -99,44 +100,7 @@ export function publicKeyToAddress(publicKey: string): string {
   if (!/^[0-9a-fA-F]+$/.test(publicKey)) {
     throw new Error('Public key must be a valid hex string');
   }
-
-  const publicKeyBytes = hexToBytes(publicKey);
-  
-  const checksum = blake2b(publicKeyBytes, { dkLen: 5 });
-  
-  const combined = new Uint8Array(checksum.length + publicKeyBytes.length);
-  combined.set(checksum, 0);
-  combined.set(publicKeyBytes, checksum.length);
-  
-  const encoded = encodeNanoAddress(combined);
-  
-  return `nano_${encoded}`;
-}
-
-function encodeNanoAddress(data: Uint8Array): string {
-  const CHARSET = '13456789abcdefghijkmnopqrstuwxyz';
-  
-  let result = '';
-  let buffer = 0;
-  let bits = 0;
-  
-  for (let i = data.length - 1; i >= 0; i--) {
-    buffer = (buffer << 8) | data[i];
-    bits += 8;
-    
-    while (bits >= 5) {
-      bits -= 5;
-      const index = (buffer >> bits) & 0x1f;
-      result += CHARSET[index];
-    }
-  }
-  
-  if (bits > 0) {
-    const index = (buffer << (5 - bits)) & 0x1f;
-    result += CHARSET[index];
-  }
-  
-  return result;
+  return publicKeyToNanoAddress(publicKey, 'nano_');
 }
 
 export interface LegacyAddressResult {

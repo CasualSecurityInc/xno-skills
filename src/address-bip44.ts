@@ -7,6 +7,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { HDKey } from 'micro-key-producer/slip10.js';
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { blake2b } from '@noble/hashes/blake2b.js';
+import { publicKeyToNanoAddress } from './nano-address.js';
 
 /**
  * Convert Uint8Array to hex string
@@ -29,51 +30,6 @@ function hexToBytes(hex: string): Uint8Array {
     bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
   return bytes;
-}
-
-/**
- * Encode public key bytes to Nano address format
- * Uses Blake2b-5 checksum (reversed) and base32 encoding
- */
-function encodeNanoAddress(publicKey: Uint8Array): string {
-  const CHARSET = '13456789abcdefghijkmnopqrstuwxyz';
-  
-  // Calculate 5-byte Blake2b checksum and reverse it
-  const checksum = blake2b(publicKey, { dkLen: 5 });
-  const checksumReversed = new Uint8Array(checksum.length);
-  for (let i = 0; i < checksum.length; i++) {
-    checksumReversed[i] = checksum[checksum.length - 1 - i];
-  }
-  
-  // Combine public key (32 bytes) + checksum (5 bytes, reversed) = 37 bytes
-  const combined = new Uint8Array(publicKey.length + checksumReversed.length);
-  combined.set(publicKey, 0);
-  combined.set(checksumReversed, publicKey.length);
-  
-  // Encode using Nano's base32 with offset calculation
-  const length = combined.length;
-  const leftover = (length * 8) % 5;
-  const offset = leftover === 0 ? 0 : 5 - leftover;
-  
-  let value = 0;
-  let result = '';
-  let bits = 0;
-  
-  for (let i = 0; i < length; i++) {
-    value = (value << 8) | combined[i];
-    bits += 8;
-    
-    while (bits >= 5) {
-      result += CHARSET[(value >>> (bits + offset - 5)) & 31];
-      bits -= 5;
-    }
-  }
-  
-  if (bits > 0) {
-    result += CHARSET[(value << (5 - (bits + offset))) & 31];
-  }
-  
-  return `nano_${result}`;
 }
 
 /**
@@ -178,9 +134,8 @@ export function publicKeyToAddressBIP44(publicKey: string): string {
   if (!/^[0-9a-fA-F]+$/.test(publicKey)) {
     throw new Error('Public key must be a valid hex string');
   }
-  
-  const publicKeyBytes = hexToBytes(publicKey);
-  return encodeNanoAddress(publicKeyBytes);
+
+  return publicKeyToNanoAddress(publicKey, 'nano_');
 }
 
 /**
