@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <style>
+    .bg { fill: #1e1e1e; }
+    .panel { fill: #20235a; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .title { fill: #e6e6e6; font-size: 22px; }
+    .text { fill: #e6e6e6; font-size: 18px; }
+    .muted { fill: #b8b8b8; font-size: 18px; }
+  </style>
+
+  <rect class="bg" x="0" y="0" width="1200" height="520" rx="12" />
+  <text class="mono title" x="32" y="48">Usage: xno-skills [options] [command]</text>
+
+  <rect class="panel" x="24" y="80" width="1152" height="280" rx="10" />
+
+  <!-- ASCII logo (kept simple so it renders consistently in Markdown previews) -->
+  <text class="mono text" xml:space="preserve" x="52" y="140">
+__  __ _   _  ___        ____  _  ___ _     _     ____  
+\ \/ /| \ | |/ _ \      / ___|| |/ (_) |   | |   / ___| 
+ \  / |  \| | | | |_____\___ \| ' /| | |   | |   \___ \ 
+ /  \ | |\  | |_| |_____|___) | . \| | |___| |___ ___) |
+/_/\_\|_| \_|\___/      |____/|_|\_\_|_____|_____|____/ 
+  </text>
+
+  <text class="mono muted" x="910" y="330">xno-skills v0.3.2</text>
+
+  <text class="mono text" x="32" y="410">Interact with the Nano ($XNO / Ӿ) cryptocurrency</text>
+  <text class="mono muted" x="32" y="452">Options:</text>
+</svg>
+

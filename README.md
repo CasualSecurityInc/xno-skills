@@ -6,6 +6,8 @@
 
 A TypeScript library for interacting with the Nano (XNO) cryptocurrency. Generate wallets, convert units, validate addresses, and more.
 
+![xno-skills CLI preview](assets/xno-skills-cli.svg)
+
 ## AI Skills
 
 This repository includes built-in skills for AI agents (Claude Code, Cursor, etc.). To install them:
