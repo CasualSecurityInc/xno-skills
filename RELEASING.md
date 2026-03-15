@@ -22,14 +22,16 @@ If you previously created `NPM_TOKEN` in GitHub Secrets, it’s no longer requir
 ## Release process (recommended)
 
 1. **Decide the version bump**
-   - `npm version patch|minor|major --no-git-tag-version`
+   - `npm version patch|minor|major`
+   - This repo uses npm’s `preversion/version/postversion` hooks to run tests and keep `src/version.ts` in sync.
 2. **Build + test locally**
-   - `npm test`
+   - `npm test` (already run automatically by `npm version`, but it’s fine to run it explicitly too)
 3. **Commit the version bump**
-   - Commit `package.json`, `package-lock.json`, and `src/version.ts`.
+   - `npm version` already creates the commit + tag; no manual version-bump commit required.
 4. **Push to GitHub**
+   - `git push && git push --tags`
 5. **Create a tag matching the version**
-   - Tag format must be `vX.Y.Z` (e.g. `v0.3.0`)
+   - `npm version` created the tag for you (`vX.Y.Z`).
 6. **Publish a GitHub Release for that tag**
    - When the Release is **published**, GitHub Actions will:
      - check out the tag

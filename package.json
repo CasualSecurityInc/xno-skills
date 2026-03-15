@@ -21,6 +21,9 @@
     "dist"
   ],
   "scripts": {
+    "preversion": "npm test",
+    "version": "node scripts/update-version.js && git add src/version.ts",
+    "postversion": "node -e \"const v=require('./package.json').version; console.log('Created tag v'+v+'. Next: git push && git push --tags, then publish a GitHub Release for v'+v);\"",
     "prebuild": "node scripts/update-version.js",
     "prebuild:esm": "node scripts/update-version.js",
     "prebuild:cjs": "node scripts/update-version.js",
