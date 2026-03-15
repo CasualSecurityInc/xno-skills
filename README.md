@@ -51,31 +51,81 @@ Exposed tools:
 - `convert_units`: Converts between XNO and raw units.
 - `validate_address`: Validates address format and checksum.
 
-## Quick Start
+## Installation
 
-```typescript
-import { 
-  generateMnemonic,
-  deriveAddressBIP44,
-  validateAddress,
-  nanoToRaw,
-  rawToNano
-} from 'xno-skills';
+```bash
+npm install xno-skills
+```
 
-// Generate a new BIP39 wallet + first account (index 0)
-const mnemonic = generateMnemonic(24);
-const { address, privateKey, publicKey } = deriveAddressBIP44(mnemonic, 0);
+## Releasing
 
-console.log('Address:', address);
-// nano_1abc123...
+See `RELEASING.md`.
 
-// Validate an address
-const result = validateAddress(address);
-console.log(result.valid); // true
+## MCP Client Setup (Codex, Claude, OpenCode, Gemini, VS Code)
 
-// Convert units
-const raw = nanoToRaw('1.5'); // "1500000000000000000000000000000"
-const nano = rawToNano(raw);  // "1.5"
+All examples run the MCP server via `npx` (swap `@latest` for a pinned version if you prefer).
+
+### Codex
+
+```bash
+codex mcp add xno -- npx -y -p xno-skills@latest xno-mcp
+```
+
+### Claude Desktop (`claude_desktop_config.json`)
+
+Add via Claude Desktop: Settings -> Developer -> Edit Config.
+
+```json
+{
+  "mcpServers": {
+    "xno": {
+      "command": "npx",
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+    }
+  }
+}
+```
+
+### OpenCode (`opencode.jsonc`)
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "xno": {
+      "type": "local",
+      "command": ["npx", "-y", "-p", "xno-skills@latest", "xno-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+### Gemini CLI (`settings.json`)
+
+```json
+{
+  "mcpServers": {
+    "xno": {
+      "command": "npx",
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+    }
+  }
+}
+```
+
+### VS Code (`.vscode/mcp.json`)
+
+```json
+{
+  "servers": {
+    "xno": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+    }
+  }
+}
 ```
 
 ## CLI Usage
