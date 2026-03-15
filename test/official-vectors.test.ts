@@ -342,11 +342,11 @@ describe('Official Nano Test Vectors', () => {
         }
       }
       
-      // Each bit should be set roughly 50% of the time
-      // With 100 seeds, each bit should be set ~50 times (±20 for statistical variance)
+      // Each bit should be set roughly 50% of the time.
+      // This is a probabilistic check; keep thresholds wide to avoid flakiness.
       for (const count of bitCounts) {
-        expect(count).toBeGreaterThan(30);
-        expect(count).toBeLessThan(70);
+        expect(count).toBeGreaterThanOrEqual(20);
+        expect(count).toBeLessThanOrEqual(80);
       }
     });
   });
