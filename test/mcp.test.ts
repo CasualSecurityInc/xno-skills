@@ -39,6 +39,47 @@ describe('MCP Server Integration', () => {
     expect(toolNames).toContain('derive_address');
     expect(toolNames).toContain('convert_units');
     expect(toolNames).toContain('validate_address');
+    expect(toolNames).toContain('purse_create');
+    expect(toolNames).toContain('purse_list');
+    expect(toolNames).toContain('purse_addresses');
+    expect(toolNames).toContain('config_get');
+    expect(toolNames).toContain('config_set');
+  });
+
+  it('should create a purse and return an address without secrets', async () => {
+    const result = await client.callTool({
+      name: "purse_create",
+      arguments: { name: "A", format: "bip39", count: 1 }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const purse = JSON.parse((result.content[0] as any).text);
+    expect(purse.name).toBe("A");
+    expect(purse.format).toBe("bip39");
+    expect(purse.accounts[0].index).toBe(0);
+    expect(purse.accounts[0].address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
+    expect(purse.mnemonic).toBeUndefined();
+    expect(purse.seed).toBeUndefined();
+  });
+
+  it('should list purses after creation', async () => {
+    const result = await client.callTool({ name: "purse_list", arguments: {} });
+    expect(result.isError).toBeFalsy();
+    const out = JSON.parse((result.content[0] as any).text);
+    expect(out.purses.some((p: any) => p.name === "A")).toBe(true);
+  });
+
+  it('should derive additional purse addresses on demand', async () => {
+    const result = await client.callTool({
+      name: "purse_addresses",
+      arguments: { name: "A", fromIndex: 0, count: 3 }
+    });
+    expect(result.isError).toBeFalsy();
+    const out = JSON.parse((result.content[0] as any).text);
+    expect(out.accounts).toHaveLength(3);
+    expect(out.accounts[0].index).toBe(0);
+    expect(out.accounts[1].index).toBe(1);
+    expect(out.accounts[2].index).toBe(2);
   });
 
   it('should generate a wallet via generate_wallet tool', async () => {
@@ -50,8 +91,9 @@ describe('MCP Server Integration', () => {
     expect(result.isError).toBeFalsy();
     const text = (result.content[0] as any).text;
     const wallet = JSON.parse(text);
+    expect(wallet.format).toBe('bip39');
     expect(wallet.mnemonic).toBeDefined();
-    expect(wallet.address).toMatch(/^nano_[13456789abcdefghijkmnopqrstuwxyz]{60}$/);
+    expect(wallet.address).toMatch(/^nano_[13][13456789abcdefghijkmnopqrstuwxyz]{59}$/);
   });
 
   it('should convert units via convert_units tool', async () => {
@@ -69,7 +111,7 @@ describe('MCP Server Integration', () => {
   });
 
   it('should validate an address via validate_address tool', async () => {
-    const address = "nano_r9rh58xehqsyu3m7d7iowqgm8n7hdrpak7ncb3jbg5u75ohfg5sjb95hto4i";
+    const address = "nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d";
     const result = await client.callTool({
       name: "validate_address",
       arguments: { address }

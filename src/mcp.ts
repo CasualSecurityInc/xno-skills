@@ -4,10 +4,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { generateSeed, seedToMnemonic, mnemonicToSeed } from "./seed.js";
+import { generateSeed, generateMnemonic, seedToMnemonic, mnemonicToSeed, validateMnemonic } from "./seed.js";
 import { deriveAddressLegacy } from "./address-legacy.js";
+import { deriveAddressBIP44 } from "./address-bip44.js";
 import { validateAddress } from "./validate.js";
 import { nanoToRaw, rawToNano } from "./convert.js";
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers } from "./rpc.js";
+import fs from "node:fs";
+import path from "node:path";
 
 const server = new Server(
   {
@@ -21,26 +25,244 @@ const server = new Server(
   }
 );
 
+type McpConfig = {
+  rpcUrl?: string;
+  timeoutMs?: number;
+  persistPurses?: boolean;
+};
+
+type PurseFormat = "bip39" | "legacy";
+
+type Purse =
+  | {
+      name: string;
+      format: "bip39";
+      mnemonic: string;
+      passphrase: string;
+      createdAt: string;
+    }
+  | {
+      name: string;
+      format: "legacy";
+      seed: string;
+      mnemonic: string;
+      createdAt: string;
+    };
+
+const DEFAULT_TIMEOUT_MS = 15000;
+const state = {
+  config: {} as McpConfig,
+  purses: new Map<string, Purse>(),
+};
+
+function getHomeDir(): string {
+  const envHome = process.env.XNO_MCP_HOME || process.env.NANO_MCP_HOME;
+  if (envHome && envHome.trim()) return path.resolve(envHome);
+  return path.resolve(process.cwd(), ".xno-mcp");
+}
+
+function getConfigPath(): string {
+  const envPath = process.env.XNO_MCP_CONFIG_PATH;
+  if (envPath && envPath.trim()) return path.resolve(envPath);
+  return path.join(getHomeDir(), "config.json");
+}
+
+function getPursesPath(): string {
+  const envPath = process.env.XNO_MCP_PURSES_PATH;
+  if (envPath && envPath.trim()) return path.resolve(envPath);
+  return path.join(getHomeDir(), "purses.json");
+}
+
+function loadJsonFile<T>(filePath: string): T | null {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function ensureDir(dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function saveJsonFile(filePath: string, value: unknown) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), { encoding: "utf8", mode: 0o600 });
+}
+
+function loadStateFromDisk() {
+  const config = loadJsonFile<McpConfig>(getConfigPath());
+  if (config) state.config = config;
+
+  if (state.config.persistPurses) {
+    const persisted = loadJsonFile<{ purses: Purse[] }>(getPursesPath());
+    if (persisted?.purses?.length) {
+      for (const p of persisted.purses) state.purses.set(p.name, p);
+    }
+  }
+}
+
+function persistConfig() {
+  saveJsonFile(getConfigPath(), state.config);
+}
+
+function persistPurses() {
+  if (!state.config.persistPurses) return;
+  saveJsonFile(getPursesPath(), { purses: Array.from(state.purses.values()) });
+}
+
+function effectiveRpcUrl(explicit?: string): string {
+  return (
+    explicit ||
+    state.config.rpcUrl ||
+    process.env.XNO_MCP_RPC_URL ||
+    process.env.NANO_RPC_URL ||
+    process.env.XNO_RPC_URL ||
+    ""
+  );
+}
+
+function effectiveTimeoutMs(explicit?: number): number {
+  return explicit ?? state.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+}
+
+function purseToPublicSummary(purse: Purse, count: number = 1) {
+  const accounts: { index: number; address: string }[] = [];
+  for (let i = 0; i < count; i++) {
+    if (purse.format === "bip39") {
+      const d = deriveAddressBIP44(purse.mnemonic, i, purse.passphrase);
+      accounts.push({ index: i, address: d.address });
+    } else {
+      const d = deriveAddressLegacy(purse.seed, i);
+      accounts.push({ index: i, address: d.address });
+    }
+  }
+  return {
+    name: purse.name,
+    format: purse.format,
+    createdAt: purse.createdAt,
+    accounts,
+  };
+}
+
+loadStateFromDisk();
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "generate_wallet",
-        description: "Generate a new Nano wallet (mnemonic, seed, and address)",
+        name: "config_get",
+        description: "Get xno-mcp defaults (RPC URL, timeouts, persistence)",
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "config_set",
+        description: "Set xno-mcp defaults (RPC URL, timeouts, persistence)",
         inputSchema: {
           type: "object",
-          properties: {},
+          properties: {
+            rpcUrl: { type: "string", description: "Default Nano node RPC URL" },
+            timeoutMs: { type: "number", description: "Default RPC timeout in ms", default: DEFAULT_TIMEOUT_MS },
+            persistPurses: {
+              type: "boolean",
+              description:
+                "Persist purses to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
+              default: false,
+            },
+          },
+        },
+      },
+      {
+        name: "purse_create",
+        description:
+          "Create a named purse (custodial wallet in xno-mcp). Returns addresses only (no seed/mnemonic).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Purse name (unique key)" },
+            format: { type: "string", description: "bip39 (default) or legacy", default: "bip39" },
+            words: { type: "number", description: "BIP39 word count (12/15/18/21/24). Only for format=bip39.", default: 24 },
+            passphrase: { type: "string", description: "Optional BIP39 passphrase (only for format=bip39)", default: "" },
+            count: { type: "number", description: "How many initial account indexes to return", default: 1 },
+            overwrite: { type: "boolean", description: "Overwrite if purse already exists", default: false },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "purse_list",
+        description: "List purses currently held by xno-mcp",
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "purse_addresses",
+        description: "Get addresses for a named purse (derive on demand; secrets stay in xno-mcp)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            fromIndex: { type: "number", default: 0 },
+            count: { type: "number", default: 5 },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "purse_balance",
+        description: "Check balance/pending for a purse account index via RPC (uses xno-mcp defaults)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            index: { type: "number", default: 0 },
+            rpcUrl: { type: "string" },
+            includeXno: { type: "boolean", default: true },
+            timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "purse_probe_balances",
+        description:
+          "Check first N account indexes for a purse via RPC, including whether each account is opened (frontier exists)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            count: { type: "number", default: 5 },
+            rpcUrl: { type: "string" },
+            timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "generate_wallet",
+        description: "Generate a new Nano wallet (default: BIP39 derivation)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            format: { type: "string", description: "bip39 (default) or legacy", default: "bip39" },
+            words: { type: "number", description: "BIP39 word count (12/15/18/21/24). Only for format=bip39.", default: 24 },
+            passphrase: { type: "string", description: "Optional BIP39 passphrase (only for format=bip39)", default: "" },
+            index: { type: "number", description: "Account index", default: 0 },
+          },
         },
       },
       {
         name: "derive_address",
-        description: "Derive a Nano address from a mnemonic or seed",
+        description: "Derive a Nano address from a mnemonic/seed (supports bip39 + legacy)",
         inputSchema: {
           type: "object",
           properties: {
             mnemonic: { type: "string" },
             seed: { type: "string" },
             index: { type: "number", default: 0 },
+            format: { type: "string", description: "auto (default), bip39, legacy", default: "auto" },
+            passphrase: { type: "string", description: "Optional BIP39 passphrase (only for bip39)", default: "" },
+            both: { type: "boolean", description: "When format=auto and mnemonic is 24 words, return both derivations", default: false },
           },
         },
       },
@@ -68,6 +290,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["address"],
         },
       },
+      {
+        name: "rpc_account_balance",
+        description: "Query a Nano node for account balance + pending (requires RPC URL/network access)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            address: { type: "string" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)" },
+            includeXno: { type: "boolean", default: true },
+            timeoutMs: { type: "number", default: 15000 },
+          },
+          required: ["address"],
+        },
+      },
+      {
+        name: "probe_mnemonic",
+        description: "Try bip39 + legacy derivations and probe first N indexes via RPC (helps resolve 24-word ambiguity)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            mnemonic: { type: "string" },
+            passphrase: { type: "string", default: "" },
+            count: { type: "number", default: 5 },
+            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)" },
+            timeoutMs: { type: "number", default: 15000 },
+          },
+          required: ["mnemonic"],
+        },
+      },
     ],
   };
 });
@@ -77,26 +328,229 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
-      case "generate_wallet": {
-        const seed = generateSeed();
-        const mnemonic = seedToMnemonic(seed);
-        const { address } = deriveAddressLegacy(seed, 0);
+      case "config_get": {
+        return { content: [{ type: "text", text: JSON.stringify(state.config, null, 2) }] };
+      }
+
+      case "config_set": {
+        const rpcUrl = (args as any)?.rpcUrl as string | undefined;
+        const timeoutMs = (args as any)?.timeoutMs as number | undefined;
+        const persistPursesFlag = (args as any)?.persistPurses as boolean | undefined;
+
+        if (rpcUrl !== undefined) state.config.rpcUrl = rpcUrl;
+        if (timeoutMs !== undefined) state.config.timeoutMs = timeoutMs;
+        if (persistPursesFlag !== undefined) state.config.persistPurses = persistPursesFlag;
+
+        persistConfig();
+        if (state.config.persistPurses) persistPurses();
+
+        return { content: [{ type: "text", text: JSON.stringify(state.config, null, 2) }] };
+      }
+
+      case "purse_create": {
+        const purseName = String((args as any)?.name || "").trim();
+        if (!purseName) throw new Error("Purse name is required");
+
+        const overwrite = Boolean((args as any)?.overwrite);
+        if (!overwrite && state.purses.has(purseName)) throw new Error(`Purse already exists: ${purseName}`);
+
+        const format = String((args as any)?.format || "bip39").toLowerCase() as PurseFormat;
+        const createdAt = new Date().toISOString();
+        let purse: Purse;
+
+        if (format === "bip39") {
+          const words = (args as any)?.words ?? 24;
+          const passphrase = String((args as any)?.passphrase || "");
+          const mnemonic = generateMnemonic(words);
+          purse = { name: purseName, format: "bip39", mnemonic, passphrase, createdAt };
+        } else if (format === "legacy") {
+          const seed = generateSeed();
+          const mnemonic = seedToMnemonic(seed);
+          purse = { name: purseName, format: "legacy", seed, mnemonic, createdAt };
+        } else {
+          throw new Error("Invalid format. Use bip39 or legacy.");
+        }
+
+        state.purses.set(purseName, purse);
+        persistPurses();
+
+        const count = Math.max(1, Math.min(100, (args as any)?.count ?? 1));
+        const summary = purseToPublicSummary(purse, count);
+
         return {
-          content: [{ type: "text", text: JSON.stringify({ mnemonic, seed, address }, null, 2) }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  ...summary,
+                  note:
+                    "This is a custodial purse held by xno-mcp. Secrets are not returned by default.",
+                  persistence: state.config.persistPurses ? "enabled" : "memory-only",
+                },
+                null,
+                2
+              ),
+            },
+          ],
         };
       }
 
+      case "purse_list": {
+        const list = Array.from(state.purses.values()).map((p) => ({
+          name: p.name,
+          format: p.format,
+          createdAt: p.createdAt,
+        }));
+        return { content: [{ type: "text", text: JSON.stringify({ purses: list }, null, 2) }] };
+      }
+
+      case "purse_addresses": {
+        const purseName = String((args as any)?.name || "").trim();
+        const purse = state.purses.get(purseName);
+        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+
+        const fromIndex = Math.max(0, (args as any)?.fromIndex ?? 0);
+        const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
+
+        const accounts: { index: number; address: string }[] = [];
+        for (let i = 0; i < count; i++) {
+          const idx = fromIndex + i;
+          const address =
+            purse.format === "bip39"
+              ? deriveAddressBIP44(purse.mnemonic, idx, purse.passphrase).address
+              : deriveAddressLegacy(purse.seed, idx).address;
+          accounts.push({ index: idx, address });
+        }
+
+        return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, accounts }, null, 2) }] };
+      }
+
+      case "purse_balance": {
+        const purseName = String((args as any)?.name || "").trim();
+        const purse = state.purses.get(purseName);
+        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+
+        const index = ((args as any)?.index as number | undefined) ?? 0;
+        const includeXno = ((args as any)?.includeXno as boolean | undefined) ?? true;
+        const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
+        const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+
+        const address =
+          purse.format === "bip39"
+            ? deriveAddressBIP44(purse.mnemonic, index, purse.passphrase).address
+            : deriveAddressLegacy(purse.seed, index).address;
+
+        const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
+        const out: any = { name: purse.name, format: purse.format, index, address, balanceRaw: bal.balance, pendingRaw: bal.pending };
+        if (includeXno) {
+          out.balanceXno = rawToNano(bal.balance);
+          out.pendingXno = rawToNano(bal.pending);
+        }
+        return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+      }
+
+      case "purse_probe_balances": {
+        const purseName = String((args as any)?.name || "").trim();
+        const purse = state.purses.get(purseName);
+        if (!purse) throw new Error(`Unknown purse: ${purseName}`);
+
+        const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
+        const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
+        const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+
+        const addresses: string[] = [];
+        const accounts: { index: number; address: string }[] = [];
+        for (let i = 0; i < count; i++) {
+          const address =
+            purse.format === "bip39"
+              ? deriveAddressBIP44(purse.mnemonic, i, purse.passphrase).address
+              : deriveAddressLegacy(purse.seed, i).address;
+          accounts.push({ index: i, address });
+          addresses.push(address);
+        }
+
+        const balances = await rpcAccountsBalances(rpcUrl, addresses, { timeoutMs });
+        const frontiers = await rpcAccountsFrontiers(rpcUrl, addresses, { timeoutMs });
+
+        const rows = accounts.map((a) => {
+          const b = balances.balances?.[a.address];
+          const opened = Boolean(frontiers.frontiers?.[a.address]);
+          return {
+            ...a,
+            opened,
+            balanceRaw: b?.balance ?? "0",
+            pendingRaw: b?.pending ?? "0",
+            balanceXno: rawToNano(b?.balance ?? "0"),
+            pendingXno: rawToNano(b?.pending ?? "0"),
+          };
+        });
+
+        return { content: [{ type: "text", text: JSON.stringify({ name: purse.name, format: purse.format, rows }, null, 2) }] };
+      }
+
+      case "generate_wallet": {
+        const format = String((args as any)?.format || 'bip39').toLowerCase();
+        const index = (args as any)?.index ?? 0;
+        if (format === 'bip39') {
+          const words = (args as any)?.words ?? 24;
+          const passphrase = (args as any)?.passphrase ?? '';
+          const mnemonic = generateMnemonic(words);
+          const derived = deriveAddressBIP44(mnemonic, index, passphrase);
+          return { content: [{ type: "text", text: JSON.stringify({ format, index, mnemonic, ...derived }, null, 2) }] };
+        }
+        if (format === 'legacy') {
+          const seed = generateSeed();
+          const mnemonic = seedToMnemonic(seed);
+          const derived = deriveAddressLegacy(seed, index);
+          return { content: [{ type: "text", text: JSON.stringify({ format, index, mnemonic, seed, ...derived }, null, 2) }] };
+        }
+        throw new Error("Invalid format. Use bip39 or legacy.");
+      }
+
       case "derive_address": {
-        const mnemonic = args?.mnemonic as string;
-        const seed = args?.seed as string || (mnemonic ? mnemonicToSeed(mnemonic) : "");
-        const index = (args?.index as number) || 0;
-        
-        if (!seed) throw new Error("Mnemonic or seed required");
-        
-        const result = deriveAddressLegacy(seed, index);
-        return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-        };
+        const mnemonic = (args as any)?.mnemonic as string | undefined;
+        const seed = (args as any)?.seed as string | undefined;
+        const index = ((args as any)?.index as number | undefined) ?? 0;
+        const format = String((args as any)?.format || 'auto').toLowerCase();
+        const passphrase = String((args as any)?.passphrase || '');
+        const both = Boolean((args as any)?.both);
+
+        const haveMnemonic = Boolean(mnemonic && mnemonic.trim().length > 0);
+        const haveSeed = Boolean(seed && seed.trim().length > 0);
+        if (!haveMnemonic && !haveSeed) throw new Error("Mnemonic or seed required");
+
+        if (format === 'legacy') {
+          const seedHex = haveSeed ? seed! : mnemonicToSeed(mnemonic!);
+          const result = deriveAddressLegacy(seedHex, index);
+          return { content: [{ type: "text", text: JSON.stringify({ format: 'legacy', index, ...result }, null, 2) }] };
+        }
+
+        if (format === 'bip39') {
+          if (!haveMnemonic) throw new Error("bip39 derivation requires mnemonic");
+          if (!validateMnemonic(mnemonic!)) throw new Error("Invalid BIP39 mnemonic");
+          const result = deriveAddressBIP44(mnemonic!, index, passphrase);
+          return { content: [{ type: "text", text: JSON.stringify({ format: 'bip39', index, ...result }, null, 2) }] };
+        }
+
+        // auto
+        if (haveMnemonic) {
+          const wc = mnemonic!.trim().split(/\s+/).filter(Boolean).length;
+          if (!validateMnemonic(mnemonic!)) throw new Error("Invalid BIP39 mnemonic");
+          const bip39 = deriveAddressBIP44(mnemonic!, index, passphrase);
+          if (both && wc === 24) {
+            const seedHex = mnemonicToSeed(mnemonic!);
+            const legacy = deriveAddressLegacy(seedHex, index);
+            return { content: [{ type: "text", text: JSON.stringify({ format: 'auto', index, bip39, legacy }, null, 2) }] };
+          }
+          return { content: [{ type: "text", text: JSON.stringify({ format: 'bip39', index, ...bip39 }, null, 2) }] };
+        }
+
+        // seed-only auto: treat as legacy seed
+        const legacy = deriveAddressLegacy(seed!, index);
+        return { content: [{ type: "text", text: JSON.stringify({ format: 'legacy', index, ...legacy }, null, 2) }] };
       }
 
       case "convert_units": {
@@ -125,6 +579,83 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         };
+      }
+
+      case "rpc_account_balance": {
+        const address = args?.address as string;
+        const rpcUrl =
+          (args?.rpcUrl as string | undefined) ||
+          process.env.NANO_RPC_URL ||
+          process.env.XNO_RPC_URL ||
+          '';
+        const includeXno = (args?.includeXno as boolean | undefined) ?? true;
+        const timeoutMs = (args?.timeoutMs as number | undefined) ?? 15000;
+
+        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL / XNO_RPC_URL.");
+
+        const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
+        const out: any = { address, balanceRaw: bal.balance, pendingRaw: bal.pending };
+        if (includeXno) {
+          out.balanceXno = rawToNano(bal.balance);
+          out.pendingXno = rawToNano(bal.pending);
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(out, null, 2) }],
+        };
+      }
+
+      case "probe_mnemonic": {
+        const mnemonic = (args as any)?.mnemonic as string;
+        const passphrase = String((args as any)?.passphrase || '');
+        const count = Math.max(1, Math.min(100, ((args as any)?.count as number | undefined) ?? 5));
+        const timeoutMs = ((args as any)?.timeoutMs as number | undefined) ?? 15000;
+        const rpcUrl =
+          ((args as any)?.rpcUrl as string | undefined) ||
+          process.env.NANO_RPC_URL ||
+          process.env.XNO_RPC_URL ||
+          '';
+
+        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!validateMnemonic(mnemonic)) throw new Error("Invalid BIP39 mnemonic");
+
+        const wordCount = mnemonic.trim().split(/\s+/).filter(Boolean).length;
+        const out: any = { mnemonicWordCount: wordCount, count, bip39: [], legacy: [] };
+
+        const addresses: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const d = deriveAddressBIP44(mnemonic, i, passphrase);
+          out.bip39.push({ index: i, address: d.address });
+          addresses.push(d.address);
+        }
+        if (wordCount === 24) {
+          const legacySeed = mnemonicToSeed(mnemonic);
+          for (let i = 0; i < count; i++) {
+            const d = deriveAddressLegacy(legacySeed, i);
+            out.legacy.push({ index: i, address: d.address });
+            addresses.push(d.address);
+          }
+        }
+
+        const balances = await rpcAccountsBalances(rpcUrl, addresses, { timeoutMs });
+        const frontiers = await rpcAccountsFrontiers(rpcUrl, addresses, { timeoutMs });
+        const annotate = (arr: any[]) => arr.map((x) => {
+          const b = balances.balances?.[x.address];
+          const opened = Boolean(frontiers.frontiers?.[x.address]);
+          return {
+            ...x,
+            opened,
+            balanceRaw: b?.balance ?? '0',
+            pendingRaw: b?.pending ?? '0',
+          };
+        });
+        out.bip39 = annotate(out.bip39);
+        out.legacy = annotate(out.legacy);
+        const bip39Hit = out.bip39.some((x: any) => x.opened || x.balanceRaw !== '0' || x.pendingRaw !== '0');
+        const legacyHit = out.legacy.some((x: any) => x.opened || x.balanceRaw !== '0' || x.pendingRaw !== '0');
+        out.likelyFormat = bip39Hit && !legacyHit ? 'bip39' : legacyHit && !bip39Hit ? 'legacy' : 'ambiguous';
+
+        return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
       }
 
       default:
