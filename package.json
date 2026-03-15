@@ -27,7 +27,8 @@
     "test": "npm run build:esm && vitest",
     "build": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
-    "build:cjs": "tsc -p tsconfig.cjs.json"
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "prepack": "npm run build && npm run build:cjs"
   },
   "keywords": [
     "nano",
