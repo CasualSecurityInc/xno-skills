@@ -47,6 +47,14 @@ Returns:
 - `content`: the canonical `nano:` URI (`nano:<address>?amount=<raw>`)
 - `qr`: the ASCII QR block
 
+> **CRITICAL INSTRUCTION FOR AGENTS regarding truncation:**
+> AI agents often have their stdout streams truncated (e.g., `<truncated 14 lines>`).
+> If you need to print a QR code to the user, **DO NOT** run the command normally and paste the truncated output.
+> Instead, either:
+> 1. Run with `--json` and explicitly parse out the `"qr"` field (which contains the full string).
+> 2. Pipe the output to a temporary file (`> /tmp/qr.txt`) and use your file-reading tool (e.g., `view_file` or `cat`) to read the complete string without truncation, then present it to the user.
+
+
 ## Notes
 
 - The CLI validates the address before generating the QR.

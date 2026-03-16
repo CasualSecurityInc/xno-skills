@@ -72,7 +72,7 @@ const state = {
 };
 
 function getHomeDir(): string {
-  const envHome = process.env.XNO_MCP_HOME || process.env.NANO_MCP_HOME;
+  const envHome = process.env.XNO_MCP_HOME;
   if (envHome && envHome.trim()) return path.resolve(envHome);
   return path.resolve(process.cwd(), ".xno-mcp");
 }
@@ -132,9 +132,7 @@ function effectiveRpcUrl(explicit?: string): string {
   return (
     explicit ||
     state.config.rpcUrl ||
-    process.env.XNO_MCP_RPC_URL ||
     process.env.NANO_RPC_URL ||
-    process.env.XNO_RPC_URL ||
     ""
   );
 }
@@ -508,7 +506,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             address: { type: "string" },
-            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL)" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: 15000 },
           },
@@ -524,7 +522,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             mnemonic: { type: "string" },
             passphrase: { type: "string", default: "" },
             count: { type: "number", default: 5 },
-            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL)" },
             timeoutMs: { type: "number", default: 15000 },
           },
           required: ["mnemonic"],
@@ -661,7 +659,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const includeXno = ((args as any)?.includeXno as boolean | undefined) ?? true;
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
 
         const address = deriveWalletAccount(wallet, index).address;
 
@@ -682,7 +680,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
 
         const addresses: string[] = [];
         const accounts: { index: number; address: string }[] = [];
@@ -723,7 +721,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
         if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
@@ -839,7 +837,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
         if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
@@ -994,12 +992,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const rpcUrl =
           (args?.rpcUrl as string | undefined) ||
           process.env.NANO_RPC_URL ||
-          process.env.XNO_RPC_URL ||
           '';
         const includeXno = (args?.includeXno as boolean | undefined) ?? true;
         const timeoutMs = (args?.timeoutMs as number | undefined) ?? 15000;
 
-        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL.");
 
         const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
         const out: any = { address, balanceRaw: bal.balance, pendingRaw: bal.pending };
@@ -1021,10 +1018,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const rpcUrl =
           ((args as any)?.rpcUrl as string | undefined) ||
           process.env.NANO_RPC_URL ||
-          process.env.XNO_RPC_URL ||
           '';
 
-        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL / XNO_RPC_URL.");
+        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL.");
         if (!validateMnemonic(mnemonic)) throw new Error("Invalid BIP39 mnemonic");
 
         const wordCount = mnemonic.trim().split(/\s+/).filter(Boolean).length;
@@ -1078,6 +1074,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log(`
+xno-mcp: A Model Context Protocol companion server for the xno-skills collection of Nano (XNO) tools
+
+Usage:
+  xno-mcp [options]
+
+Options:
+  --help, -h          Show this help message
+
+Environment Variables:
+  XNO_MCP_HOME        Home directory for config and wallets (default: $PWD/.xno-mcp)
+  XNO_MCP_CONFIG_PATH Exact path for config.json (overrides HOME)
+  XNO_MCP_PURSES_PATH Exact path for wallets.json (overrides HOME)
+  NANO_RPC_URL        Fallback for RPC URL
+
+To start the server, simply run it without arguments (it speaks JSON-RPC over stdio).
+`);
+    process.exit(0);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

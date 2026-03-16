@@ -230,14 +230,14 @@ walletCmd
   .argument('[mnemonic]', 'BIP39 mnemonic (12/15/18/21/24 words). If omitted, use --stdin or --mnemonic-env.')
   .option('-p, --passphrase <passphrase>', 'Optional BIP39 passphrase (only affects bip39)')
   .option('-c, --count <n>', 'How many account indexes to check per format', (v) => parseInt(v, 10), 5)
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
   .option('--stdin', 'Read mnemonic from stdin (recommended; avoids shell history)')
   .option('--mnemonic-env <name>', 'Read mnemonic from env var (e.g. XNO_MNEMONIC)')
   .option('--json', 'Output JSON')
   .action(async (mnemonicArg: string | undefined, options: { passphrase?: string; count: number; url?: string; json?: boolean; stdin?: boolean; mnemonicEnv?: string }) => {
-    const rpcUrl = options.url || process.env.NANO_RPC_URL || process.env.XNO_RPC_URL;
+    const rpcUrl = options.url || process.env.NANO_RPC_URL;
     if (!rpcUrl) {
-      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL / XNO_RPC_URL.');
+      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
       process.exit(1);
     }
 
@@ -461,14 +461,14 @@ rpcCmd
   .command('account-balance')
   .description('Fetch account balance + pending (raw) from a Nano node')
   .argument('<address>', 'Nano address')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL / XNO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
   .option('--timeout-ms <ms>', 'Timeout in milliseconds', (v) => parseInt(v, 10), 15000)
   .option('--xno', 'Also include XNO-formatted values')
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; timeoutMs: number; xno?: boolean; json?: boolean }) => {
-    const rpcUrl = options.url || process.env.NANO_RPC_URL || process.env.XNO_RPC_URL;
+    const rpcUrl = options.url || process.env.NANO_RPC_URL;
     if (!rpcUrl) {
-      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL / XNO_RPC_URL.');
+      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
       process.exit(1);
     }
 
