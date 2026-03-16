@@ -18,7 +18,7 @@ Creates or restores a Nano wallet locally using `xno-skills`. This is useful for
 
 ## Assistant guardrails (match user intent)
 
-If a user says “I want to send you XNO” or “can you receive it?”:
+If a user says "I want to send you XNO" or "can you receive it?":
 
 - The agent **can** accept funds! You should use the `mcp-wallet` skill to initialize a custody wallet (`wallet_create`) or use an existing one, or import keys you generate here, and provide the user with the address.
 - If the user wants a wallet for themselves, offer to help them **create a wallet for themselves** (or validate/QR their existing address).
@@ -40,7 +40,7 @@ If the agent has access to **`xno-mcp`**:
 Nano wallets commonly use **either**:
 
 - **BIP39 (preferred / default in `xno-skills`)**: 12/15/18/21/24-word BIP39 mnemonic (+ optional passphrase) → BIP39 seed (PBKDF2) → Nano keys via BIP44-style path `m/44'/165'/index'`.
-- **Legacy (“Nano mnemonic”, 24 words)**: 24-word mnemonic → underlying entropy treated as a 32-byte Nano seed → Nano legacy key derivation `blake2b(seed || index)` to derive multiple accounts.
+- **Legacy ("Nano mnemonic", 24 words)**: 24-word mnemonic → underlying entropy treated as a 32-byte Nano seed → Nano legacy key derivation `blake2b(seed || index)` to derive multiple accounts.
 
 Important: a **24-word** phrase can be *ambiguous* (it can be used in both schemes). Prefer BIP39 unless the user explicitly knows they have a legacy mnemonic.
 
@@ -77,13 +77,15 @@ npx -y xno-skills wallet from-mnemonic --stdin --format auto --both --json
 If you have an RPC endpoint, scan the first 5 indexes of both schemes and see which has opened accounts / balances:
 
 ```bash
-export NANO_RPC_URL="http://127.0.0.1:7076"
+export NANO_RPC_URL="https://rpc.nano.org"
 npx -y xno-skills wallet probe-mnemonic "<mnemonic>" --json
 ```
 
-## “Receive” expectations
+## "Receive" expectations
 
-Nano transfers can show up as **pending** until the recipient wallet publishes the corresponding receive/open block. A typical wallet app handles this automatically; a raw seed/address alone does not “auto-receive”.
+Nano transfers can show up as **pending** until the recipient wallet publishes the corresponding receive/open block. A typical wallet app handles this automatically; a raw seed/address alone does not "auto-receive".
+
+**After generating a wallet and receiving funds, you MUST call `wallet_receive` to pocket the funds.**
 
 To check whether funds arrived on-chain (balance/pending), use the `check-balance` skill (RPC) or a block explorer.
 
@@ -92,3 +94,4 @@ To check whether funds arrived on-chain (balance/pending), use the `check-balanc
 - `generate-qr` – make a QR for the address (optionally with amount)
 - `validate-address` – verify a Nano address before sending
 - `check-balance` – verify balance/pending via RPC (if you have a node endpoint)
+- `mcp-wallet` – use xno-mcp as a private wallet custody service (recommended for agents)
