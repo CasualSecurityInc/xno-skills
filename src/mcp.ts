@@ -365,7 +365,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "config_set",
-        description: "Set xno-mcp defaults. RECOMMENDED: Set rpcUrl and defaultRepresentative once to avoid repeating them in every call. Example: { \"rpcUrl\": \"https://rpc.nano.org\", \"defaultRepresentative\": \"nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b\" }",
+        description: "Set xno-mcp defaults. RECOMMENDED: Set rpcUrl and defaultRepresentative once to avoid repeating them in every call. Example: { \"rpcUrl\": \"https://rpc.nano.org\", \"defaultRepresentative\": \"nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4\" }",
         inputSchema: {
           type: "object",
           properties: {
@@ -381,7 +381,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             defaultRepresentative: {
               type: "string",
               description:
-                "Default representative address for opening accounts. Used by wallet_receive when account is unopened. Well-known reps: nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b (Nano Foundation)",
+                "Default representative address for opening accounts. Used by wallet_receive when account is unopened. Well-known reps: nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4 (Nano Foundation #1)",
             },
           },
         },
@@ -456,7 +456,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_receive",
         description:
-          "Receive pending Nano blocks for a wallet account. CRITICAL: Nano transfers show as 'pending' until you call this. For unopened accounts (first receive), a representative is required - pass 'representative' or set defaultRepresentative in config_set. Well-known reps: nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b (Nano Foundation).",
+          "Receive pending Nano blocks for a wallet account. CRITICAL: Nano transfers show as 'pending' until you call this. For unopened accounts (first receive), a representative is required - pass 'representative' or set defaultRepresentative in config_set. Well-known reps: nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4 (Nano Foundation #1).",
         inputSchema: {
           type: "object",
           properties: {

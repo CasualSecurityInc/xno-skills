@@ -2,6 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { validateAddress } from '../src/validate';
 import { publicKeyToAddress, deriveAddressLegacy } from '../src/address-legacy';
 
+// These must match src/mcp.ts WELL_KNOWN_REPRESENTATIVES
+// This test ensures they are valid Nano addresses (65 chars, correct checksum)
+const WELL_KNOWN_REPRESENTATIVES = [
+  "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4",
+  "nano_1stofnrxuz3cai7ze75o174bpm7scwj9jn3nxsn8ntzg784jf1gzn1jjdkou",
+  "nano_1anrzcuwe64rwxzcco8dkhpyxpi8kd7zsjc1oeimpc3ppca4mrjtwnqposrs",
+];
+
 describe('validateAddress', () => {
   describe('valid addresses', () => {
     it('should validate a valid address generated from publicKeyToAddress', () => {
@@ -124,6 +132,31 @@ describe('validateAddress', () => {
       expect(result.valid).toBe(false);
       expect(result.publicKey).toBeUndefined();
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe('well-known representatives', () => {
+    it('should validate all WELL_KNOWN_REPRESENTATIVES', () => {
+      for (const addr of WELL_KNOWN_REPRESENTATIVES) {
+        const result = validateAddress(addr);
+        expect(result.valid, `Address ${addr} should be valid`).toBe(true);
+        expect(result.publicKey, `Address ${addr} should have publicKey`).toBeDefined();
+        expect(addr.length, `Address ${addr} should be 65 characters`).toBe(65);
+      }
+    });
+
+    it('should reject truncated addresses (64 chars)', () => {
+      // These are the OLD broken addresses that were 64 chars instead of 65
+      const truncatedAddresses = [
+        "nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b",
+        "nano_3arg4bjkt55at6sckhr523kyskw7cd5i6deey5c77e8th9s26mhaz9k9r1j",
+      ];
+      for (const addr of truncatedAddresses) {
+        expect(addr.length, `${addr} should be 64 chars (truncated)`).toBe(64);
+        const result = validateAddress(addr);
+        expect(result.valid, `Truncated address ${addr} should be invalid`).toBe(false);
+        expect(result.error, `Truncated address error should mention length`).toContain('length');
+      }
     });
   });
 });
