@@ -39,15 +39,15 @@ Before using wallet operations that require network access, you need:
    - `https://node.somenano.site/api` (SomeNano)
 
 2. **Representative** - Required for opening new accounts. Well-known representatives:
-   - `nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b` (Nano Foundation)
-   - `nano_3arg4bjkt55at6sckhr523kyskw7cd5i6deey5c77e8th9s26mhaz9k9r1j` (Nano Foundation Rep)
+   - `nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4` (Nano Foundation #1)
+   - `nano_1stofnrxuz3cai7ze75o174bpm7scwj9jn3nxsn8ntzg784jf1gzn1jjdkou` (Nano Foundation #2)
 
 **Recommended: Set defaults once to avoid repeating parameters:**
 
 ```json
 {
   "rpcUrl": "https://rpc.nano.org",
-  "defaultRepresentative": "nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b"
+  "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"
 }
 ```
 
@@ -100,7 +100,7 @@ To send funds, the account must be opened (have received funds) and have an adeq
 ## Quick Start Example
 
 ```
-1. config_set: { "rpcUrl": "https://rpc.nano.org", "defaultRepresentative": "nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b" }
+1. config_set: { "rpcUrl": "https://rpc.nano.org", "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4" }
 2. wallet_create: { "name": "mywallet" }
 3. (User sends funds to the address)
 4. wallet_receive: { "name": "mywallet" }
