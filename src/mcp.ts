@@ -92,7 +92,14 @@ const state = {
 // Get the directory where this module is installed (similar to MCP memory server)
 // This ensures config/wallets are stored in a predictable location relative to the package
 function getInstalledDir(): string {
-  return path.dirname(fileURLToPath(import.meta.url));
+  // ESM: use import.meta.url; CJS: use __dirname
+  // @ts-ignore
+  const url = typeof import.meta?.url === 'string' ? import.meta.url : null;
+  if (url) {
+    return path.dirname(fileURLToPath(url));
+  }
+  // @ts-ignore - __dirname is available in CJS
+  return __dirname;
 }
 
 function getHomeDir(): string {
