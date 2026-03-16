@@ -25,6 +25,7 @@ import { hashNanoStateBlock } from "./state-block.js";
 import { nanoSignBlake2b } from "./ed25519-blake2b.js";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const server = new Server(
   {
@@ -66,15 +67,39 @@ type Wallet =
     };
 
 const DEFAULT_TIMEOUT_MS = 15000;
+
+// Well-known public RPC nodes (for convenience - users should use their own nodes for production)
+const WELL_KNOWN_RPC_NODES = [
+  "https://rpc.nano.org",
+  "https://app.natrium.io/api/rpc",
+  "https://rainstorm.city/api",
+  "https://nanonode.cc/api",
+  "https://node.somenano.site/api",
+];
+
+// Well-known representatives (trusted, high-uptime)
+const WELL_KNOWN_REPRESENTATIVES = [
+  "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4", // Nano Foundation #1
+  "nano_1stofnrxuz3cai7ze75o174bpm7scwj9jn3nxsn8ntzg784jf1gzn1jjdkou", // Nano Foundation #2
+  "nano_1anrzcuwe64rwxzcco8dkhpyxpi8kd7zsjc1oeimpc3ppca4mrjtwnqposrs", // Nano Foundation #7
+];
+
 const state = {
   config: {} as McpConfig,
   wallets: new Map<string, Wallet>(),
 };
 
+// Get the directory where this module is installed (similar to MCP memory server)
+// This ensures config/wallets are stored in a predictable location relative to the package
+function getInstalledDir(): string {
+  return path.dirname(fileURLToPath(import.meta.url));
+}
+
 function getHomeDir(): string {
+  // Priority: 1. Environment variable, 2. Installed package directory
   const envHome = process.env.XNO_MCP_HOME;
   if (envHome && envHome.trim()) return path.resolve(envHome);
-  return path.resolve(process.cwd(), ".xno-mcp");
+  return path.join(getInstalledDir(), ".xno-mcp");
 }
 
 function getConfigPath(): string {
@@ -129,11 +154,26 @@ function persistWallets() {
 }
 
 function effectiveRpcUrl(explicit?: string): string {
-  return (
+  const url = (
     explicit ||
     state.config.rpcUrl ||
     process.env.NANO_RPC_URL ||
     ""
+  );
+  return url;
+}
+
+function effectiveDefaultRepresentative(): string {
+  return state.config.defaultRepresentative || WELL_KNOWN_REPRESENTATIVES[0];
+}
+
+function rpcUrlErrorMessage(): string {
+  return (
+    "Missing RPC URL. Options:\n" +
+    "1. Set via config_set: { \"rpcUrl\": \"https://rpc.nano.org\" }\n" +
+    "2. Pass as parameter: { \"rpcUrl\": \"https://rpc.nano.org\" }\n" +
+    "3. Set environment variable: NANO_RPC_URL=https://rpc.nano.org\n" +
+    "Well-known public nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api"
   );
 }
 
@@ -155,7 +195,13 @@ const ZERO_32_HEX = "0".repeat(64);
 
 function requireRepresentativeAddress(explicit?: string): string {
   const rep = (explicit || state.config.defaultRepresentative || "").trim();
-  if (!rep) throw new Error("Missing representative. Pass representative or set config_set { defaultRepresentative: \"nano_...\" }.");
+  if (!rep) {
+    // Use a well-known representative as fallback
+    const defaultRep = WELL_KNOWN_REPRESENTATIVES[0];
+    const v = validateAddress(defaultRep);
+    if (!v.valid) throw new Error(`Invalid default representative: ${v.error}`);
+    return defaultRep;
+  }
   const v = validateAddress(rep);
   if (!v.valid) throw new Error(`Invalid representative address: ${v.error}`);
   return rep;
@@ -314,17 +360,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "config_get",
-        description: "Get xno-mcp defaults (RPC URL, timeouts, persistence)",
+        description: "Get xno-mcp defaults (RPC URL, representative, timeouts, persistence). Use this to check current configuration.",
         inputSchema: { type: "object", properties: {} },
       },
       {
         name: "config_set",
-        description: "Set xno-mcp defaults (RPC URL, timeouts, persistence)",
+        description: "Set xno-mcp defaults. RECOMMENDED: Set rpcUrl and defaultRepresentative once to avoid repeating them in every call. Example: { \"rpcUrl\": \"https://rpc.nano.org\", \"defaultRepresentative\": \"nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b\" }",
         inputSchema: {
           type: "object",
           properties: {
-            rpcUrl: { type: "string", description: "Default Nano node RPC URL" },
-            workUrl: { type: "string", description: "Optional work_generate RPC URL (defaults to rpcUrl)" },
+            rpcUrl: { type: "string", description: "Default Nano node RPC URL. Well-known public nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api" },
+            workUrl: { type: "string", description: "Optional work_generate RPC URL (defaults to rpcUrl). Most nodes support work_generate." },
             timeoutMs: { type: "number", description: "Default RPC timeout in ms", default: DEFAULT_TIMEOUT_MS },
             persistWallets: {
               type: "boolean",
@@ -335,7 +381,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             defaultRepresentative: {
               type: "string",
               description:
-                "Default representative address for opening accounts (used by wallet_receive when account is unopened).",
+                "Default representative address for opening accounts. Used by wallet_receive when account is unopened. Well-known reps: nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b (Nano Foundation)",
             },
           },
         },
@@ -379,13 +425,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "wallet_balance",
-        description: "Check balance/pending for a wallet account index via RPC (uses xno-mcp defaults)",
+        description: "Check balance/pending for a wallet account. NOTE: Returns 0 balance for unopened accounts. Use wallet_probe_balances to see which accounts are opened.",
         inputSchema: {
           type: "object",
           properties: {
             name: { type: "string" },
             index: { type: "number", default: 0 },
-            rpcUrl: { type: "string" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL. If not set, uses rpcUrl from config or NANO_RPC_URL env var." },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
           },
@@ -410,7 +456,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_receive",
         description:
-          "Receive pending blocks for a wallet account index (sign + work_generate + process). Requires RPC + work support.",
+          "Receive pending Nano blocks for a wallet account. CRITICAL: Nano transfers show as 'pending' until you call this. For unopened accounts (first receive), a representative is required - pass 'representative' or set defaultRepresentative in config_set. Well-known reps: nano_1iuz18nxc4am6i4ixn7enj9tusyz8c3nyohmm77bzzd95sx9xmr9xh9qg9b (Nano Foundation).",
         inputSchema: {
           type: "object",
           properties: {
@@ -418,9 +464,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             index: { type: "number", default: 0 },
             count: { type: "number", description: "Max pending blocks to receive", default: 10 },
             onlyHash: { type: "string", description: "If set, only receive this pending send block hash" },
-            representative: { type: "string", description: "Representative address to use when opening an unopened account" },
-            rpcUrl: { type: "string" },
-            workUrl: { type: "string" },
+            representative: { type: "string", description: "Representative address for unopened accounts. If not set, uses defaultRepresentative from config or a well-known representative." },
+            rpcUrl: { type: "string", description: "Nano node RPC URL. If not set, uses rpcUrl from config or NANO_RPC_URL env var." },
+            workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
           },
@@ -430,7 +476,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_send",
         description:
-          "Send funds from a wallet account index (sign + work_generate + process). Requires opened account with balance.",
+          "Send Nano from a wallet account. REQUIREMENTS: Account must be opened (have received funds) and have sufficient balance. Use wallet_receive first if account is unopened.",
         inputSchema: {
           type: "object",
           properties: {
@@ -439,8 +485,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             destination: { type: "string", description: "Destination nano_... address" },
             amountRaw: { type: "string", description: "Amount in raw (string)" },
             amountXno: { type: "string", description: "Amount in XNO (string; will be converted to raw)" },
-            rpcUrl: { type: "string" },
-            workUrl: { type: "string" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL. If not set, uses rpcUrl from config or NANO_RPC_URL env var." },
+            workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
           },
@@ -501,12 +547,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "rpc_account_balance",
-        description: "Query a Nano node for account balance + pending (requires RPC URL/network access)",
+        description: "Query a Nano node for account balance + pending. NOTE: Returns 0 for unopened accounts. Well-known public RPC nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api",
         inputSchema: {
           type: "object",
           properties: {
             address: { type: "string" },
-            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL)" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL. Well-known public nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: 15000 },
           },
@@ -515,14 +561,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "probe_mnemonic",
-        description: "Try bip39 + legacy derivations and probe first N indexes via RPC (helps resolve 24-word ambiguity)",
+        description: "Try bip39 + legacy derivations and probe first N indexes via RPC. Helps resolve 24-word mnemonic ambiguity by checking which derivation has opened accounts/balances.",
         inputSchema: {
           type: "object",
           properties: {
             mnemonic: { type: "string" },
             passphrase: { type: "string", default: "" },
             count: { type: "number", default: 5 },
-            rpcUrl: { type: "string", description: "Nano node RPC URL (or set NANO_RPC_URL)" },
+            rpcUrl: { type: "string", description: "Nano node RPC URL. Well-known public nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc" },
             timeoutMs: { type: "number", default: 15000 },
           },
           required: ["mnemonic"],
@@ -659,7 +705,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const includeXno = ((args as any)?.includeXno as boolean | undefined) ?? true;
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
 
         const address = deriveWalletAccount(wallet, index).address;
 
@@ -680,7 +726,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const count = Math.max(1, Math.min(100, (args as any)?.count ?? 5));
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
 
         const addresses: string[] = [];
         const accounts: { index: number; address: string }[] = [];
@@ -721,8 +767,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
-        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
@@ -837,15 +883,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
         const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
-        if (!rpcUrl) throw new Error("Missing RPC URL. Set xno-mcp config rpcUrl, pass rpcUrl, or set NANO_RPC_URL.");
-        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
 
         const acct = deriveWalletAccount(wallet, index);
         const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
-        if (typeof (info as any)?.error === "string") throw new Error("Account is unopened. Receive funds first (wallet_receive).");
+        if (typeof (info as any)?.error === "string") {
+          throw new Error(
+            "Account is unopened (no transaction history). You must receive funds first using wallet_receive. " +
+            "For unopened accounts, wallet_receive requires a representative (pass 'representative' parameter or set defaultRepresentative in config)."
+          );
+        }
 
         const previous = String((info as any).frontier);
         const representativeAddress = String((info as any).representative || "");
@@ -996,7 +1047,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const includeXno = (args?.includeXno as boolean | undefined) ?? true;
         const timeoutMs = (args?.timeoutMs as number | undefined) ?? 15000;
 
-        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
 
         const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs });
         const out: any = { address, balanceRaw: bal.balance, pendingRaw: bal.pending };
@@ -1020,7 +1071,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           process.env.NANO_RPC_URL ||
           '';
 
-        if (!rpcUrl) throw new Error("Missing RPC URL. Provide rpcUrl or set NANO_RPC_URL.");
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
         if (!validateMnemonic(mnemonic)) throw new Error("Invalid BIP39 mnemonic");
 
         const wordCount = mnemonic.trim().split(/\s+/).filter(Boolean).length;
@@ -1085,7 +1136,7 @@ Options:
   --help, -h          Show this help message
 
 Environment Variables:
-  XNO_MCP_HOME        Home directory for config and wallets (default: $PWD/.xno-mcp)
+  XNO_MCP_HOME        Home directory for config and wallets (default: <installed-dir>/.xno-mcp)
   XNO_MCP_CONFIG_PATH Exact path for config.json (overrides HOME)
   XNO_MCP_PURSES_PATH Exact path for wallets.json (overrides HOME)
   NANO_RPC_URL        Fallback for RPC URL
