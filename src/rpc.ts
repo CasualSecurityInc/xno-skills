@@ -1,3 +1,4 @@
+import https from 'https';
 import { validateAddress } from './validate.js';
 
 export interface NanoRpcErrorResponse {
@@ -35,43 +36,51 @@ export async function nanoRpcCall<T>(
 ): Promise<T> {
   if (!rpcUrl) throw new Error('RPC URL is required');
 
-  const controller = new AbortController();
   const timeoutMs = options.timeoutMs ?? 15_000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const res = await fetch(rpcUrl, {
+  return new Promise((resolve, reject) => {
+    const url = new URL(rpcUrl);
+    const requestOptions: https.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname + url.search,
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      timeout: timeoutMs,
+    };
+
+    const req = https.request(requestOptions, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (typeof json?.error === 'string') {
+            if (options.allowRpcError) {
+              resolve(json as T);
+              return;
+            }
+            reject(new Error(`RPC error: ${json.error}`));
+            return;
+          }
+          resolve(json as T);
+        } catch {
+          reject(new Error(`RPC returned non-JSON response (status ${res.statusCode})`));
+        }
+      });
     });
 
-    const text = await res.text();
-    let json: any;
-    try {
-      json = text ? JSON.parse(text) : {};
-    } catch {
-      throw new Error(`RPC returned non-JSON response (status ${res.status})`);
-    }
+    req.on('error', (e) => reject(new Error(`RPC error: ${e.message}`)));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`RPC request timed out after ${timeoutMs}ms`));
+    });
 
-    if (!res.ok) {
-      const msg = typeof json?.error === 'string' ? json.error : `HTTP ${res.status}`;
-      throw new Error(`RPC error: ${msg}`);
-    }
-
-    if (typeof json?.error === 'string') {
-      if (options.allowRpcError) return json as T;
-      throw new Error(`RPC error: ${json.error}`);
-    }
-
-    return json as T;
-  } catch (e: any) {
-    if (e?.name === 'AbortError') throw new Error(`RPC request timed out after ${timeoutMs}ms`);
-    throw e;
-  } finally {
-    clearTimeout(timeout);
-  }
+    req.write(JSON.stringify(body));
+    req.end();
+  });
 }
 
 export async function rpcAccountBalance(
