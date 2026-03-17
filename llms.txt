@@ -1,25 +1,45 @@
 # xno-skills
 
-A TypeScript library and CLI for offline Nano ($XNO) cryptocurrency operations.
+A TypeScript library, CLI, and MCP server for Nano (XNO) cryptocurrency. Wallet custody, payment requests, unit conversion, address validation, and more.
 
 ## Key Information
-- **Purpose**: Offline wallet generation, address derivation (Legacy + BIP44), unit conversion, and QR code generation.
+- **Purpose**: Wallet custody for AI agents, payment request workflows, offline key derivation (Legacy + BIP44), unit conversion, QR codes.
 - **Precision**: Uses BigInt for all amount calculations. Never use JS Number for raw units.
-- **Security**: No network calls in core library. Seeds/mnemonics should be handled via environment variables.
+- **Security**: Wallet secrets stay inside MCP custody. Seeds/mnemonics never returned by custodial wallet tools.
 
 ## AI Skills
-To install AI-assisted workflows for this repo:
+To install AI-assisted workflows:
 `npx skills add CasualSecurityInc/xno-skills`
 
+Available skills: create-wallet, mcp-wallet, request-payment, return-funds, check-balance, convert-units, generate-qr, validate-address.
+
 ## MCP Server
-A built-in Model Context Protocol (MCP) server is available for AI agents.
+A built-in Model Context Protocol (MCP) server for AI agents.
 To start: `npx xno-mcp`
 
-Tools included:
-- `generate_wallet`: New wallet generation.
-- `derive_address`: Mnemonic/seed derivation.
-- `convert_units`: Precision unit conversion.
+Wallet custody tools:
+- `wallet_create` / `wallet_list` / `wallet_addresses`: Named wallets (secrets stay in MCP).
+- `wallet_balance` / `wallet_probe_balances`: Balance and pending checks via RPC.
+- `wallet_receive` / `wallet_send`: Receive pending blocks and send funds.
+- `wallet_set_allowance` / `wallet_get_allowance`: Spending limits per wallet.
+- `wallet_history`: Persistent transaction log.
+
+Payment request tools:
+- `payment_request_create`: Structured funding request with tracking.
+- `payment_request_status`: Check funding progress.
+- `payment_request_receive`: Receive funds for a specific request.
+- `payment_request_refund`: Safe refund with source attribution.
+- `payment_request_list`: List all requests.
+
+Utility tools:
+- `config_get` / `config_set`: Session defaults (RPC URL, representative, timeouts, persistence).
+- `generate_wallet`: Generate wallet (returns secrets — use wallet_create for custody).
+- `derive_address`: Derive address from mnemonic/seed.
+- `probe_mnemonic`: Resolve 24-word derivation ambiguity via RPC.
+- `convert_units`: XNO/raw unit conversion.
 - `validate_address`: Address format and checksum check.
+- `generate_qr`: QR code for Nano address/payment URI.
+- `rpc_account_balance`: Direct RPC balance query.
 
 ## Installation
 `npm install xno-skills`
@@ -27,12 +47,14 @@ Tools included:
 ## CLI Usage
 Available via `npx xno-skills <command>` or global install.
 - `xno-skills wallet create [--json]`: Generate new wallet.
-- `xno-skills wallet from-mnemonic <phrase> [--json]`: Restore wallet.
+- `xno-skills wallet from-mnemonic --stdin [--json]`: Restore wallet (secure stdin).
 - `xno-skills convert <amount> <from> --to <to>`: Convert between raw, XNO, knano, mnano.
 - `xno-skills qr <address> [--amount <val>]`: Generate ASCII QR code.
 - `xno-skills validate <address> [--json]`: Check address format and checksum.
+- `xno-skills rpc account-balance <address> [--json --xno]`: Check balance via RPC.
 
 ## Entry Points
 - `src/index.ts`: Public API exports.
 - `src/cli.ts`: CLI implementation.
-- `test/integration.test.ts`: End-to-end integration tests.
+- `src/mcp.ts`: MCP server (wallet custody, payment requests, allowances).
+- `test/mcp.test.ts`: MCP integration tests.

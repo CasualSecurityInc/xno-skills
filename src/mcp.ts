@@ -12,6 +12,7 @@ import { deriveAddressLegacy } from "./address-legacy.js";
 import { deriveAddressBIP44 } from "./address-bip44.js";
 import { validateAddress } from "./validate.js";
 import { nanoToRaw, rawToNano } from "./convert.js";
+import { generateAsciiQr, buildNanoUri } from "./qr.js";
 import {
   rpcAccountBalance,
   rpcAccountsBalances,
@@ -47,7 +48,8 @@ type McpConfig = {
   timeoutMs?: number;
   persistWallets?: boolean;
   defaultRepresentative?: string;
-  useLocalPow?: boolean; // Default true - use local PoW instead of remote work_generate
+  useLocalPow?: boolean;
+  maxSendXno?: string;
 };
 
 type WalletFormat = "bip39" | "legacy";
@@ -92,9 +94,45 @@ const DEFAULT_PERSIST_WALLETS = (() => {
   return true;
 })();
 
+type PaymentRequestStatus = 'pending' | 'partial' | 'funded' | 'received' | 'refunded' | 'cancelled';
+
+type PaymentRequest = {
+  id: string;
+  walletName: string;
+  accountIndex: number;
+  address: string;
+  amountRaw: string;
+  reason: string;
+  status: PaymentRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  receivedBlocks: { sendHash: string; source: string; amountRaw: string; receiveHash?: string }[];
+};
+
+type TransactionRecord = {
+  id: string;
+  walletName: string;
+  accountIndex: number;
+  address: string;
+  type: 'send' | 'receive';
+  amountRaw: string;
+  counterparty: string;
+  hash: string;
+  paymentRequestId?: string;
+  timestamp: string;
+};
+
+const DEFAULT_MAX_SEND_XNO = (() => {
+  const env = process.env.XNO_MAX_SEND;
+  if (env !== undefined && env.trim()) return env.trim();
+  return "1.0";
+})();
+
 const state = {
   config: { persistWallets: DEFAULT_PERSIST_WALLETS } as McpConfig,
   wallets: new Map<string, Wallet>(),
+  paymentRequests: new Map<string, PaymentRequest>(),
+  transactions: [] as TransactionRecord[],
 };
 
 // Get the directory where this module is installed (similar to MCP memory server)
@@ -129,6 +167,18 @@ function getWalletsPath(): string {
   return path.join(getHomeDir(), "wallets.json");
 }
 
+function getPaymentRequestsPath(): string {
+  const envPath = process.env.XNO_MCP_REQUESTS_PATH;
+  if (envPath && envPath.trim()) return path.resolve(envPath);
+  return path.join(getHomeDir(), "requests.json");
+}
+
+function getTransactionsPath(): string {
+  const envPath = process.env.XNO_MCP_TRANSACTIONS_PATH;
+  if (envPath && envPath.trim()) return path.resolve(envPath);
+  return path.join(getHomeDir(), "transactions.json");
+}
+
 function loadJsonFile<T>(filePath: string): T | null {
   try {
     const raw = fs.readFileSync(filePath, "utf8");
@@ -157,6 +207,16 @@ function loadStateFromDisk() {
       for (const p of persisted.wallets) state.wallets.set(p.name, p);
     }
   }
+
+  const persistedRequests = loadJsonFile<{ requests: PaymentRequest[] }>(getPaymentRequestsPath());
+  if (persistedRequests?.requests?.length) {
+    for (const r of persistedRequests.requests) state.paymentRequests.set(r.id, r);
+  }
+
+  const persistedTransactions = loadJsonFile<{ transactions: TransactionRecord[] }>(getTransactionsPath());
+  if (persistedTransactions?.transactions?.length) {
+    state.transactions = persistedTransactions.transactions;
+  }
 }
 
 function persistConfig() {
@@ -167,6 +227,16 @@ function persistWallets() {
   if (!state.config.persistWallets) return;
   saveJsonFile(getWalletsPath(), { wallets: Array.from(state.wallets.values()) });
 }
+
+function persistPaymentRequests() {
+  saveJsonFile(getPaymentRequestsPath(), { requests: Array.from(state.paymentRequests.values()) });
+}
+
+function persistTransactions() {
+  saveJsonFile(getTransactionsPath(), { transactions: state.transactions });
+}
+
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 function effectiveRpcUrl(explicit?: string): string {
   const url = (
@@ -239,6 +309,106 @@ function walletToPublicSummary(wallet: Wallet, count: number = 1) {
     createdAt: wallet.createdAt,
     accounts,
   };
+}
+
+function effectiveMaxSendRaw(): string {
+  const xno = state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO;
+  return nanoToRaw(xno);
+}
+
+function enforceMaxSend(amountRaw: string): void {
+  const maxRaw = BigInt(effectiveMaxSendRaw());
+  if (BigInt(amountRaw) > maxRaw) {
+    const capXno = state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO;
+    throw new Error(
+      `Send amount exceeds max-send cap of ${capXno} XNO. ` +
+      `Ask the operator to raise the limit via config_set({ maxSendXno: "..." }).`
+    );
+  }
+}
+
+type AutoReceiveResult = {
+  received: { sendHash: string; source: string; amountRaw: string; receiveHash: string }[];
+  newFrontier: string;
+  newBalance: string;
+};
+
+async function autoReceivePending(opts: {
+  wallet: Wallet;
+  index: number;
+  acct: { address: string; publicKey: string; privateKey: string };
+  rpcUrl: string;
+  workUrl: string;
+  timeoutMs: number;
+  useLocalPow: boolean;
+  frontier: string;
+  balance: string;
+  representativeAddress: string;
+  repPublicKey: string;
+  maxCount?: number;
+}): Promise<AutoReceiveResult> {
+  const receivable = await rpcReceivable(opts.rpcUrl, opts.acct.address, opts.maxCount ?? 10, { timeoutMs: opts.timeoutMs });
+  if (!receivable.length) return { received: [], newFrontier: opts.frontier, newBalance: opts.balance };
+
+  let previous = opts.frontier;
+  let balanceRaw = opts.balance;
+  const received: AutoReceiveResult["received"] = [];
+
+  for (const p of receivable) {
+    const amountRaw = String(p.amount);
+    const newBalance = (BigInt(balanceRaw) + BigInt(amountRaw)).toString();
+    const workRoot = previous !== ZERO_32_HEX ? previous : opts.acct.publicKey;
+    const link = p.hash;
+
+    const blockHash = hashNanoStateBlock({
+      accountPublicKey: opts.acct.publicKey,
+      previous,
+      representativePublicKey: opts.repPublicKey,
+      balanceRaw: newBalance,
+      link,
+    });
+    const signature = nanoSignBlake2b(blockHash, opts.acct.privateKey);
+    const subtype = previous === ZERO_32_HEX ? "open" : "receive";
+
+    let work: string;
+    if (opts.useLocalPow) {
+      work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+    } else {
+      work = (await rpcWorkGenerate(opts.workUrl, workRoot, { timeoutMs: opts.timeoutMs })).work;
+    }
+
+    const block = {
+      type: "state",
+      account: opts.acct.address,
+      previous,
+      representative: opts.representativeAddress,
+      balance: newBalance,
+      link,
+      signature,
+      work,
+    };
+
+    const processed = await rpcProcess(opts.rpcUrl, block, subtype as any, { timeoutMs: opts.timeoutMs });
+    received.push({ sendHash: p.hash, source: p.source ?? "", amountRaw, receiveHash: processed.hash });
+
+    state.transactions.push({
+      id: generateId(),
+      walletName: opts.wallet.name,
+      accountIndex: opts.index,
+      address: opts.acct.address,
+      type: "receive",
+      amountRaw,
+      counterparty: p.source ?? "",
+      hash: processed.hash,
+      timestamp: new Date().toISOString(),
+    });
+
+    previous = processed.hash;
+    balanceRaw = newBalance;
+  }
+
+  persistTransactions();
+  return { received, newFrontier: previous, newBalance: balanceRaw };
 }
 
 loadStateFromDisk();
@@ -408,6 +578,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description:
                 "Default representative address for opening accounts. Used by wallet_receive when account is unopened. Well-known reps: nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4 (Nano Foundation #1)",
             },
+            maxSendXno: {
+              type: "string",
+              description:
+                `Max XNO per send transaction. Default: ${DEFAULT_MAX_SEND_XNO} XNO. Also settable via XNO_MAX_SEND env var.`,
+            },
           },
         },
       },
@@ -502,7 +677,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_send",
         description:
-          "Send Nano from a wallet account. REQUIREMENTS: Account must be opened (have received funds) and have sufficient balance. Use wallet_receive first if account is unopened.",
+          `Send Nano from a wallet account. Max send per transaction: ${state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO} XNO (change via config_set or XNO_MAX_SEND env var). Account must be opened and have sufficient balance.`,
         inputSchema: {
           type: "object",
           properties: {
@@ -521,8 +696,81 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: "payment_request_create",
+        description: "Create a payment request. Reuses an existing wallet account or creates a new wallet if needed. Returns address, QR-ready URI, and request ID for tracking.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            walletName: { type: "string", description: "Wallet name (optional - will auto-select or create)" },
+            accountIndex: { type: "number", default: 0 },
+            amountXno: { type: "string" },
+            reason: { type: "string" },
+          },
+          required: ["amountXno", "reason"],
+        },
+      },
+      {
+        name: "payment_request_status",
+        description: "Check payment request status. Shows funding progress, received blocks, and source addresses.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "payment_request_receive",
+        description: "Check for and receive pending funds for a payment request. Call this after the operator says they've sent funds.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "payment_request_list",
+        description: "List all payment requests, optionally filtered by status.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            status: { type: "string", description: "Filter by status" },
+            walletName: { type: "string" },
+          },
+        },
+      },
+      {
+        name: "payment_request_refund",
+        description: "Prepare or execute a refund for a payment request. If multiple source addresses exist, returns candidates for user confirmation. NEVER auto-refund without confirmation when sources are ambiguous.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            confirmAddress: { type: "string", description: "Required when multiple sources exist" },
+            execute: { type: "boolean", description: "When true, actually sends the refund", default: false },
+          },
+          required: ["id"],
+        },
+      },
+      {
+        name: "wallet_history",
+        description: "View transaction history for a wallet account. Shows sends, receives, and linked payment requests.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            walletName: { type: "string" },
+            accountIndex: { type: "number", default: 0 },
+            limit: { type: "number", default: 20 },
+          },
+          required: ["walletName"],
+        },
+      },
+      {
         name: "generate_wallet",
-        description: "Generate a new Nano wallet (default: BIP39 derivation)",
+        description: "Generate a new Nano wallet (default: BIP39 derivation). WARNING: This returns the mnemonic/seed in the response. For custodial wallets where secrets should stay hidden, use wallet_create instead.",
         inputSchema: {
           type: "object",
           properties: {
@@ -601,6 +849,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["mnemonic"],
         },
       },
+
+      {
+        name: "generate_qr",
+        description: "Generate an ASCII QR code for a Nano address, optionally with an amount. Returns the QR as text art.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            address: { type: "string", description: "Nano address (nano_...)" },
+            amountXno: { type: "string", description: "Optional amount in XNO" },
+          },
+          required: ["address"],
+        },
+      },
     ],
   };
 });
@@ -628,6 +889,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (persistWalletsFlag !== undefined) state.config.persistWallets = persistWalletsFlag;
         if (useLocalPowFlag !== undefined) state.config.useLocalPow = useLocalPowFlag;
         if (defaultRepresentative !== undefined) state.config.defaultRepresentative = defaultRepresentative;
+
+        const maxSendXno = (args as any)?.maxSendXno as string | undefined;
+        if (maxSendXno !== undefined) state.config.maxSendXno = maxSendXno;
 
         persistConfig();
         if (state.config.persistWallets) persistWallets();
@@ -882,9 +1146,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             subtype,
           });
 
+          state.transactions.push({
+            id: generateId(),
+            walletName: wallet.name,
+            accountIndex: index,
+            address: acct.address,
+            type: "receive",
+            amountRaw,
+            counterparty: p.source ?? "",
+            hash: processed.hash,
+            timestamp: new Date().toISOString(),
+          });
+
           previous = processed.hash;
           balanceRaw = newBalance;
         }
+
+        persistTransactions();
 
         const out: any = {
           name: wallet.name,
@@ -936,14 +1214,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           );
         }
 
-        const previous = String((info as any).frontier);
+        let previous = String((info as any).frontier);
         const representativeAddress = String((info as any).representative || "");
         const repVal = validateAddress(representativeAddress);
         if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative from RPC: ${repVal.error}`);
 
-        const currentBalance = BigInt(String((info as any).balance));
+        const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
+
+        let currentBalance = BigInt(String((info as any).balance));
         const sendAmount = BigInt(amountRaw);
+
+        if (sendAmount > currentBalance) {
+          const autoRx = await autoReceivePending({
+            wallet, index, acct, rpcUrl, workUrl,
+            timeoutMs, useLocalPow,
+            frontier: previous,
+            balance: currentBalance.toString(),
+            representativeAddress,
+            repPublicKey: repVal.publicKey,
+          });
+          if (autoRx.received.length > 0) {
+            previous = autoRx.newFrontier;
+            currentBalance = BigInt(autoRx.newBalance);
+          }
+        }
+
         if (sendAmount > currentBalance) throw new Error("Insufficient balance");
+
+        enforceMaxSend(amountRaw);
+
         const newBalance = (currentBalance - sendAmount).toString();
 
         const blockHash = hashNanoStateBlock({
@@ -954,8 +1253,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           link: destVal.publicKey,
         });
         const signature = nanoSignBlake2b(blockHash, acct.privateKey);
-        
-        const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
         let work: string;
         if (useLocalPow) {
           work = (await localWorkGenerate(previous, 'send')).work;
@@ -976,6 +1273,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
         const processed = await rpcProcess(rpcUrl, block, "send", { timeoutMs });
 
+        state.transactions.push({
+          id: generateId(),
+          walletName: wallet.name,
+          accountIndex: index,
+          address: acct.address,
+          type: "send",
+          amountRaw,
+          counterparty: destination,
+          hash: processed.hash,
+          timestamp: new Date().toISOString(),
+        });
+        persistTransactions();
+
         const out: any = {
           name: wallet.name,
           format: wallet.format,
@@ -992,6 +1302,433 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+      }
+
+      case "payment_request_create": {
+        const amountXno = String((args as any)?.amountXno || "").trim();
+        if (!amountXno) throw new Error("amountXno is required");
+        const reason = String((args as any)?.reason || "").trim();
+        if (!reason) throw new Error("reason is required");
+        const accountIndex = Math.max(0, (args as any)?.accountIndex ?? 0);
+
+        let walletName = String((args as any)?.walletName || "").trim();
+        let wallet: Wallet;
+
+        if (walletName) {
+          const found = state.wallets.get(walletName);
+          if (!found) throw new Error(`Unknown wallet: ${walletName}`);
+          wallet = found;
+        } else if (state.wallets.size === 1) {
+          wallet = Array.from(state.wallets.values())[0];
+          walletName = wallet.name;
+        } else if (state.wallets.size === 0) {
+          walletName = "default";
+          const mnemonic = generateMnemonic(24);
+          wallet = { name: walletName, format: "bip39", mnemonic, passphrase: "", createdAt: new Date().toISOString() };
+          state.wallets.set(walletName, wallet);
+          persistWallets();
+        } else {
+          throw new Error("Multiple wallets exist. Specify walletName.");
+        }
+
+        const acct = deriveWalletAccount(wallet, accountIndex);
+        const amountRaw = nanoToRaw(amountXno);
+        const now = new Date().toISOString();
+        const id = generateId();
+
+        const request: PaymentRequest = {
+          id,
+          walletName,
+          accountIndex,
+          address: acct.address,
+          amountRaw,
+          reason,
+          status: "pending",
+          createdAt: now,
+          updatedAt: now,
+          receivedBlocks: [],
+        };
+
+        state.paymentRequests.set(id, request);
+        persistPaymentRequests();
+
+        const qr = await generateAsciiQr(acct.address, amountXno);
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              id,
+              address: acct.address,
+              amountXno,
+              amountRaw,
+              nanoUri: `nano:${acct.address}?amount=${amountRaw}`,
+              qr,
+              reason,
+              status: request.status,
+              walletName,
+              accountIndex,
+              note: "Share the address, nano: URI, or QR code with the operator. Call payment_request_receive after they send funds.",
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "payment_request_status": {
+        const id = String((args as any)?.id || "").trim();
+        if (!id) throw new Error("id is required");
+        const request = state.paymentRequests.get(id);
+        if (!request) throw new Error(`Payment request not found: ${id}`);
+
+        const rpcUrl = effectiveRpcUrl();
+        const timeoutMs = effectiveTimeoutMs();
+
+        let onChain: any = null;
+        if (rpcUrl) {
+          try {
+            const bal = await rpcAccountBalance(rpcUrl, request.address, { timeoutMs });
+            onChain = {
+              balanceRaw: bal.balance,
+              pendingRaw: bal.pending,
+              balanceXno: rawToNano(bal.balance),
+              pendingXno: rawToNano(bal.pending),
+            };
+          } catch {}
+        }
+
+        const sources = [...new Set(request.receivedBlocks.map((b) => b.source))];
+        const totalReceivedRaw = request.receivedBlocks.reduce((acc, b) => acc + BigInt(b.amountRaw), 0n).toString();
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              ...request,
+              amountXno: rawToNano(request.amountRaw),
+              totalReceivedRaw,
+              totalReceivedXno: rawToNano(totalReceivedRaw),
+              sourceAddresses: sources,
+              onChain,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "payment_request_receive": {
+        const id = String((args as any)?.id || "").trim();
+        if (!id) throw new Error("id is required");
+        const request = state.paymentRequests.get(id);
+        if (!request) throw new Error(`Payment request not found: ${id}`);
+
+        const wallet = state.wallets.get(request.walletName);
+        if (!wallet) throw new Error(`Wallet not found: ${request.walletName}`);
+
+        const rpcUrl = effectiveRpcUrl();
+        const workUrl = effectiveWorkUrl();
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
+
+        const timeoutMs = effectiveTimeoutMs();
+        const index = request.accountIndex;
+        const acct = deriveWalletAccount(wallet, index);
+
+        const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
+        const openedBefore = !(typeof (info as any)?.error === "string");
+        let previous = openedBefore ? String((info as any).frontier) : ZERO_32_HEX;
+        let balanceRaw = openedBefore ? String((info as any).balance) : "0";
+        const representativeAddress = openedBefore
+          ? String((info as any).representative || "")
+          : requireRepresentativeAddress(undefined);
+
+        const repVal = validateAddress(representativeAddress);
+        if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative address: ${repVal.error}`);
+
+        const receivable = await rpcReceivable(rpcUrl, acct.address, 10, { timeoutMs });
+        if (!receivable.length) {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({ id, status: request.status, message: "No pending blocks found.", address: acct.address }, null, 2),
+            }],
+          };
+        }
+
+        const received: any[] = [];
+        for (const p of receivable) {
+          const amountRaw = String(p.amount);
+          const newBalance = (BigInt(balanceRaw) + BigInt(amountRaw)).toString();
+          const workRoot = previous !== ZERO_32_HEX ? previous : acct.publicKey;
+          const link = p.hash;
+
+          const blockHash = hashNanoStateBlock({
+            accountPublicKey: acct.publicKey,
+            previous,
+            representativePublicKey: repVal.publicKey,
+            balanceRaw: newBalance,
+            link,
+          });
+          const signature = nanoSignBlake2b(blockHash, acct.privateKey);
+          const subtype = previous === ZERO_32_HEX ? "open" : "receive";
+          const work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+
+          const block = {
+            type: "state",
+            account: acct.address,
+            previous,
+            representative: representativeAddress,
+            balance: newBalance,
+            link,
+            signature,
+            work,
+          };
+
+          const processed = await rpcProcess(rpcUrl, block, subtype as any, { timeoutMs });
+
+          received.push({
+            sendHash: p.hash,
+            source: p.source,
+            amountRaw,
+            receiveHash: processed.hash,
+            subtype,
+          });
+
+          request.receivedBlocks.push({
+            sendHash: p.hash,
+            source: p.source ?? "",
+            amountRaw,
+            receiveHash: processed.hash,
+          });
+
+          state.transactions.push({
+            id: generateId(),
+            walletName: wallet.name,
+            accountIndex: index,
+            address: acct.address,
+            type: "receive",
+            amountRaw,
+            counterparty: p.source ?? "",
+            hash: processed.hash,
+            paymentRequestId: id,
+            timestamp: new Date().toISOString(),
+          });
+
+          previous = processed.hash;
+          balanceRaw = newBalance;
+        }
+
+        const totalReceivedRaw = request.receivedBlocks.reduce((acc, b) => acc + BigInt(b.amountRaw), 0n).toString();
+        const requestedBig = BigInt(request.amountRaw);
+        const receivedBig = BigInt(totalReceivedRaw);
+        if (receivedBig >= requestedBig) {
+          request.status = receivedBig > requestedBig ? "funded" : "received";
+        } else if (receivedBig > 0n) {
+          request.status = "partial";
+        }
+        request.updatedAt = new Date().toISOString();
+
+        persistPaymentRequests();
+        persistTransactions();
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              id,
+              status: request.status,
+              received,
+              totalReceivedRaw,
+              totalReceivedXno: rawToNano(totalReceivedRaw),
+              requestedRaw: request.amountRaw,
+              requestedXno: rawToNano(request.amountRaw),
+              balanceRaw,
+              balanceXno: rawToNano(balanceRaw),
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "payment_request_list": {
+        const statusFilter = (args as any)?.status as string | undefined;
+        const walletNameFilter = (args as any)?.walletName as string | undefined;
+
+        let requests = Array.from(state.paymentRequests.values());
+        if (statusFilter) requests = requests.filter((r) => r.status === statusFilter);
+        if (walletNameFilter) requests = requests.filter((r) => r.walletName === walletNameFilter);
+
+        const out = requests.map((r) => ({
+          ...r,
+          amountXno: rawToNano(r.amountRaw),
+          totalReceivedRaw: r.receivedBlocks.reduce((acc, b) => acc + BigInt(b.amountRaw), 0n).toString(),
+        }));
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ count: out.length, requests: out }, null, 2),
+          }],
+        };
+      }
+
+      case "payment_request_refund": {
+        const id = String((args as any)?.id || "").trim();
+        if (!id) throw new Error("id is required");
+        const request = state.paymentRequests.get(id);
+        if (!request) throw new Error(`Payment request not found: ${id}`);
+
+        const execute = Boolean((args as any)?.execute);
+        const confirmAddress = (args as any)?.confirmAddress as string | undefined;
+
+        const sourceMap = new Map<string, bigint>();
+        for (const b of request.receivedBlocks) {
+          sourceMap.set(b.source, (sourceMap.get(b.source) ?? 0n) + BigInt(b.amountRaw));
+        }
+
+        const sources = Array.from(sourceMap.entries()).map(([address, amountRaw]) => ({
+          address,
+          amountRaw: amountRaw.toString(),
+          amountXno: rawToNano(amountRaw.toString()),
+        }));
+
+        if (!execute) {
+          if (sources.length === 0) throw new Error("No funds received to refund");
+          if (sources.length === 1) {
+            return {
+              content: [{
+                type: "text",
+                text: JSON.stringify({
+                  refundTo: sources[0].address,
+                  amountRaw: sources[0].amountRaw,
+                  amountXno: sources[0].amountXno,
+                  ready: true,
+                  message: "Single source. Set execute=true and confirmAddress to proceed.",
+                }, null, 2),
+              }],
+            };
+          }
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                candidates: sources,
+                ready: false,
+                message: "Multiple sources detected. Specify confirmAddress to select refund destination.",
+              }, null, 2),
+            }],
+          };
+        }
+
+        if (!confirmAddress) throw new Error("confirmAddress is required when execute=true");
+        const knownSource = sourceMap.get(confirmAddress);
+        if (!knownSource) throw new Error(`confirmAddress is not a known source for this payment request`);
+
+        const wallet = state.wallets.get(request.walletName);
+        if (!wallet) throw new Error(`Wallet not found: ${request.walletName}`);
+
+        const rpcUrl = effectiveRpcUrl();
+        const workUrl = effectiveWorkUrl();
+        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+
+        const timeoutMs = effectiveTimeoutMs();
+        const index = request.accountIndex;
+        const acct = deriveWalletAccount(wallet, index);
+
+        const destVal = validateAddress(confirmAddress);
+        if (!destVal.valid || !destVal.publicKey) throw new Error(`Invalid confirmAddress: ${destVal.error}`);
+
+        const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
+        if (typeof (info as any)?.error === "string") throw new Error("Account is unopened, cannot send refund");
+
+        const previous = String((info as any).frontier);
+        const representativeAddress = String((info as any).representative || "");
+        const repVal = validateAddress(representativeAddress);
+        if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative from RPC: ${repVal.error}`);
+
+        const amountRaw = knownSource.toString();
+        const currentBalance = BigInt(String((info as any).balance));
+        const sendAmount = BigInt(amountRaw);
+        if (sendAmount > currentBalance) throw new Error("Insufficient balance for refund");
+        enforceMaxSend(amountRaw);
+        const newBalance = (currentBalance - sendAmount).toString();
+
+        const blockHash = hashNanoStateBlock({
+          accountPublicKey: acct.publicKey,
+          previous,
+          representativePublicKey: repVal.publicKey,
+          balanceRaw: newBalance,
+          link: destVal.publicKey,
+        });
+        const signature = nanoSignBlake2b(blockHash, acct.privateKey);
+        const work = (await localWorkGenerate(previous, 'send')).work;
+
+        const block = {
+          type: "state",
+          account: acct.address,
+          previous,
+          representative: representativeAddress,
+          balance: newBalance,
+          link: destVal.publicKey,
+          signature,
+          work,
+        };
+
+        const processed = await rpcProcess(rpcUrl, block, "send", { timeoutMs });
+
+        request.status = "refunded";
+        request.updatedAt = new Date().toISOString();
+
+        state.transactions.push({
+          id: generateId(),
+          walletName: wallet.name,
+          accountIndex: index,
+          address: acct.address,
+          type: "send",
+          amountRaw,
+          counterparty: confirmAddress,
+          hash: processed.hash,
+          paymentRequestId: id,
+          timestamp: new Date().toISOString(),
+        });
+
+        persistPaymentRequests();
+        persistTransactions();
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              id,
+              status: request.status,
+              refundTo: confirmAddress,
+              amountRaw,
+              amountXno: rawToNano(amountRaw),
+              sendHash: processed.hash,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "wallet_history": {
+        const walletName = String((args as any)?.walletName || "").trim();
+        if (!walletName) throw new Error("walletName is required");
+        const accountIndex = (args as any)?.accountIndex as number | undefined;
+        const limit = Math.max(1, Math.min(500, (args as any)?.limit ?? 20));
+
+        let txs = state.transactions.filter((t) => t.walletName === walletName);
+        if (accountIndex !== undefined) txs = txs.filter((t) => t.accountIndex === accountIndex);
+
+        txs = txs.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
+
+        const out = txs.map((t) => ({
+          ...t,
+          amountXno: rawToNano(t.amountRaw),
+        }));
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ walletName, accountIndex, count: out.length, transactions: out }, null, 2),
+          }],
+        };
       }
 
       case "generate_wallet": {
@@ -1159,6 +1896,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
       }
 
+
+
+      case "generate_qr": {
+        const address = String((args as any)?.address || "").trim();
+        if (!address) throw new Error("address is required");
+        const v = validateAddress(address);
+        if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
+
+        const amountXno = (args as any)?.amountXno as string | undefined;
+        const uri = buildNanoUri(address, amountXno);
+        const qr = await generateAsciiQr(address, amountXno);
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({ address, amountXno: amountXno ?? null, nanoUri: uri, qr }, null, 2),
+          }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1185,6 +1942,7 @@ Environment Variables:
   XNO_MCP_HOME        Home directory for config and wallets (default: <installed-dir>/.xno-mcp)
   XNO_MCP_CONFIG_PATH Exact path for config.json (overrides HOME)
   XNO_MCP_PURSES_PATH Exact path for wallets.json (overrides HOME)
+  XNO_MAX_SEND            Max send per transaction in XNO (default: 1.0)
   NANO_RPC_URL        Fallback for RPC URL
 
 To start the server, simply run it without arguments (it speaks JSON-RPC over stdio).

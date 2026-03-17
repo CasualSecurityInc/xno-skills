@@ -23,6 +23,8 @@ Available skills:
 - `validate-address`: Address format and checksum verification guide.
 - `check-balance`: Check balance/pending via Nano node RPC.
 - `mcp-wallet`: Use `xno-mcp` as a private “wallet” custody blackbox (addresses only; no seed leakage).
+- `request-payment`: Request XNO from operator (payment request workflow with tracking, QR, receive, report).
+- `return-funds`: Return XNO to sender (source attribution, ambiguity guards, safe refund).
 
 ## MCP Server
 
@@ -46,6 +48,11 @@ Exposed tools:
 - `wallet_balance` / `wallet_probe_balances`: Balance/pending checks for wallet accounts via RPC.
 - `wallet_receive` / `wallet_send`: Receive pending blocks and send funds (sign + work + `process` via RPC).
 - `config_get` / `config_set`: Store defaults (RPC URL, work URL, timeouts, default representative; optional wallet persistence).
+- `wallet_set_allowance` / `wallet_get_allowance`: Spending limits per wallet (per-tx cap, window budget, destination whitelist).
+- `wallet_history`: Persistent transaction log (sends, receives, linked payment requests).
+- `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list`: Payment request lifecycle.
+- `payment_request_refund`: Safe refund with source attribution and ambiguity guards.
+- `generate_qr`: Generate QR codes for Nano addresses/payment URIs.
 - `generate_wallet`: Generate a wallet (default: BIP39 derivation).
 - `derive_address`: Derive an address (supports `bip39` + `legacy`, with `auto` preference).
 - `probe_mnemonic`: Probe both derivations via RPC (helps resolve 24-word ambiguity).
@@ -613,6 +620,11 @@ npm run build:cjs
 ## Releasing
 
 See `RELEASING.md`.
+
+## Similar Projects
+
+- [kilkelly/nano-currency-mcp-server](https://github.com/kilkelly/nano-currency-mcp-server) — MCP server for Nano with a simple per-transaction send limit
+- [strawberry-labs/berrypay-cli](https://github.com/strawberry-labs/berrypay-cli) — Nano wallet CLI for AI agents with payment processing and auto-sweep
 
 ## License
 

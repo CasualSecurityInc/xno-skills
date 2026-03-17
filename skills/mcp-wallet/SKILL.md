@@ -106,6 +106,39 @@ To send funds, the account must be opened (have received funds) and have an adeq
 
 **Error: "Account is unopened"** - You must receive funds first using `wallet_receive`.
 
+## 5. Payment Requests
+
+For structured funding workflows (requesting XNO from operator, tracking receipt, handling refunds):
+- See the `request-payment` skill for the full inbound workflow
+- See the `return-funds` skill for safe refund handling
+
+Key tools:
+- `payment_request_create` — create a tracked funding request
+- `payment_request_status` — check funding progress
+- `payment_request_receive` — receive funds for a specific request
+- `payment_request_refund` — safely return funds to sender
+
+## 6. Spending Limits
+
+Every `wallet_send` and `payment_request_refund` enforces a per-transaction max-send cap:
+
+- **Default**: 1.0 XNO (set via `XNO_MAX_SEND` env var)
+- **Override at runtime**: `config_set` with `{ "maxSendXno": "5.0" }`
+- If a send exceeds the cap, the error tells you the current limit and how to raise it.
+
+The cap is embedded in the `wallet_send` tool description so the agent knows the limit before trying.
+
+## 7. Auto-Receive Before Send
+
+When `wallet_send` detects insufficient balance but there are pending blocks, it automatically receives them before attempting the send. This avoids the common mistake of failing a send when funds are pending but not yet pocketed.
+
+## 8. Transaction History
+
+All sends and receives are logged persistently:
+- `wallet_history` with `{ "walletName": "A", "limit": 20 }`
+
+This includes counterparty addresses, amounts, hashes, and linked payment request IDs.
+
 ## Quick Start Example
 
 ```
@@ -117,5 +150,6 @@ To send funds, the account must be opened (have received funds) and have an adeq
 ```
 
 ## Notes
-- Wallet persistence is optional and off by default. If enabled, it's stored as plaintext JSON under `.xno-mcp/wallets.json`.
+- Wallet persistence is enabled by default (override with `XNO_MCP_PERSIST_WALLETS=false`). If enabled, it's stored as plaintext JSON under `.xno-mcp/wallets.json`.
 - The `workUrl` parameter defaults to `rpcUrl` - most nodes support work generation.
+- Transaction history and payment requests are persisted alongside wallets.
