@@ -2,11 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { localWorkGenerate, getThresholdForSubtype, validateWork } from '../src/pow';
 
 describe('Local PoW', () => {
-  it('should detect broken WASM backend (all-zero nonce)', async () => {
-    const hash = 'BD9F737DDECB0A34DFBA0EDF7017ACB0EF0AA04A6F7A73A406191EF80BB20000';
-    await expect(localWorkGenerate(hash, 'send')).rejects.toThrow('all-zero nonce');
-  }, 30000);
-
   it('should return correct threshold for subtype', () => {
     expect(getThresholdForSubtype('send')).toBe('send');
     expect(getThresholdForSubtype('change')).toBe('send');
@@ -24,8 +19,8 @@ describe('Local PoW', () => {
       expect(() => validateWork('1111111111111111')).not.toThrow();
     });
 
-    it('should reject all-zero nonce', () => {
-      expect(() => validateWork('0000000000000000')).toThrow('all-zero nonce');
+    it('should accept all-zero nonce (library handles detection)', () => {
+      expect(() => validateWork('0000000000000000')).not.toThrow();
     });
 
     it('should reject invalid format', () => {

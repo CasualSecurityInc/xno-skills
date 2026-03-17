@@ -22,12 +22,6 @@ export function validateWork(work: string): void {
   if (!work || !/^[0-9A-F]{16}$/.test(work)) {
     throw new Error(`Local PoW returned invalid work nonce (expected 16-char uppercase hex): "${work}"`);
   }
-  if (work === '0'.repeat(16)) {
-    throw new Error(
-      'Local PoW returned all-zero nonce (WASM backend likely broken). ' +
-      'Set XNO_USE_WORK_PEER=true and NANO_RPC_URL to use remote work_generate instead.'
-    );
-  }
 }
 
 export async function localWorkGenerate(

@@ -70,7 +70,7 @@
     "@scure/bip39": "^2.0.1",
     "commander": "^14.0.3",
     "micro-key-producer": "^0.8.5",
-    "nano-pow-with-fallback": "^1.0.1",
+    "nano-pow-with-fallback": "^1.1.2",
     "qrcode-terminal": "^0.12.0"
   }
 }
