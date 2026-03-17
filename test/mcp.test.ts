@@ -174,34 +174,34 @@ describe('MCP Server Integration', () => {
     expect(validation.error).toContain('length');
   });
 
-  it('should store useLocalPow config option', async () => {
+  it('should store useWorkPeer config option', async () => {
     const result = await client.callTool({
       name: "config_set",
-      arguments: { useLocalPow: true }
+      arguments: { useWorkPeer: true }
     });
 
     expect(result.isError).toBeFalsy();
     const config = JSON.parse((result.content[0] as any).text);
-    expect(config.useLocalPow).toBe(true);
+    expect(config.useWorkPeer).toBe(true);
   });
 
-  it('should disable useLocalPow when set to false', async () => {
-    // First enable local pow
+  it('should disable useWorkPeer when set to false', async () => {
+    // First enable work peer
     await client.callTool({
       name: "config_set",
-      arguments: { useLocalPow: true }
+      arguments: { useWorkPeer: true }
     });
 
     // Then disable it
     const result = await client.callTool({
       name: "config_set",
-      arguments: { useLocalPow: false, workUrl: "https://example.com" }
+      arguments: { useWorkPeer: false, workPeerUrl: "https://example.com" }
     });
 
     expect(result.isError).toBeFalsy();
     const config = JSON.parse((result.content[0] as any).text);
-    expect(config.useLocalPow).toBe(false);
-    expect(config.workUrl).toBe("https://example.com");
+    expect(config.useWorkPeer).toBe(false);
+    expect(config.workPeerUrl).toBe("https://example.com");
   });
 
   it('should list new tools in available tools', async () => {
