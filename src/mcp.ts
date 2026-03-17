@@ -25,6 +25,7 @@ import {
 import { hashNanoStateBlock } from "./state-block.js";
 import { nanoSignBlake2b } from "./ed25519-blake2b.js";
 import { localWorkGenerate, getThresholdForSubtype } from "./pow.js";
+import { version } from "./version.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,7 +33,7 @@ import { fileURLToPath } from "node:url";
 const server = new Server(
   {
     name: "xno-mcp",
-    version: "0.1.0",
+    version: version,
   },
   {
     capabilities: {
@@ -1930,7 +1931,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     console.log(`
-xno-mcp: A Model Context Protocol companion server for the xno-skills collection of Nano (XNO) tools
+xno-mcp v${version}: A Model Context Protocol companion server for the xno-skills collection of Nano (XNO) tools
 
 Usage:
   xno-mcp [options]
