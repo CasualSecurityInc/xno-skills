@@ -45,11 +45,11 @@ const server = new Server(
 
 type McpConfig = {
   rpcUrl?: string;
-  workUrl?: string;
+  workPeerUrl?: string;
   timeoutMs?: number;
   persistWallets?: boolean;
   defaultRepresentative?: string;
-  useLocalPow?: boolean;
+  useWorkPeer?: boolean;
   maxSendXno?: string;
 };
 
@@ -263,17 +263,18 @@ function rpcUrlErrorMessage(): string {
   );
 }
 
-function effectiveWorkUrl(explicit?: string): string {
-  return explicit || state.config.workUrl || effectiveRpcUrl() || "";
+function effectiveWorkPeerUrl(explicit?: string): string {
+  return explicit || state.config.workPeerUrl || process.env.XNO_WORK_URL || effectiveRpcUrl() || "";
 }
 
 function effectiveTimeoutMs(explicit?: number): number {
   return explicit ?? state.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 }
 
-function effectiveUseLocalPow(explicit?: boolean): boolean {
-  // Default to true - use local PoW instead of remote work_generate
-  return explicit ?? state.config.useLocalPow ?? true;
+function effectiveUseWorkPeer(explicit?: boolean): boolean {
+  if (explicit !== undefined) return explicit;
+  if (state.config.useWorkPeer !== undefined) return state.config.useWorkPeer;
+  return process.env.XNO_USE_WORK_PEER === 'true';
 }
 
 function deriveWalletAccount(wallet: Wallet, index: number) {
@@ -339,9 +340,9 @@ async function autoReceivePending(opts: {
   index: number;
   acct: { address: string; publicKey: string; privateKey: string };
   rpcUrl: string;
-  workUrl: string;
+  workPeerUrl: string;
   timeoutMs: number;
-  useLocalPow: boolean;
+  useWorkPeer: boolean;
   frontier: string;
   balance: string;
   representativeAddress: string;
@@ -372,10 +373,10 @@ async function autoReceivePending(opts: {
     const subtype = previous === ZERO_32_HEX ? "open" : "receive";
 
     let work: string;
-    if (opts.useLocalPow) {
-      work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+    if (opts.useWorkPeer) {
+      work = (await rpcWorkGenerate(opts.workPeerUrl, workRoot, { timeoutMs: opts.timeoutMs })).work;
     } else {
-      work = (await rpcWorkGenerate(opts.workUrl, workRoot, { timeoutMs: opts.timeoutMs })).work;
+      work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
     }
 
     const block = {
@@ -561,7 +562,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             rpcUrl: { type: "string", description: "Default Nano node RPC URL. Well-known public nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api" },
-            workUrl: { type: "string", description: "Optional work_generate RPC URL (defaults to rpcUrl). Most nodes support work_generate." },
+            workPeerUrl: { type: "string", description: "Remote work_generate RPC URL. Only used when useWorkPeer=true. Defaults to NANO_RPC_URL. Override with XNO_WORK_URL env var." },
             timeoutMs: { type: "number", description: "Default RPC timeout in ms", default: DEFAULT_TIMEOUT_MS },
             persistWallets: {
               type: "boolean",
@@ -569,10 +570,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 "Persist wallets to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
               default: false,
             },
-            useLocalPow: {
+            useWorkPeer: {
               type: "boolean",
-              description: "Use local PoW (WASM/WebGPU) instead of remote work_generate RPC. Default true.",
-              default: true,
+              description: "Use remote work_generate RPC instead of local PoW. Default false (local PoW). Also settable via XNO_USE_WORK_PEER=true env var.",
+              default: false,
             },
             defaultRepresentative: {
               type: "string",
@@ -667,10 +668,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             onlyHash: { type: "string", description: "If set, only receive this pending send block hash" },
             representative: { type: "string", description: "Representative address for unopened accounts. If not set, uses defaultRepresentative from config or a well-known representative." },
             rpcUrl: { type: "string", description: "Nano node RPC URL. If not set, uses rpcUrl from config or NANO_RPC_URL env var." },
-            workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
+            workPeerUrl: { type: "string", description: "Remote work_generate RPC URL. Only used when useWorkPeer=true. Defaults to NANO_RPC_URL. Override with XNO_WORK_URL env var." },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
-            useLocalPow: { type: "boolean", description: "Use local PoW instead of remote work_generate RPC. Default true.", default: true },
+            useWorkPeer: { type: "boolean", description: "Use remote work_generate RPC instead of local PoW. Default false.", default: false },
           },
           required: ["name"],
         },
@@ -688,10 +689,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             amountRaw: { type: "string", description: "Amount in raw (string)" },
             amountXno: { type: "string", description: "Amount in XNO (string; will be converted to raw)" },
             rpcUrl: { type: "string", description: "Nano node RPC URL. If not set, uses rpcUrl from config or NANO_RPC_URL env var." },
-            workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
+            workPeerUrl: { type: "string", description: "Remote work_generate RPC URL. Only used when useWorkPeer=true. Defaults to NANO_RPC_URL. Override with XNO_WORK_URL env var." },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
-            useLocalPow: { type: "boolean", description: "Use local PoW instead of remote work_generate RPC. Default true.", default: true },
+            useWorkPeer: { type: "boolean", description: "Use remote work_generate RPC instead of local PoW. Default false.", default: false },
           },
           required: ["name", "destination"],
         },
@@ -878,17 +879,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "config_set": {
         const rpcUrl = (args as any)?.rpcUrl as string | undefined;
-        const workUrl = (args as any)?.workUrl as string | undefined;
+        const workPeerUrl = (args as any)?.workPeerUrl as string | undefined;
         const timeoutMs = (args as any)?.timeoutMs as number | undefined;
         const persistWalletsFlag = (args as any)?.persistWallets as boolean | undefined;
-        const useLocalPowFlag = (args as any)?.useLocalPow as boolean | undefined;
+        const useWorkPeerFlag = (args as any)?.useWorkPeer as boolean | undefined;
         const defaultRepresentative = (args as any)?.defaultRepresentative as string | undefined;
 
         if (rpcUrl !== undefined) state.config.rpcUrl = rpcUrl;
-        if (workUrl !== undefined) state.config.workUrl = workUrl;
+        if (workPeerUrl !== undefined) state.config.workPeerUrl = workPeerUrl;
         if (timeoutMs !== undefined) state.config.timeoutMs = timeoutMs;
         if (persistWalletsFlag !== undefined) state.config.persistWallets = persistWalletsFlag;
-        if (useLocalPowFlag !== undefined) state.config.useLocalPow = useLocalPowFlag;
+        if (useWorkPeerFlag !== undefined) state.config.useWorkPeer = useWorkPeerFlag;
         if (defaultRepresentative !== undefined) state.config.defaultRepresentative = defaultRepresentative;
 
         const maxSendXno = (args as any)?.maxSendXno as string | undefined;
@@ -1060,9 +1061,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (onlyHash && !/^[0-9a-fA-F]{64}$/.test(onlyHash)) throw new Error("onlyHash must be 32-byte hex (64 hex characters)");
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
+        const workPeerUrl = effectiveWorkPeerUrl((args as any)?.workPeerUrl as string | undefined);
         if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
-        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
@@ -1100,6 +1100,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         const received: any[] = [];
+        const useWorkPeer = effectiveUseWorkPeer((args as any)?.useWorkPeer as boolean | undefined);
         for (const p of pending.slice(0, maxCount)) {
           const amountRaw = String(p.amount);
           const newBalance = (BigInt(balanceRaw) + BigInt(amountRaw)).toString();
@@ -1117,14 +1118,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const signature = nanoSignBlake2b(blockHash, acct.privateKey);
           
           const subtype = previous === ZERO_32_HEX ? "open" : "receive";
-          const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
           
           let work: string;
-          if (useLocalPow) {
-            work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+          if (useWorkPeer) {
+            if (!workPeerUrl) throw new Error("Missing work peer URL. Set xno-mcp config workPeerUrl, pass workPeerUrl, or set XNO_WORK_URL env var.");
+            work = (await rpcWorkGenerate(workPeerUrl, workRoot, { timeoutMs })).work;
           } else {
-            if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
-            work = (await rpcWorkGenerate(workUrl, workRoot, { timeoutMs })).work;
+            work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
           }
 
           const block = {
@@ -1199,9 +1199,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (BigInt(amountRaw) <= 0n) throw new Error("amount must be > 0");
 
         const rpcUrl = effectiveRpcUrl((args as any)?.rpcUrl as string | undefined);
-        const workUrl = effectiveWorkUrl((args as any)?.workUrl as string | undefined);
+        const workPeerUrl = effectiveWorkPeerUrl((args as any)?.workPeerUrl as string | undefined);
         if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
-        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
 
         const timeoutMs = effectiveTimeoutMs((args as any)?.timeoutMs as number | undefined);
         const includeXno = (args as any)?.includeXno ?? true;
@@ -1220,15 +1219,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const repVal = validateAddress(representativeAddress);
         if (!repVal.valid || !repVal.publicKey) throw new Error(`Invalid representative from RPC: ${repVal.error}`);
 
-        const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
+        const useWorkPeer = effectiveUseWorkPeer((args as any)?.useWorkPeer as boolean | undefined);
 
         let currentBalance = BigInt(String((info as any).balance));
         const sendAmount = BigInt(amountRaw);
 
         if (sendAmount > currentBalance) {
           const autoRx = await autoReceivePending({
-            wallet, index, acct, rpcUrl, workUrl,
-            timeoutMs, useLocalPow,
+            wallet, index, acct, rpcUrl, workPeerUrl,
+            timeoutMs, useWorkPeer,
             frontier: previous,
             balance: currentBalance.toString(),
             representativeAddress,
@@ -1255,11 +1254,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
         const signature = nanoSignBlake2b(blockHash, acct.privateKey);
         let work: string;
-        if (useLocalPow) {
-          work = (await localWorkGenerate(previous, 'send')).work;
+        if (useWorkPeer) {
+          if (!workPeerUrl) throw new Error("Missing work peer URL. Set xno-mcp config workPeerUrl, pass workPeerUrl, or set XNO_WORK_URL env var.");
+          work = (await rpcWorkGenerate(workPeerUrl, previous, { timeoutMs })).work;
         } else {
-          if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
-          work = (await rpcWorkGenerate(workUrl, previous, { timeoutMs })).work;
+          work = (await localWorkGenerate(previous, 'send')).work;
         }
 
         const block = {
@@ -1425,13 +1424,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!wallet) throw new Error(`Wallet not found: ${request.walletName}`);
 
         const rpcUrl = effectiveRpcUrl();
-        const workUrl = effectiveWorkUrl();
+        const workPeerUrl = effectiveWorkPeerUrl();
         if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
-        if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
 
         const timeoutMs = effectiveTimeoutMs();
         const index = request.accountIndex;
         const acct = deriveWalletAccount(wallet, index);
+        const useWorkPeer = effectiveUseWorkPeer();
 
         const info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs });
         const openedBefore = !(typeof (info as any)?.error === "string");
@@ -1470,7 +1469,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           });
           const signature = nanoSignBlake2b(blockHash, acct.privateKey);
           const subtype = previous === ZERO_32_HEX ? "open" : "receive";
-          const work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+          let work: string;
+          if (useWorkPeer) {
+            if (!workPeerUrl) throw new Error("Missing work peer URL. Set xno-mcp config workPeerUrl or set XNO_WORK_URL env var.");
+            work = (await rpcWorkGenerate(workPeerUrl, workRoot, { timeoutMs })).work;
+          } else {
+            work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+          }
 
           const block = {
             type: "state",
@@ -1626,12 +1631,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!wallet) throw new Error(`Wallet not found: ${request.walletName}`);
 
         const rpcUrl = effectiveRpcUrl();
-        const workUrl = effectiveWorkUrl();
+        const workPeerUrl = effectiveWorkPeerUrl();
         if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
 
         const timeoutMs = effectiveTimeoutMs();
         const index = request.accountIndex;
         const acct = deriveWalletAccount(wallet, index);
+        const useWorkPeer = effectiveUseWorkPeer();
 
         const destVal = validateAddress(confirmAddress);
         if (!destVal.valid || !destVal.publicKey) throw new Error(`Invalid confirmAddress: ${destVal.error}`);
@@ -1659,7 +1665,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           link: destVal.publicKey,
         });
         const signature = nanoSignBlake2b(blockHash, acct.privateKey);
-        const work = (await localWorkGenerate(previous, 'send')).work;
+        let work: string;
+        if (useWorkPeer) {
+          if (!workPeerUrl) throw new Error("Missing work peer URL. Set xno-mcp config workPeerUrl or set XNO_WORK_URL env var.");
+          work = (await rpcWorkGenerate(workPeerUrl, previous, { timeoutMs })).work;
+        } else {
+          work = (await localWorkGenerate(previous, 'send')).work;
+        }
 
         const block = {
           type: "state",
