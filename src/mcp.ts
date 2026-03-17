@@ -23,6 +23,7 @@ import {
 } from "./rpc.js";
 import { hashNanoStateBlock } from "./state-block.js";
 import { nanoSignBlake2b } from "./ed25519-blake2b.js";
+import { localWorkGenerate, getThresholdForSubtype } from "./pow.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,6 +47,7 @@ type McpConfig = {
   timeoutMs?: number;
   persistWallets?: boolean;
   defaultRepresentative?: string;
+  useLocalPow?: boolean; // Default true - use local PoW instead of remote work_generate
 };
 
 type WalletFormat = "bip39" | "legacy";
@@ -190,6 +192,11 @@ function effectiveWorkUrl(explicit?: string): string {
 
 function effectiveTimeoutMs(explicit?: number): number {
   return explicit ?? state.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+}
+
+function effectiveUseLocalPow(explicit?: boolean): boolean {
+  // Default to true - use local PoW instead of remote work_generate
+  return explicit ?? state.config.useLocalPow ?? true;
 }
 
 function deriveWalletAccount(wallet: Wallet, index: number) {
@@ -385,6 +392,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 "Persist wallets to disk (plaintext JSON in .xno-mcp). Keep false unless you understand the risk.",
               default: false,
             },
+            useLocalPow: {
+              type: "boolean",
+              description: "Use local PoW (WASM/WebGPU) instead of remote work_generate RPC. Default true.",
+              default: true,
+            },
             defaultRepresentative: {
               type: "string",
               description:
@@ -476,6 +488,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+            useLocalPow: { type: "boolean", description: "Use local PoW instead of remote work_generate RPC. Default true.", default: true },
           },
           required: ["name"],
         },
@@ -496,6 +509,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             workUrl: { type: "string", description: "Work generation RPC URL (defaults to rpcUrl)" },
             includeXno: { type: "boolean", default: true },
             timeoutMs: { type: "number", default: DEFAULT_TIMEOUT_MS },
+            useLocalPow: { type: "boolean", description: "Use local PoW instead of remote work_generate RPC. Default true.", default: true },
           },
           required: ["name", "destination"],
         },
@@ -599,12 +613,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const workUrl = (args as any)?.workUrl as string | undefined;
         const timeoutMs = (args as any)?.timeoutMs as number | undefined;
         const persistWalletsFlag = (args as any)?.persistWallets as boolean | undefined;
+        const useLocalPowFlag = (args as any)?.useLocalPow as boolean | undefined;
         const defaultRepresentative = (args as any)?.defaultRepresentative as string | undefined;
 
         if (rpcUrl !== undefined) state.config.rpcUrl = rpcUrl;
         if (workUrl !== undefined) state.config.workUrl = workUrl;
         if (timeoutMs !== undefined) state.config.timeoutMs = timeoutMs;
         if (persistWalletsFlag !== undefined) state.config.persistWallets = persistWalletsFlag;
+        if (useLocalPowFlag !== undefined) state.config.useLocalPow = useLocalPowFlag;
         if (defaultRepresentative !== undefined) state.config.defaultRepresentative = defaultRepresentative;
 
         persistConfig();
@@ -828,9 +844,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             link,
           });
           const signature = nanoSignBlake2b(blockHash, acct.privateKey);
-          const work = (await rpcWorkGenerate(workUrl, workRoot, { timeoutMs })).work;
-
+          
           const subtype = previous === ZERO_32_HEX ? "open" : "receive";
+          const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
+          
+          let work: string;
+          if (useLocalPow) {
+            work = (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+          } else {
+            if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
+            work = (await rpcWorkGenerate(workUrl, workRoot, { timeoutMs })).work;
+          }
+
           const block = {
             type: "state",
             account: acct.address,
@@ -923,7 +948,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           link: destVal.publicKey,
         });
         const signature = nanoSignBlake2b(blockHash, acct.privateKey);
-        const work = (await rpcWorkGenerate(workUrl, previous, { timeoutMs })).work;
+        
+        const useLocalPow = effectiveUseLocalPow((args as any)?.useLocalPow as boolean | undefined);
+        let work: string;
+        if (useLocalPow) {
+          work = (await localWorkGenerate(previous, 'send')).work;
+        } else {
+          if (!workUrl) throw new Error("Missing work URL. Set xno-mcp config workUrl, pass workUrl, or set rpcUrl (workUrl defaults to rpcUrl).");
+          work = (await rpcWorkGenerate(workUrl, previous, { timeoutMs })).work;
+        }
 
         const block = {
           type: "state",

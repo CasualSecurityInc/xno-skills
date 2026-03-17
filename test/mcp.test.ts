@@ -173,4 +173,34 @@ describe('MCP Server Integration', () => {
     expect(validation.valid).toBe(false);
     expect(validation.error).toContain('length');
   });
+
+  it('should store useLocalPow config option', async () => {
+    const result = await client.callTool({
+      name: "config_set",
+      arguments: { useLocalPow: true }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const config = JSON.parse((result.content[0] as any).text);
+    expect(config.useLocalPow).toBe(true);
+  });
+
+  it('should disable useLocalPow when set to false', async () => {
+    // First enable local pow
+    await client.callTool({
+      name: "config_set",
+      arguments: { useLocalPow: true }
+    });
+
+    // Then disable it
+    const result = await client.callTool({
+      name: "config_set",
+      arguments: { useLocalPow: false, workUrl: "https://example.com" }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const config = JSON.parse((result.content[0] as any).text);
+    expect(config.useLocalPow).toBe(false);
+    expect(config.workUrl).toBe("https://example.com");
+  });
 });

@@ -42,3 +42,4 @@ export {
   type ReceivableItem,
   type RpcCallOptions,
 } from './rpc';
+export { localWorkGenerate, getThresholdForSubtype, type PowThreshold } from './pow';
