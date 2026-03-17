@@ -47,11 +47,20 @@ Before using wallet operations that require network access, you need:
 ```json
 {
   "rpcUrl": "https://rpc.nano.org",
-  "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"
+  "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4",
+  "useLocalPow": true
 }
 ```
 
 Call `config_set` with these values at the start of your session.
+
+## Local PoW vs Remote PoW
+
+By default, the wallet uses **local PoW** (`nano-pow-with-fallback`) using WASM or WebGPU. This is recommended as it doesn't rely on the RPC node supporting `work_generate`.
+
+If you prefer to use a remote work server (e.g. a high-performance PoW service or your own node):
+1. Set `useLocalPow: false` in `config_set`.
+2. Provide a `workUrl` (defaults to `rpcUrl`).
 
 ## 1. Creating or Importing a Wallet
 
