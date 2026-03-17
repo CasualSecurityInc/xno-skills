@@ -86,8 +86,14 @@ const WELL_KNOWN_REPRESENTATIVES = [
   "nano_1anrzcuwe64rwxzcco8dkhpyxpi8kd7zsjc1oeimpc3ppca4mrjtwnqposrs", // Nano Foundation #7
 ];
 
+const DEFAULT_PERSIST_WALLETS = (() => {
+  const env = process.env.XNO_MCP_PERSIST_WALLETS;
+  if (env !== undefined) return env === 'true';
+  return true;
+})();
+
 const state = {
-  config: {} as McpConfig,
+  config: { persistWallets: DEFAULT_PERSIST_WALLETS } as McpConfig,
   wallets: new Map<string, Wallet>(),
 };
 
