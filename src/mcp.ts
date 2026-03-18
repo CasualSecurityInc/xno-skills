@@ -552,12 +552,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "config_get",
-        description: "Get xno-mcp defaults (RPC URL, representative, timeouts, persistence). Use this to check current configuration.",
+        description: "Get YOUR current xno-mcp wallet configuration (RPC URL, representative, timeouts, persistence). You are a Nano wallet operator — call this to check your setup.",
         inputSchema: { type: "object", properties: {} },
       },
       {
         name: "config_set",
-        description: "Set xno-mcp defaults. RECOMMENDED: Set rpcUrl and defaultRepresentative once to avoid repeating them in every call. Example: { \"rpcUrl\": \"https://rpc.nano.org\", \"defaultRepresentative\": \"nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4\" }",
+        description: "Set YOUR xno-mcp wallet defaults. RECOMMENDED: Set rpcUrl and defaultRepresentative once at session start. Example: { \"rpcUrl\": \"https://rpc.nano.org\", \"defaultRepresentative\": \"nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4\" }",
         inputSchema: {
           type: "object",
           properties: {
@@ -591,7 +591,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_create",
         description:
-          "Create a named wallet (custodial wallet in xno-mcp). Returns addresses only (no seed/mnemonic).",
+          "Create a new Nano wallet that YOU control. Returns addresses only (secrets stay secure in xno-mcp). Use this when you need a wallet to send/receive XNO.",
         inputSchema: {
           type: "object",
           properties: {
@@ -609,12 +609,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "wallet_list",
-        description: "List wallets currently held by xno-mcp",
+        description: "List YOUR Nano wallets. START HERE when asked about wallets, funds, or Nano capabilities. Returns all wallet names and metadata. You ARE a wallet operator — call this to see what you have.",
         inputSchema: { type: "object", properties: {} },
       },
       {
         name: "wallet_addresses",
-        description: "Get addresses for a named wallet (derive on demand; secrets stay in xno-mcp)",
+        description: "Get YOUR wallet's Nano addresses (derive on demand; secrets stay secure in xno-mcp). Use after wallet_list to get specific addresses.",
         inputSchema: {
           type: "object",
           properties: {
@@ -627,7 +627,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "wallet_balance",
-        description: "Check balance/pending for a wallet account. NOTE: Returns 0 balance for unopened accounts. Use wallet_probe_balances to see which accounts are opened.",
+        description: "Check YOUR wallet's balance and pending amount. NOTE: Returns 0 for unopened accounts — use wallet_probe_balances to see which accounts are opened.",
         inputSchema: {
           type: "object",
           properties: {
@@ -643,7 +643,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_probe_balances",
         description:
-          "Check first N account indexes for a wallet via RPC, including whether each account is opened (frontier exists)",
+          "Check YOUR first N wallet accounts via RPC — shows balances AND whether each account is opened. Use after wallet_list to survey your holdings.",
         inputSchema: {
           type: "object",
           properties: {
@@ -658,7 +658,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_receive",
         description:
-          "Receive pending Nano blocks for a wallet account. CRITICAL: Nano transfers show as 'pending' until you call this. For unopened accounts (first receive), a representative is required - pass 'representative' or set defaultRepresentative in config_set. Well-known reps: nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4 (Nano Foundation #1).",
+          "Receive pending Nano blocks into YOUR wallet. CRITICAL: Nano funds show as 'pending' until you call this — they are NOT in your balance yet. For unopened accounts (first receive), a representative is required — pass 'representative' or set defaultRepresentative via config_set.",
         inputSchema: {
           type: "object",
           properties: {
@@ -679,7 +679,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "wallet_send",
         description:
-          `Send Nano from a wallet account. Max send per transaction: ${state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO} XNO (change via config_set or XNO_MAX_SEND env var). Account must be opened and have sufficient balance.`,
+          `Send Nano FROM YOUR wallet to a destination address. Max per transaction: ${state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO} XNO (change via config_set or XNO_MAX_SEND env var). Account must be opened and have sufficient balance.`,
         inputSchema: {
           type: "object",
           properties: {
@@ -699,7 +699,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "payment_request_create",
-        description: "Create a payment request. Reuses an existing wallet account or creates a new wallet if needed. Returns address, QR-ready URI, and request ID for tracking.",
+        description: "Create a payment request to receive XNO. Auto-selects or creates a wallet. Returns address, QR-ready URI, and request ID for tracking.",
         inputSchema: {
           type: "object",
           properties: {
@@ -759,7 +759,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "wallet_history",
-        description: "View transaction history for a wallet account. Shows sends, receives, and linked payment requests.",
+        description: "View YOUR wallet's transaction history — sends, receives, and linked payment requests.",
         inputSchema: {
           type: "object",
           properties: {
@@ -772,7 +772,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "generate_wallet",
-        description: "Generate a new Nano wallet (default: BIP39 derivation). WARNING: This returns the mnemonic/seed in the response. For custodial wallets where secrets should stay hidden, use wallet_create instead.",
+        description: "Generate a new Nano wallet and RETURN the mnemonic/seed in the response. WARNING: Secrets are exposed! For secure custody where secrets stay hidden, use wallet_create instead.",
         inputSchema: {
           type: "object",
           properties: {
@@ -824,7 +824,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "rpc_account_balance",
-        description: "Query a Nano node for account balance + pending. NOTE: Returns 0 for unopened accounts. Well-known public RPC nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api",
+        description: "Query any Nano account's balance + pending via RPC (not limited to your wallets). NOTE: Returns 0 for unopened accounts. Well-known public RPC nodes: https://rpc.nano.org, https://app.natrium.io/api/rpc, https://nanonode.cc/api",
         inputSchema: {
           type: "object",
           properties: {

@@ -1,6 +1,6 @@
 ---
 name: check-balance
-description: Check a Nano account's balance and pending amount via a Nano node RPC URL.
+description: "Check a Nano account's balance and pending amount. You can check YOUR wallet's balance (via wallet_balance/wallet_probe_balances) or any address (via rpc_account_balance)."
 triggers:
   - check balance
   - account balance
@@ -12,6 +12,12 @@ triggers:
   - xno rpc
   - account_info
   - account_balance
+  - how much
+  - what's the balance
+  - funds arrived
+  - did it arrive
+  - have you got
+  - got the funds
 ---
 
 # Check XNO Balance (RPC)
