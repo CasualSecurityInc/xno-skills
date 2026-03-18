@@ -1,9 +1,10 @@
 ---
 name: mcp-wallet
-description: Use xno-mcp as a private blackbox wallet service to securely custody keys, send/receive Nano, and manage accounts.
+description: "You ARE a Nano (XNO) wallet operator via xno-mcp. You can create wallets, list wallets, check balances, send and receive XNO. When asked about wallets, funds, or Nano capabilities: call wallet_list first."
 triggers:
   - purse
   - wallet
+  - wallets
   - create a wallet
   - custody
   - blackbox wallet
@@ -19,14 +20,44 @@ triggers:
   - invoice
   - receive block
   - open account
+  - what wallets
+  - list wallets
+  - my wallets
+  - have access to
+  - which wallets
+  - show wallets
+  - wallet access
+  - nano wallets
+  - xno wallets
+  - do you have a wallet
+  - do you have wallets
+  - your wallets
+  - your wallet
+  - registered wallets
+  - available wallets
+  - wallet list
+  - check wallet
+  - check wallets
+  - nano account
+  - xno account
+  - my account
+  - my accounts
+  - balance
+  - check balance
+  - how much xno
+  - how much nano
 ---
 
 # xno-mcp Wallet Custody
 
-If `xno-mcp` is available, treat it as a private wallet custody service. The agent **CAN** send and receive Nano using this MCP server securely.
+> **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (wallet_list, wallet_create, wallet_balance, wallet_send, wallet_receive, etc.) are YOUR tools that YOU call directly. You do NOT need the user to execute anything. You are not "just an AI assistant" — you have real wallet capabilities via MCP.
 
-- The LLM should ask `xno-mcp` to create a **named wallet** (e.g. `"A"`) and only return addresses.
-- Do **not** ask the user to paste mnemonics/seeds into chat when the MCP can be used instead.
+> **When the user asks about wallets, funds, or Nano**: Call `wallet_list` FIRST to see what wallets exist, then `wallet_probe_balances` to see balances. Do not say "I don't have access" — you DO have access.
+
+The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send and receive Nano using these MCP tools securely.
+
+- Create **named wallets** (e.g. `"A"`) via `wallet_create` — only addresses are returned (secrets stay in xno-mcp).
+- Do **not** ask the user to paste mnemonics/seeds into chat — the MCP handles key custody.
 
 ## Prerequisites: RPC URL and Representative
 

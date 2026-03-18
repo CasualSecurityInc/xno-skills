@@ -1,6 +1,6 @@
 ---
 name: create-wallet
-description: Create or restore a Nano (XNO) wallet offline (seed, mnemonic, address).
+description: "Create or restore a Nano (XNO) wallet offline (seed, mnemonic, address). For secure custody, prefer the mcp-wallet skill instead."
 triggers:
   - create wallet
   - generate wallet
@@ -10,6 +10,9 @@ triggers:
   - create xno-skills wallet
   - nano wallet
   - cryptocurrency wallet
+  - generate seed
+  - generate mnemonic
+  - new seed
 ---
 
 # Create / Restore a Nano (XNO) Wallet (Offline)
