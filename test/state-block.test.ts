@@ -114,6 +114,18 @@ describe('buildNanoStateBlockHex', () => {
     expect(hash).toBe(expectedHash);
   });
 
+  // Test vector from nano-node core_test/block.cpp (block_builder, state)
+  it('matches known hash from Nano reference implementation', () => {
+    const hash = hashNanoStateBlockHex({
+      accountPublicKey: '0e8f7825fe07a6abd9f264a3e7831c117775c83aa18b601bf90df7ec851331ff',
+      previous: 'fefbce274e75148ab31ff63efb3082ef1126bf72bf3fa9c76a97fd5a9f0ebec5',
+      representativePublicKey: '67556d31ddfc2a440bf6147501449b4cb9572278d034ee686a6bee29851681df',
+      balanceRaw: '2251569974100400000000000000000000',
+      link: 'e16dd58c1efa8b521545b0a74375aa994d9fc43828a4266d75ecf57f07a7ee86',
+    });
+    expect(hash).toBe('2d243f8f92cdd0ad94a1d456a6b15f3be7a6fcbd98d4c5831d06d15c818cd81f');
+  });
+
   it('constructs a valid send block from real addresses', () => {
     const sender = decodeNanoAddress('nano_1uwjfku61c7zptbikaphuisnk8ocn5rna3f1mfquz37rjadaqd1orp6t1anr');
     const recipient = decodeNanoAddress('nano_1y4wm8gy3cew19h5a97xgtzqzqixqops7yp3gtm39ktzoqp5o19tzgzhf581');
