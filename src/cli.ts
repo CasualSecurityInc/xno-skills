@@ -523,10 +523,10 @@ blockCmd
   .description('Construct an unsigned send block (outputs 176-byte hex)')
   .requiredOption('-a, --account <address>', 'Sender nano_ address')
   .requiredOption('-t, --to <address>', 'Recipient nano_ address')
-  .requiredOption('--amount <xno>', 'Amount to send in XNO')
+  .requiredOption('--amount-xno <xno>', 'Amount to send in XNO')
   .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
   .option('-j, --json', 'Output JSON with block hex + hash + metadata')
-  .action(async (options: { account: string; to: string; amount: string; url?: string; json?: boolean }) => {
+  .action(async (options: { account: string; to: string; amountXno: string; url?: string; json?: boolean }) => {
     const rpcUrl = resolveRpcUrl(options);
 
     try {
@@ -540,10 +540,10 @@ blockCmd
       }
 
       const currentBalance = BigInt(info.balance);
-      const sendRaw = BigInt(nanoToRaw(options.amount));
+      const sendRaw = BigInt(nanoToRaw(options.amountXno));
       if (sendRaw <= 0n) { console.error('Error: amount must be positive.'); process.exit(1); }
       if (sendRaw > currentBalance) {
-        console.error(`Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amount} XNO.`);
+        console.error(`Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amountXno} XNO.`);
         process.exit(1);
       }
 
@@ -582,15 +582,36 @@ blockCmd
   .command('receive')
   .description('Construct an unsigned receive block (outputs 176-byte hex)')
   .requiredOption('-a, --account <address>', 'Recipient nano_ address')
-  .requiredOption('--hash <blockhash>', 'Hash of the pending send block to receive')
-  .requiredOption('--amount-raw <raw>', 'Amount in raw (from receivable response)')
+  .option('--hash <blockhash>', 'Hash of the pending send block (auto-detected if omitted)')
+  .option('--amount-raw <raw>', 'Amount in raw (auto-detected if omitted)')
+  .option('--amount-xno <xno>', 'Amount in XNO (auto-detected if omitted)')
   .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
   .option('-j, --json', 'Output JSON with block hex + hash + metadata')
-  .action(async (options: { account: string; hash: string; amountRaw: string; url?: string; json?: boolean }) => {
+  .action(async (options: { account: string; hash?: string; amountRaw?: string; amountXno?: string; url?: string; json?: boolean }) => {
     const rpcUrl = resolveRpcUrl(options);
 
     try {
+      if (options.amountRaw && options.amountXno) {
+        console.error('Error: specify --amount-raw or --amount-xno, not both.');
+        process.exit(1);
+      }
+
       const acctPk = decodeNanoAddress(options.account).publicKey;
+
+      // Resolve amount: --amount-xno converts to raw
+      let hash = options.hash;
+      let amountRaw = options.amountRaw || (options.amountXno ? nanoToRaw(options.amountXno) : undefined);
+      if (!hash || !amountRaw) {
+        const pending = await rpcReceivable(rpcUrl, options.account, 1);
+        if (pending.length === 0) {
+          console.error('Error: no receivable blocks found for this account.');
+          process.exit(1);
+        }
+        hash = hash || pending[0].hash;
+        amountRaw = amountRaw || pending[0].amount;
+        const xno = rawToNano(amountRaw);
+        console.error(`Auto-detected pending block: ${hash} (${xno} XNO)`);
+      }
 
       const info = await rpcAccountInfo(rpcUrl, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
       const isOpen = !isRpcError(info);
@@ -601,7 +622,7 @@ blockCmd
         ? decodeNanoAddress(info.representative).publicKey
         : decodeNanoAddress(DEFAULT_REP).publicKey;
 
-      const receiveRaw = BigInt(options.amountRaw);
+      const receiveRaw = BigInt(amountRaw);
       if (receiveRaw <= 0n) { console.error('Error: amount-raw must be positive.'); process.exit(1); }
       const newBalance = currentBalance + receiveRaw;
 
@@ -610,15 +631,15 @@ blockCmd
         previous,
         representativePublicKey: repPk,
         balanceRaw: newBalance.toString(),
-        link: options.hash,
+        link: hash,
       });
 
       if (options.json) {
         console.log(JSON.stringify({
           blockHex,
           account: options.account,
-          sendBlockHash: options.hash,
-          amountRaw: options.amountRaw,
+          sendBlockHash: hash,
+          amountRaw,
           newBalanceRaw: newBalance.toString(),
           previous,
           subtype: isOpen ? 'receive' : 'open',
