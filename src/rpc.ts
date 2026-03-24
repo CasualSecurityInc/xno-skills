@@ -1,3 +1,4 @@
+import http from 'http';
 import https from 'https';
 import { validateAddress } from './validate.js';
 
@@ -29,6 +30,21 @@ export interface RpcCallOptions {
   allowRpcError?: boolean;
 }
 
+export function resolveRequestOptions(rpcUrl: string): http.RequestOptions & { _isHttps: boolean } {
+  const url = new URL(rpcUrl);
+  const isHttps = url.protocol === 'https:';
+  return {
+    hostname: url.hostname,
+    port: url.port ? Number(url.port) : isHttps ? 443 : 80,
+    path: url.pathname + url.search,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    _isHttps: isHttps,
+  };
+}
+
 export async function nanoRpcCall<T>(
   rpcUrl: string,
   body: Record<string, unknown>,
@@ -39,38 +55,32 @@ export async function nanoRpcCall<T>(
   const timeoutMs = options.timeoutMs ?? 15_000;
 
   return new Promise((resolve, reject) => {
-    const url = new URL(rpcUrl);
-    const requestOptions: https.RequestOptions = {
-      hostname: url.hostname,
-      port: url.port || 443,
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      timeout: timeoutMs,
-    };
+    const { _isHttps, ...requestOptions } = resolveRequestOptions(rpcUrl);
+    const transport = _isHttps ? https : http;
 
-    const req = https.request(requestOptions, (res) => {
-      let data = '';
-      res.on('data', (chunk) => (data += chunk));
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (typeof json?.error === 'string') {
-            if (options.allowRpcError) {
-              resolve(json as T);
+    const req = (transport.request as typeof https.request)(
+      { ...requestOptions, timeout: timeoutMs },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            if (typeof json?.error === 'string') {
+              if (options.allowRpcError) {
+                resolve(json as T);
+                return;
+              }
+              reject(new Error(`RPC error: ${json.error}`));
               return;
             }
-            reject(new Error(`RPC error: ${json.error}`));
-            return;
+            resolve(json as T);
+          } catch {
+            reject(new Error(`RPC returned non-JSON response (status ${res.statusCode})`));
           }
-          resolve(json as T);
-        } catch {
-          reject(new Error(`RPC returned non-JSON response (status ${res.statusCode})`));
-        }
-      });
-    });
+        });
+      }
+    );
 
     req.on('error', (e) => reject(new Error(`RPC error: ${e.message}`)));
     req.on('timeout', () => {
