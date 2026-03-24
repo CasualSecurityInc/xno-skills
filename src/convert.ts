@@ -48,19 +48,25 @@ function parseDecimal(value: string): { integer: string; decimal: string } {
  */
 export function nanoToRaw(nano: string): string {
   if (!nano || nano === '') return '0';
-  
+  if (nano.startsWith('-')) throw new Error('nanoToRaw: negative values not supported');
+  if (/[eE]/.test(nano)) throw new Error('nanoToRaw: scientific notation not supported, use decimal string');
+
   const { integer, decimal } = parseDecimal(nano);
-  
+
   // Pad or truncate decimal to exactly 30 digits (10^30 scale)
-  let paddedDecimal = decimal.slice(0, 30).padEnd(30, '0');
-  
+  const paddedDecimal = decimal.slice(0, 30).padEnd(30, '0');
+
   // Combine integer and decimal parts
   const combined = integer + paddedDecimal;
-  
+
   // Convert to BigInt and back to string
-  const result = BigInt(combined).toString();
-  
-  return stripLeadingZeros(result);
+  const result = stripLeadingZeros(BigInt(combined).toString());
+
+  if (result === '0' && nano !== '0' && /[1-9]/.test(nano)) {
+    throw new Error('nanoToRaw: nonzero value rounds to 0 raw');
+  }
+
+  return result;
 }
 
 /**
@@ -71,6 +77,7 @@ export function nanoToRaw(nano: string): string {
  */
 export function rawToNano(raw: string, decimals: number = 30): string {
   if (!raw || raw === '') return '0';
+  if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
   
   const { integer: intPart } = parseDecimal(raw);
   
@@ -130,6 +137,7 @@ export function formatNano(raw: string): string {
  */
 export function knanoToRaw(knano: string): string {
   if (!knano || knano === '') return '0';
+  if (knano.startsWith('-')) throw new Error('knanoToRaw: negative values not supported');
   
   const { integer, decimal } = parseDecimal(knano);
   
@@ -149,6 +157,7 @@ export function knanoToRaw(knano: string): string {
  */
 export function mnanoToRaw(mnano: string): string {
   if (!mnano || mnano === '') return '0';
+  if (mnano.startsWith('-')) throw new Error('mnanoToRaw: negative values not supported');
   
   const { integer, decimal } = parseDecimal(mnano);
   

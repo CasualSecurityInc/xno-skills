@@ -31,6 +31,21 @@ describe('nanoToRaw', () => {
   it('handles empty string', () => {
     expect(nanoToRaw('')).toBe('0');
   });
+
+  it('rejects negative values', () => {
+    expect(() => nanoToRaw('-1')).toThrow('nanoToRaw: negative values not supported');
+    expect(() => nanoToRaw('-0.5')).toThrow('nanoToRaw: negative values not supported');
+  });
+
+  it('rejects scientific notation', () => {
+    expect(() => nanoToRaw('1e5')).toThrow('nanoToRaw: scientific notation not supported, use decimal string');
+    expect(() => nanoToRaw('2.5e3')).toThrow('nanoToRaw: scientific notation not supported, use decimal string');
+    expect(() => nanoToRaw('1E5')).toThrow('nanoToRaw: scientific notation not supported, use decimal string');
+  });
+
+  it('rejects nonzero input that truncates to zero', () => {
+    expect(() => nanoToRaw('0.0000000000000000000000000000009')).toThrow('nanoToRaw: nonzero value rounds to 0 raw');
+  });
 });
 
 describe('rawToNano', () => {
@@ -60,6 +75,11 @@ describe('rawToNano', () => {
 
   it('handles empty string', () => {
     expect(rawToNano('')).toBe('0');
+  });
+
+  it('rejects negative values', () => {
+    expect(() => rawToNano('-1500000000000000000000000000000')).toThrow('rawToNano: negative values not supported');
+    expect(() => rawToNano('-1')).toThrow('rawToNano: negative values not supported');
   });
 });
 
@@ -93,6 +113,10 @@ describe('knanoToRaw', () => {
   it('handles decimals', () => {
     expect(knanoToRaw('1.001')).toBe('1001000000000000000000000000000000');
   });
+
+  it('rejects negative values', () => {
+    expect(() => knanoToRaw('-1')).toThrow('knanoToRaw: negative values not supported');
+  });
 });
 
 describe('mnanoToRaw', () => {
@@ -102,5 +126,9 @@ describe('mnanoToRaw', () => {
 
   it('handles decimals', () => {
     expect(mnanoToRaw('1.001')).toBe('1001000000000000000000000000000000000');
+  });
+
+  it('rejects negative values', () => {
+    expect(() => mnanoToRaw('-1')).toThrow('mnanoToRaw: negative values not supported');
   });
 });
