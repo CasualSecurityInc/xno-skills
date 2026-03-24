@@ -503,7 +503,7 @@ const blockCmd = program
   .description('Construct unsigned Nano state blocks (hex output for OWS)');
 
 const ZERO_HASH = '0'.repeat(64);
-const DEFAULT_REP = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyber4c71j7ztqqt';
+const DEFAULT_REP = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
 
 function resolveRpcUrl(options: { url?: string }): string {
   const url = options.url || process.env.NANO_RPC_URL;
