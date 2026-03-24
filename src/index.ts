@@ -23,7 +23,7 @@ export { validateAddress, type ValidateAddressResult } from './validate';
 export { nanoToRaw, rawToNano, formatNano, knanoToRaw, mnanoToRaw } from './convert';
 export { generateAsciiQr } from './qr';
 export { nanoGetPublicKeyFromPrivateKey, nanoSignBlake2b, nanoVerifyBlake2b } from './ed25519-blake2b';
-export { hashNanoStateBlock, hashNanoStateBlockHex, type StateBlockHashInput } from './state-block';
+export { hashNanoStateBlock, hashNanoStateBlockHex, buildNanoStateBlockHex, type StateBlockHashInput } from './state-block';
 export {
   nanoRpcCall,
   rpcAccountBalance,

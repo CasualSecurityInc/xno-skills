@@ -69,3 +69,31 @@ export function hashNanoStateBlockHex(input: StateBlockHashInput): string {
   return bytesToHex(hashNanoStateBlock(input));
 }
 
+/**
+ * Build the 176-byte canonical state block (preamble + fields) and return it as hex.
+ * This is the unsigned block that OWS expects for `ows sign tx --chain nano`.
+ */
+export function buildNanoStateBlockHex(input: StateBlockHashInput): string {
+  assertHex32Bytes(input.accountPublicKey, 'accountPublicKey');
+  assertHex32Bytes(input.previous, 'previous');
+  assertHex32Bytes(input.representativePublicKey, 'representativePublicKey');
+  assertHex32Bytes(input.link, 'link');
+
+  const account = hexToBytes(input.accountPublicKey);
+  const previous = hexToBytes(input.previous);
+  const representative = hexToBytes(input.representativePublicKey);
+  const balance = encodeUint128BE(input.balanceRaw);
+  const link = hexToBytes(input.link);
+
+  const block = new Uint8Array(176);
+  let o = 0;
+  block.set(STATE_BLOCK_PREAMBLE, o); o += 32;
+  block.set(account, o); o += 32;
+  block.set(previous, o); o += 32;
+  block.set(representative, o); o += 32;
+  block.set(balance, o); o += 16;
+  block.set(link, o);
+
+  return bytesToHex(block);
+}
+

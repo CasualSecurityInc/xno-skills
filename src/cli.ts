@@ -7,7 +7,9 @@ import { deriveAddressBIP44 } from './address-bip44.js';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers } from './rpc.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import { decodeNanoAddress } from './nano-address.js';
+import { buildNanoStateBlockHex } from './state-block.js';
 import { pkg, version } from './version.js';
 
 const programName = pkg.name;
@@ -488,6 +490,214 @@ rpcCmd
           console.log(`Balance (XNO): ${rawToNano(bal.balance)}`);
           console.log(`Pending (XNO): ${rawToNano(bal.pending)}`);
         }
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
+    }
+  });
+
+// Block construction helpers (for use with `ows sign tx --chain nano` / `ows send-tx --chain nano`)
+const blockCmd = program
+  .command('block')
+  .description('Construct unsigned Nano state blocks (hex output for OWS)');
+
+const ZERO_HASH = '0'.repeat(64);
+const DEFAULT_REP = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyber4c71j7ztqqt';
+
+function resolveRpcUrl(options: { url?: string }): string {
+  const url = options.url || process.env.NANO_RPC_URL;
+  if (!url) {
+    console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
+    process.exit(1);
+  }
+  return url;
+}
+
+function isRpcError(resp: any): resp is NanoRpcErrorResponse {
+  return typeof resp?.error === 'string';
+}
+
+blockCmd
+  .command('send')
+  .description('Construct an unsigned send block (outputs 176-byte hex)')
+  .requiredOption('-a, --account <address>', 'Sender nano_ address')
+  .requiredOption('-t, --to <address>', 'Recipient nano_ address')
+  .requiredOption('--amount <xno>', 'Amount to send in XNO')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('-j, --json', 'Output JSON with block hex + hash + metadata')
+  .action(async (options: { account: string; to: string; amount: string; url?: string; json?: boolean }) => {
+    const rpcUrl = resolveRpcUrl(options);
+
+    try {
+      const senderPk = decodeNanoAddress(options.account).publicKey;
+      const recipientPk = decodeNanoAddress(options.to).publicKey;
+
+      const info = await rpcAccountInfo(rpcUrl, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      if (isRpcError(info)) {
+        console.error(`Error: account not opened (${info.error}). Cannot send from an unopened account.`);
+        process.exit(1);
+      }
+
+      const currentBalance = BigInt(info.balance);
+      const sendRaw = BigInt(nanoToRaw(options.amount));
+      if (sendRaw <= 0n) { console.error('Error: amount must be positive.'); process.exit(1); }
+      if (sendRaw > currentBalance) {
+        console.error(`Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amount} XNO.`);
+        process.exit(1);
+      }
+
+      const newBalance = currentBalance - sendRaw;
+      const repPk = info.representative
+        ? decodeNanoAddress(info.representative).publicKey
+        : decodeNanoAddress(DEFAULT_REP).publicKey;
+
+      const blockHex = buildNanoStateBlockHex({
+        accountPublicKey: senderPk,
+        previous: info.frontier,
+        representativePublicKey: repPk,
+        balanceRaw: newBalance.toString(),
+        link: recipientPk,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify({
+          blockHex,
+          account: options.account,
+          to: options.to,
+          amountRaw: sendRaw.toString(),
+          newBalanceRaw: newBalance.toString(),
+          previous: info.frontier,
+        }, null, 2));
+      } else {
+        console.log(blockHex);
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
+    }
+  });
+
+blockCmd
+  .command('receive')
+  .description('Construct an unsigned receive block (outputs 176-byte hex)')
+  .requiredOption('-a, --account <address>', 'Recipient nano_ address')
+  .requiredOption('--hash <blockhash>', 'Hash of the pending send block to receive')
+  .requiredOption('--amount-raw <raw>', 'Amount in raw (from receivable response)')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('-j, --json', 'Output JSON with block hex + hash + metadata')
+  .action(async (options: { account: string; hash: string; amountRaw: string; url?: string; json?: boolean }) => {
+    const rpcUrl = resolveRpcUrl(options);
+
+    try {
+      const acctPk = decodeNanoAddress(options.account).publicKey;
+
+      const info = await rpcAccountInfo(rpcUrl, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      const isOpen = !isRpcError(info);
+
+      const previous = isOpen ? info.frontier : ZERO_HASH;
+      const currentBalance = isOpen ? BigInt(info.balance) : 0n;
+      const repPk = isOpen && info.representative
+        ? decodeNanoAddress(info.representative).publicKey
+        : decodeNanoAddress(DEFAULT_REP).publicKey;
+
+      const receiveRaw = BigInt(options.amountRaw);
+      if (receiveRaw <= 0n) { console.error('Error: amount-raw must be positive.'); process.exit(1); }
+      const newBalance = currentBalance + receiveRaw;
+
+      const blockHex = buildNanoStateBlockHex({
+        accountPublicKey: acctPk,
+        previous,
+        representativePublicKey: repPk,
+        balanceRaw: newBalance.toString(),
+        link: options.hash,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify({
+          blockHex,
+          account: options.account,
+          sendBlockHash: options.hash,
+          amountRaw: options.amountRaw,
+          newBalanceRaw: newBalance.toString(),
+          previous,
+          subtype: isOpen ? 'receive' : 'open',
+        }, null, 2));
+      } else {
+        console.log(blockHex);
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
+    }
+  });
+
+// Also add `rpc receivable` since it's needed to find pending blocks
+rpcCmd
+  .command('receivable')
+  .description('List receivable (pending) blocks for an account')
+  .argument('<address>', 'Nano address')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('-c, --count <n>', 'Max blocks to return', (v) => parseInt(v, 10), 10)
+  .option('-j, --json', 'Output in JSON format')
+  .action(async (address: string, options: { url?: string; count: number; json?: boolean }) => {
+    const rpcUrl = resolveRpcUrl(options);
+
+    try {
+      const items = await rpcReceivable(rpcUrl, address, options.count);
+      if (options.json) {
+        console.log(JSON.stringify({ account: address, blocks: items }, null, 2));
+      } else if (items.length === 0) {
+        console.log('No receivable blocks.');
+      } else {
+        for (const item of items) {
+          const xno = rawToNano(item.amount);
+          console.log(`${item.hash}  ${xno} XNO${item.source ? `  from ${item.source}` : ''}`);
+        }
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
+    }
+  });
+
+// Also add `rpc account-info` for completeness
+rpcCmd
+  .command('account-info')
+  .description('Fetch account info (frontier, balance, representative)')
+  .argument('<address>', 'Nano address')
+  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--xno', 'Also include XNO-formatted balance')
+  .option('-j, --json', 'Output in JSON format')
+  .action(async (address: string, options: { url?: string; xno?: boolean; json?: boolean }) => {
+    const rpcUrl = resolveRpcUrl(options);
+
+    try {
+      const info = await rpcAccountInfo(rpcUrl, address) as AccountInfoResponse | NanoRpcErrorResponse;
+      if (isRpcError(info)) {
+        if (options.json) {
+          console.log(JSON.stringify({ account: address, opened: false }, null, 2));
+        } else {
+          console.log('Account not opened (no blocks published).');
+        }
+        return;
+      }
+
+      if (options.json) {
+        const out: any = {
+          account: address,
+          opened: true,
+          frontier: info.frontier,
+          balanceRaw: info.balance,
+          representative: info.representative,
+        };
+        if (options.xno) out.balanceXno = rawToNano(info.balance);
+        console.log(JSON.stringify(out, null, 2));
+      } else {
+        console.log(`Frontier: ${info.frontier}`);
+        console.log(`Balance (raw): ${info.balance}`);
+        if (options.xno) console.log(`Balance (XNO): ${rawToNano(info.balance)}`);
+        if (info.representative) console.log(`Representative: ${info.representative}`);
       }
     } catch (e: any) {
       console.error(`Error: ${e?.message ?? e}`);
