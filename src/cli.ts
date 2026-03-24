@@ -598,16 +598,22 @@ blockCmd
 
       const acctPk = decodeNanoAddress(options.account).publicKey;
 
-      // Resolve amount: --amount-xno converts to raw
+      // Resolve hash and amount. If --hash is given without an amount, we must
+      // look up that specific block's amount — NOT grab the first pending block's amount,
+      // which could be a completely different transaction.
       let hash = options.hash;
       let amountRaw = options.amountRaw || (options.amountXno ? nanoToRaw(options.amountXno) : undefined);
-      if (!hash || !amountRaw) {
+      if (hash && !amountRaw) {
+        console.error('Error: when --hash is provided, --amount-raw or --amount-xno is also required.');
+        process.exit(1);
+      }
+      if (!hash) {
         const pending = await rpcReceivable(rpcUrl, options.account, 1);
         if (pending.length === 0) {
           console.error('Error: no receivable blocks found for this account.');
           process.exit(1);
         }
-        hash = hash || pending[0].hash;
+        hash = pending[0].hash;
         amountRaw = amountRaw || pending[0].amount;
         const xno = rawToNano(amountRaw);
         console.error(`Auto-detected pending block: ${hash} (${xno} XNO)`);
@@ -622,7 +628,7 @@ blockCmd
         ? decodeNanoAddress(info.representative).publicKey
         : decodeNanoAddress(DEFAULT_REP).publicKey;
 
-      const receiveRaw = BigInt(amountRaw);
+      const receiveRaw = BigInt(amountRaw!);
       if (receiveRaw <= 0n) { console.error('Error: amount-raw must be positive.'); process.exit(1); }
       const newBalance = currentBalance + receiveRaw;
 
