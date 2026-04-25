@@ -1,3 +1,15 @@
+---
+name: sign-message
+description: Sign an off-chain message (plain text) using a custodial wallet managed by xno-mcp. Following NOMS (Nano Off-chain Message Signature) / ORIS-001.
+triggers:
+  - sign message
+  - off-chain signature
+  - prove ownership
+  - message signing
+  - sign text
+  - noms signature
+---
+
 # sign-message
 
 Sign an off-chain message (plain text) using a custodial wallet managed by `xno-mcp`. This follows the NOMS (Nano Off-chain Message Signature) / ORIS-001 standard.

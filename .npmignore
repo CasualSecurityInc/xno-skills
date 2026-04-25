@@ -24,12 +24,6 @@ vitest.config.ts
 tsconfig.json
 tsconfig.*.json
 
-# Skills (internal)
-*-skills/
-validate-address/
-convert-units/
-create-wallet/
-
 # Misc
 .DS_Store
 *.log

@@ -1,3 +1,15 @@
+---
+name: verify-message
+description: Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano address or public key.
+triggers:
+  - verify message
+  - check signature
+  - verify signature
+  - signature verification
+  - noms verification
+  - is this signature valid
+---
+
 # verify-message
 
 Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano address or public key.

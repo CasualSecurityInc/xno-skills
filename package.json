@@ -19,7 +19,8 @@
   },
   "files": [
     "dist",
-    "assets"
+    "assets",
+    "skills"
   ],
   "scripts": {
     "preversion": "npm test",
