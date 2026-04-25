@@ -1,13 +1,13 @@
 ---
 name: create-wallet
-description: "Create or restore a Nano (XNO) wallet offline (seed, mnemonic, address). For secure custody, prefer the mcp-wallet skill instead."
+description: "Create or restore a Nano (XNO) wallet via Open Wallet Standard (OWS). For secure custody, rely on the unified OWS framework."
 triggers:
   - create wallet
   - generate wallet
   - new wallet
   - wallet create
-  - xno-skills wallet
-  - create xno-skills wallet
+  - ows wallet
+  - create ows wallet
   - nano wallet
   - cryptocurrency wallet
   - generate seed
@@ -15,86 +15,56 @@ triggers:
   - new seed
 ---
 
-# Create / Restore a Nano (XNO) Wallet (Offline)
+# Create / Restore a Nano (XNO) Wallet (via OWS)
 
-Creates or restores a Nano wallet locally using `xno-skills`. This is useful for **testing** (generating an address to fund) and for **deriving** the address from a known seed/mnemonic.
+Nano wallet management is delegated to the **Open Wallet Standard (OWS)**. This provides a unified, policy-gated vault for all agent keys.
 
 ## Assistant guardrails (match user intent)
 
 If a user says "I want to send you XNO" or "can you receive it?":
 
-- The agent **can** accept funds! You should use the `mcp-wallet` skill to initialize a custody wallet (`wallet_create`) or use an existing one, or import keys you generate here, and provide the user with the address.
-- If the user wants a wallet for themselves, offer to help them **create a wallet for themselves** (or validate/QR their existing address).
-- If they want a throwaway test wallet, remind them that anything printed in chat (seed/mnemonic/private key) should be considered **compromised** and **not used for real funds**.
+- The agent **can** accept funds! You should use the `ows` CLI to create a wallet or rely on an existing OWS wallet.
+- Once you have an OWS wallet name (e.g., `"agent-vault"`), use `wallet_list` to see your addresses and provide one to the user.
+- **Never** paste seeds or mnemonics into chat.
 
-If a user asks to **import/restore** an existing wallet:
+If the agent has access to **OWS**:
 
-- **Warn before asking for any mnemonic/seed.** Tell them not to paste secrets into chat.
-- Ask whether the wallet may contain significant funds; if yes, steer them to an offline wallet app/hardware wallet instead.
-- If they still want help, have them run `xno-skills` **locally** and share only non-sensitive outputs (addresses, balances).
+- Always prefer OWS for custody. It keeps secrets encrypted at rest and allows for standardized signing across different tools.
+- Create a named wallet: `ows wallet create --name "my-agent"`
 
-If the agent has access to **`xno-mcp`**:
+## CLI usage (via OWS)
 
-- Prefer using `xno-mcp` (`mcp-wallet` skill) as a private wallet blackbox (custody inside MCP), so the agent never leaks seeds/mnemonics.
-- Create a named wallet (e.g. `"A"`) and only return the address(es) needed for funding/checking balances.
-
-## Two common Nano mnemonic schemes (both supported)
-
-Nano wallets commonly use **either**:
-
-- **BIP39 (preferred / default in `xno-skills`)**: 12/15/18/21/24-word BIP39 mnemonic (+ optional passphrase) → BIP39 seed (PBKDF2) → Nano keys via BIP44-style path `m/44'/165'/index'`.
-- **Legacy ("Nano mnemonic", 24 words)**: 24-word mnemonic → underlying entropy treated as a 32-byte Nano seed → Nano legacy key derivation `blake2b(seed || index)` to derive multiple accounts.
-
-Important: a **24-word** phrase can be *ambiguous* (it can be used in both schemes). Prefer BIP39 unless the user explicitly knows they have a legacy mnemonic.
-
-## CLI usage
-
-### Create a new BIP39 wallet (default)
+### Create a new OWS wallet
 
 ```bash
-npx -y xno-skills wallet create --json
+# This derives addresses for all supported chains, including Nano
+ows wallet create --name "my-wallet"
 ```
 
-### Create a legacy (24-word) wallet
+### Import an existing mnemonic into OWS
 
 ```bash
-npx -y xno-skills wallet create --format legacy --json
+# Follow the interactive prompt to enter the mnemonic securely
+ows wallet import --name "imported-vault"
 ```
 
-### Restore/import from mnemonic
+## Integrating with xno-skills
 
-```bash
-# Auto (24-word is ambiguous; prefers bip39)
-npx -y xno-skills wallet from-mnemonic --stdin --json
+While OWS handles the **keys**, `xno-skills` handles the **Nano network**. 
 
-# Force a format
-npx -y xno-skills wallet from-mnemonic --stdin --format bip39 --json
-npx -y xno-skills wallet from-mnemonic --stdin --format legacy --json
-
-# For 24-word mnemonics: output both derivations (JSON)
-npx -y xno-skills wallet from-mnemonic --stdin --format auto --both --json
-```
-
-### Safest disambiguation: probe both on-chain
-
-If you have an RPC endpoint, scan the first 5 indexes of both schemes and see which has opened accounts / balances:
-
-```bash
-export NANO_RPC_URL="https://rpc.nano.org"
-npx -y xno-skills wallet probe-mnemonic "<mnemonic>" --json
-```
+1.  **Creation**: Use `ows wallet create`.
+2.  **Discovery**: Use `wallet_list` (in `xno-mcp`) to see your OWS wallets and Nano addresses.
+3.  **Sending/Receiving**: Use `wallet_send` and `wallet_receive` (in `xno-mcp`). These tools will automatically bridge your OWS wallet with the Nano RPC to construct and publish blocks.
 
 ## "Receive" expectations
 
-Nano transfers can show up as **pending** until the recipient wallet publishes the corresponding receive/open block. A typical wallet app handles this automatically; a raw seed/address alone does not "auto-receive".
+Nano funds show as **pending** until the recipient publishes a receive block. 
 
-**After generating a wallet and receiving funds, you MUST call `wallet_receive` to pocket the funds.**
-
-To check whether funds arrived on-chain (balance/pending), use the `check-balance` skill (RPC) or a block explorer.
+**After an operator sends funds, you MUST call `wallet_receive` or `payment_request_receive` to pocket the funds.**
 
 ## Related skills
 
-- `generate-qr` – make a QR for the address (optionally with amount)
-- `validate-address` – verify a Nano address before sending
-- `check-balance` – verify balance/pending via RPC (if you have a node endpoint)
-- `mcp-wallet` – use xno-mcp as a private wallet custody service (recommended for agents)
+- `mcp-wallet` – Use OWS wallets via the `xno-mcp` service (recommended for agents)
+- `generate-qr` – Make a QR for the address
+- `validate-address` – Verify a Nano address before sending
+- `check-balance` – Verify balance/pending via RPC

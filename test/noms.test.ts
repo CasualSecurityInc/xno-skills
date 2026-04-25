@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { NOMS } from '@openrai/nano-core';
 import { validateAddress } from '../src/validate';
-import { derivePublicKeyLegacy } from '../src/address-legacy';
+import { nanoGetPublicKeyFromPrivateKey } from '../src/ed25519-blake2b';
 
 describe('NOMS (Nano Off-chain Message Signing)', () => {
   it('should sign and verify a message "I am me."', () => {
     const message = 'I am me.';
     const privateKey = '0000000000000000000000000000000000000000000000000000000000000000';
-    const publicKey = derivePublicKeyLegacy(privateKey);
+    const publicKey = nanoGetPublicKeyFromPrivateKey(privateKey);
     
     const signature = NOMS.signMessage(message, privateKey);
     expect(signature).toBeDefined();
@@ -38,7 +38,7 @@ describe('NOMS (Nano Off-chain Message Signing)', () => {
   it('should fail verification if message is changed', () => {
     const message = 'I am me.';
     const privateKey = '0000000000000000000000000000000000000000000000000000000000000000';
-    const publicKey = '3b65511019678a1007a8124b24e45c70c0bbdec29d3335b2e66e850b694b28c8';
+    const publicKey = nanoGetPublicKeyFromPrivateKey(privateKey);
     
     const signature = NOMS.signMessage(message, privateKey);
     const isValid = NOMS.verifyMessage('I am NOT me.', signature, publicKey);

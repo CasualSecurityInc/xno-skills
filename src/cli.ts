@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { generateSeed, generateMnemonic, seedToMnemonic, mnemonicToSeed, validateMnemonic } from './seed.js';
-import { deriveAddressLegacy } from './address-legacy.js';
-import { deriveAddressBIP44 } from './address-bip44.js';
+import { execSync } from 'node:child_process';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
@@ -24,15 +22,27 @@ async function readAllStdin(): Promise<string> {
   });
 }
 
-function mnemonicWordCount(mnemonic: string): number {
-  return mnemonic.trim().split(/\s+/).filter(Boolean).length;
-}
+function checkOwsCli(): string {
+  const disableNpx = process.env.XNO_SKILLS_DISABLE_NPX === 'true';
+  
+  // 1. Check if 'ows' is available natively
+  try {
+    execSync('ows --version', { stdio: 'ignore' });
+    return `Working (native)`;
+  } catch (e) {}
 
-function warnUnsafeMnemonicArg(): void {
-  console.error(
-    'Warning: passing a mnemonic on the command line can leak via shell history, logs, or process lists.\n' +
-    'Prefer `--stdin` (e.g. `read -s MN; echo \"$MN\" | xno-skills wallet from-mnemonic --stdin ...`) or an offline workflow.'
-  );
+  if (disableNpx) {
+    return `Missing (global 'ows' not found & npx disabled)`;
+  }
+
+  // 2. Check if it works via npx
+  try {
+    // Note: 'npx -y' ensures it doesn't prompt for installation
+    execSync('npx -y @open-wallet-standard/core --version', { stdio: 'ignore' });
+    return `Working (via npx)`;
+  } catch (e) {
+    return `Missing (please install @open-wallet-standard/core)`;
+  }
 }
 
 const whiteFg=`\x1b[38;2;255;255;255m`
@@ -55,11 +65,15 @@ Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('B',blueFg)
 .replaceAll('M',marineBg)
 
+const owsStatus = checkOwsCli();
+const statusLine = `\x1b[1mFEATURES\x1b[0m  Open Wallet Standard CLI: ${owsStatus}`;
+const fullDescription = `${logo}\n\n${statusLine}`;
+
 const program = new Command();
 
 program
   .name(programName)
-  .description(logo)
+  .description(fullDescription)
   .version(version)
   .option('-q, --quiet', 'Suppress non-essential output');
 
@@ -70,252 +84,6 @@ program
     (thisCommand as any).globalOpts = {
       quiet: opts.quiet || false,
     };
-  });
-
-// Wallet command group
-const walletCmd = program
-  .command('wallet')
-  .description('Wallet operations');
-
-walletCmd
-  .command('create')
-  .description('Create a new wallet')
-  .option('-f, --format <format>', 'Derivation format: bip39 (default) or legacy', 'bip39')
-  .option('-w, --words <n>', 'BIP39 word count (12/15/18/21/24). Only used for --format bip39.', (v) => parseInt(v, 10), 24)
-  .option('-p, --passphrase <passphrase>', 'Optional BIP39 passphrase (only for --format bip39)')
-  .option('-i, --index <n>', 'Account index (default: 0)', (v) => parseInt(v, 10), 0)
-  .option('-s, --seed', 'Output hex seed')
-  .option('-m, --mnemonic', 'Output 24-word mnemonic phrase')
-  .option('-j, --json', 'Output in JSON format')
-  .action((options) => {
-    const format = String(options.format || 'bip39').toLowerCase();
-
-    if (format !== 'bip39' && format !== 'legacy') {
-      console.error(`Error: Invalid format '${options.format}'. Use 'bip39' or 'legacy'.`);
-      process.exit(1);
-    }
-
-    if (options.seed && format !== 'legacy') {
-      console.error(`Error: --seed is only supported for --format legacy.`);
-      process.exit(1);
-    }
-
-    let mnemonic: string;
-    let seed: string | undefined;
-    let addressResult: { address: string; privateKey: string; publicKey: string };
-
-    if (format === 'bip39') {
-      mnemonic = generateMnemonic(options.words);
-      addressResult = deriveAddressBIP44(mnemonic, options.index, options.passphrase || '');
-    } else {
-      seed = generateSeed();
-      mnemonic = seedToMnemonic(seed);
-      addressResult = deriveAddressLegacy(seed, options.index);
-    }
-
-    if (options.json) {
-      const out: any = {
-        format,
-        index: options.index,
-        mnemonic,
-        address: addressResult.address,
-        privateKey: addressResult.privateKey,
-        publicKey: addressResult.publicKey,
-      };
-      if (format === 'legacy') out.seed = seed;
-      console.log(JSON.stringify(out, null, 2));
-    } else if (options.mnemonic) {
-      console.log(mnemonic);
-    } else if (options.seed) {
-      console.log(seed);
-    } else {
-      if (format === 'legacy') console.log(`Seed: ${seed}`);
-      console.log(`Mnemonic: ${mnemonic}`);
-      console.log(`Address: ${addressResult.address}`);
-    }
-  });
-
-walletCmd
-  .command('from-mnemonic')
-  .description('Create wallet from mnemonic phrase')
-  .argument('[mnemonic]', 'BIP39 mnemonic (12/15/18/21/24 words). If omitted, use --stdin or --mnemonic-env.')
-  .option('-f, --format <format>', 'Import format: auto (default), bip39, or legacy', 'auto')
-  .option('-p, --passphrase <passphrase>', 'Optional BIP39 passphrase (only for bip39)')
-  .option('-i, --index <n>', 'Account index (default: 0)', (v) => parseInt(v, 10), 0)
-  .option('--both', 'When format=auto and mnemonic is 24 words, output both bip39 and legacy derivations (JSON only)')
-  .option('--stdin', 'Read mnemonic from stdin (recommended; avoids shell history)')
-  .option('--mnemonic-env <name>', 'Read mnemonic from env var (e.g. XNO_MNEMONIC)')
-  .option('-j, --json', 'Output in JSON format')
-  .action(async (mnemonicArg: string | undefined, options) => {
-    try {
-      let mnemonic = mnemonicArg;
-      if (options.mnemonicEnv) {
-        mnemonic = process.env[String(options.mnemonicEnv)];
-      } else if (options.stdin) {
-        mnemonic = (await readAllStdin()).trim();
-      }
-      if (!mnemonic) throw new Error('Mnemonic required (pass as argument, or use --stdin / --mnemonic-env).');
-
-      if (mnemonicArg && !options.stdin && !options.mnemonicEnv) warnUnsafeMnemonicArg();
-
-      const wordCount = mnemonicWordCount(mnemonic);
-      if (!validateMnemonic(mnemonic)) throw new Error('Invalid BIP39 mnemonic');
-
-      const format = String(options.format || 'auto').toLowerCase();
-      if (!['auto', 'bip39', 'legacy'].includes(format)) {
-        throw new Error(`Invalid format '${options.format}'. Use auto, bip39, or legacy.`);
-      }
-
-      const deriveLegacy = () => {
-        if (wordCount !== 24) throw new Error('Legacy mnemonic import requires 24 words');
-        const seed = mnemonicToSeed(mnemonic);
-        return { seed, ...deriveAddressLegacy(seed, options.index) };
-      };
-
-      const deriveBip39 = () => deriveAddressBIP44(mnemonic, options.index, options.passphrase || '');
-
-      if (options.both && (!options.json || format !== 'auto' || wordCount !== 24)) {
-        throw new Error('--both is only valid with --json, --format auto, and a 24-word mnemonic');
-      }
-
-      if (format === 'legacy') {
-        const legacy = deriveLegacy();
-        if (options.json) {
-          console.log(JSON.stringify({ format: 'legacy', index: options.index, mnemonic, ...legacy }, null, 2));
-        } else {
-          console.log(`Address: ${legacy.address}`);
-        }
-        return;
-      }
-
-      if (format === 'bip39' || (format === 'auto' && wordCount !== 24)) {
-        const bip39 = deriveBip39();
-        if (options.json) {
-          console.log(JSON.stringify({ format: 'bip39', index: options.index, mnemonic, ...bip39 }, null, 2));
-        } else {
-          console.log(`Address: ${bip39.address}`);
-        }
-        return;
-      }
-
-      // format=auto and 24-word mnemonic: ambiguous; prefer BIP39 by default.
-      if (options.both) {
-        const bip39 = deriveBip39();
-        const legacy = deriveLegacy();
-        console.log(JSON.stringify({ format: 'auto', index: options.index, mnemonic, bip39, legacy }, null, 2));
-        return;
-      }
-
-      const bip39 = deriveBip39();
-
-      if (options.json) {
-        console.log(JSON.stringify({
-          format: 'bip39',
-          index: options.index,
-          mnemonic,
-          address: bip39.address,
-          privateKey: bip39.privateKey,
-          publicKey: bip39.publicKey
-        }, null, 2));
-      } else {
-        console.log(`Address: ${bip39.address}`);
-      }
-    } catch (e: any) {
-      console.error(`Error: ${e.message}`);
-      process.exit(1);
-    }
-  });
-
-walletCmd
-  .command('probe-mnemonic')
-  .description('Try bip39 + legacy derivations and probe first N indexes via RPC (helps resolve ambiguity)')
-  .argument('[mnemonic]', 'BIP39 mnemonic (12/15/18/21/24 words). If omitted, use --stdin or --mnemonic-env.')
-  .option('-p, --passphrase <passphrase>', 'Optional BIP39 passphrase (only affects bip39)')
-  .option('-c, --count <n>', 'How many account indexes to check per format', (v) => parseInt(v, 10), 5)
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
-  .option('--stdin', 'Read mnemonic from stdin (recommended; avoids shell history)')
-  .option('--mnemonic-env <name>', 'Read mnemonic from env var (e.g. XNO_MNEMONIC)')
-  .option('--json', 'Output JSON')
-  .action(async (mnemonicArg: string | undefined, options: { passphrase?: string; count: number; url?: string; json?: boolean; stdin?: boolean; mnemonicEnv?: string }) => {
-    const rpcUrl = options.url || process.env.NANO_RPC_URL;
-    if (!rpcUrl) {
-      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
-      process.exit(1);
-    }
-
-    let mnemonic = mnemonicArg;
-    if (options.mnemonicEnv) {
-      mnemonic = process.env[String(options.mnemonicEnv)];
-    } else if (options.stdin) {
-      mnemonic = (await readAllStdin()).trim();
-    }
-    if (!mnemonic) {
-      console.error('Mnemonic required (pass as argument, or use --stdin / --mnemonic-env).');
-      process.exit(1);
-    }
-
-    if (mnemonicArg && !options.stdin && !options.mnemonicEnv) warnUnsafeMnemonicArg();
-
-    if (!validateMnemonic(mnemonic)) {
-      console.error('Invalid BIP39 mnemonic.');
-      process.exit(1);
-    }
-
-    const wordCount = mnemonicWordCount(mnemonic);
-    const count = Math.max(1, Math.min(100, options.count || 5));
-
-    const results: any = { mnemonicWordCount: wordCount, count, bip39: [], legacy: [] };
-    const allAddresses: string[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const bip39 = deriveAddressBIP44(mnemonic, i, options.passphrase || '');
-      results.bip39.push({ index: i, address: bip39.address });
-      allAddresses.push(bip39.address);
-    }
-
-    if (wordCount === 24) {
-      const legacySeed = mnemonicToSeed(mnemonic);
-      for (let i = 0; i < count; i++) {
-        const legacy = deriveAddressLegacy(legacySeed, i);
-        results.legacy.push({ index: i, address: legacy.address });
-        allAddresses.push(legacy.address);
-      }
-    }
-
-    try {
-      const balances = await rpcAccountsBalances(rpcUrl, allAddresses);
-      const frontiers = await rpcAccountsFrontiers(rpcUrl, allAddresses);
-
-      const annotate = (arr: any[]) => arr.map((x) => {
-        const b = balances.balances?.[x.address];
-        const opened = Boolean(frontiers.frontiers?.[x.address]);
-        return {
-          ...x,
-          opened,
-          balanceRaw: b?.balance ?? '0',
-          pendingRaw: b?.pending ?? '0',
-          balanceXno: rawToNano(b?.balance ?? '0'),
-          pendingXno: rawToNano(b?.pending ?? '0'),
-        };
-      });
-
-      results.bip39 = annotate(results.bip39);
-      results.legacy = annotate(results.legacy);
-
-      const bip39Hit = results.bip39.some((x: any) => x.opened || x.balanceRaw !== '0' || x.pendingRaw !== '0');
-      const legacyHit = results.legacy.some((x: any) => x.opened || x.balanceRaw !== '0' || x.pendingRaw !== '0');
-      results.likelyFormat = bip39Hit && !legacyHit ? 'bip39' : legacyHit && !bip39Hit ? 'legacy' : 'ambiguous';
-    } catch (e: any) {
-      console.error(`Error: ${e?.message ?? e}`);
-      process.exit(1);
-    }
-
-    if (options.json) console.log(JSON.stringify(results, null, 2));
-    else {
-      console.log(`Likely format: ${results.likelyFormat}`);
-      for (const row of results.bip39) console.log(`bip39[${row.index}] ${row.address} opened=${row.opened} bal=${row.balanceXno} pending=${row.pendingXno}`);
-      for (const row of results.legacy) console.log(`legacy[${row.index}] ${row.address} opened=${row.opened} bal=${row.balanceXno} pending=${row.pendingXno}`);
-    }
   });
 
 // Convert command
