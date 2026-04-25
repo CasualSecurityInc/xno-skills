@@ -7,7 +7,9 @@ import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
 import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
+import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
+import { NOMS } from '@openrai/nano-core';
 import { pkg, version } from './version.js';
 
 const programName = pkg.name;
@@ -219,6 +221,64 @@ program
         console.error(`Invalid: ${result.error}`);
         process.exit(1);
       }
+    }
+  });
+
+// Sign command (NOMS)
+program
+  .command('sign')
+  .description('Sign a NOMS off-chain message (requires private key)')
+  .argument('<message>', 'The message text to sign')
+  .requiredOption('-k, --key <hex>', 'Private key in hex')
+  .option('-j, --json', 'Output in JSON format')
+  .action((message: string, options: { key: string; json?: boolean }) => {
+    try {
+      const signature = NOMS.signMessage(message, options.key);
+      const pk = nanoGetPublicKeyFromPrivateKey(options.key);
+      
+      if (options.json) {
+        console.log(JSON.stringify({ message, signature, publicKey: pk }, null, 2));
+      } else {
+        console.log(`Signature: ${signature}`);
+        console.log(`Public Key: ${pk}`);
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
+    }
+  });
+
+// Verify command (NOMS)
+program
+  .command('verify')
+  .description('Verify a NOMS off-chain message signature')
+  .argument('<address>', 'Nano address or public key')
+  .argument('<message>', 'The original message text')
+  .argument('<signature>', 'The hex-encoded signature')
+  .option('-j, --json', 'Output in JSON format')
+  .action((address: string, message: string, signature: string, options: { json?: boolean }) => {
+    try {
+      const v = validateAddress(address);
+      if (!v.valid) {
+        console.error(`Invalid address: ${v.error}`);
+        process.exit(1);
+      }
+
+      const valid = NOMS.verifyMessage(message, signature, v.publicKey!);
+
+      if (options.json) {
+        console.log(JSON.stringify({ address, message, signature, valid }, null, 2));
+      } else {
+        if (valid) {
+          console.log('✅ Signature is VALID');
+        } else {
+          console.error('❌ Signature is INVALID');
+          process.exit(1);
+        }
+      }
+    } catch (e: any) {
+      console.error(`Error: ${e?.message ?? e}`);
+      process.exit(1);
     }
   });
 

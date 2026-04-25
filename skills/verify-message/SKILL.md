@@ -26,7 +26,7 @@ To verify a signature, call the `verify_message` tool:
 {
   "name": "verify_message",
   "arguments": {
-    "address": "nano_1qmbhidbruqqg85rqu9nhd178uo46oocons95ukgaoesp97aes511rrotf3b",
+    "address": "nano_1hfrig58wzrg4pzqen17cyannpy1173oi7jz7zd6srjsqjh7ozcgec9uyo9n",
     "message": "I am me.",
     "signature": "3de8620fb30967916d3dc36cd09eba9a633d1678b986fbc31b70ae2834db25a898085bbce32b744aef42ed56b5c001ffebd5516e78c9f22c678dde2d8bdc150a"
   }
@@ -34,6 +34,26 @@ To verify a signature, call the `verify_message` tool:
 ```
 
 The tool will return `{ "valid": true }` if the signature is correct.
+
+## CLI Usage
+
+You can also verify signatures directly from the command line:
+
+```bash
+npx xno-skills verify <address> "<message>" <signature>
+```
+
+### Example
+
+```bash
+npx xno-skills verify nano_1hfrig58wzrg4pzqen17cyannpy1173oi7jz7zd6srjsqjh7ozcgec9uyo9n "I am me." 3de8620fb30967916d3dc36cd09eba9a633d1678b986fbc31b70ae2834db25a898085bbce32b744aef42ed56b5c001ffebd5516e78c9f22c678dde2d8bdc150a
+```
+
+To get JSON output for integration:
+
+```bash
+npx xno-skills verify nano_1hfrig58wzrg4pzqen17cyannpy1173oi7jz7zd6srjsqjh7ozcgec9uyo9n "I am me." 3de8620fb30967916d3dc36cd09eba9a633d1678b986fbc31b70ae2834db25a898085bbce32b744aef42ed56b5c001ffebd5516e78c9f22c678dde2d8bdc150a --json
+```
 
 ## NOMS Standard (ORIS-001)
 

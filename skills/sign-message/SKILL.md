@@ -39,6 +39,26 @@ To sign a message, call the `sign_message` tool:
 
 The tool will return the address, public key, and the hex-encoded signature.
 
+## CLI Usage
+
+You can also sign messages directly from the command line if you have the private key:
+
+```bash
+npx xno-skills sign "<message>" --key <private-key-hex>
+```
+
+### Example
+
+```bash
+npx xno-skills sign "I am me." --key 0000000000000000000000000000000000000000000000000000000000000000
+```
+
+To get JSON output:
+
+```bash
+npx xno-skills sign "I am me." --key 0000000000000000000000000000000000000000000000000000000000000000 --json
+```
+
 ## NOMS Standard (ORIS-001)
 
 The signature is computed over a binary payload that includes a magic header, ensuring it cannot be misinterpreted as a valid Nano block. This protects users from accidentally signing a malicious transaction block.
