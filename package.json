@@ -67,6 +67,7 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^1.7.0",
+    "@openrai/nano-core": "^2.4.0",
     "@scure/bip39": "^2.0.1",
     "commander": "^14.0.3",
     "micro-key-producer": "^0.8.5",

@@ -25,6 +25,7 @@ import {
 import { hashNanoStateBlock } from "./state-block.js";
 import { nanoSignBlake2b } from "./ed25519-blake2b.js";
 import { localWorkGenerate, getThresholdForSubtype } from "./pow.js";
+import { NOMS } from "@openrai/nano-core";
 import { version } from "./version.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -862,6 +863,32 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             amountXno: { type: "string", description: "Optional amount in XNO" },
           },
           required: ["address"],
+        },
+      },
+      {
+        name: "sign_message",
+        description: "Sign an off-chain message (plain text) using YOUR custodial wallet (NOMS / ORIS-001 standard). Returns the signature and address.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Wallet name" },
+            index: { type: "number", description: "Account index", default: 0 },
+            message: { type: "string", description: "The plain text message to sign (e.g. 'I am me.')" },
+          },
+          required: ["name", "message"],
+        },
+      },
+      {
+        name: "verify_message",
+        description: "Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano address or public key.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            address: { type: "string", description: "Nano address or hex public key" },
+            message: { type: "string", description: "The original plain text message" },
+            signature: { type: "string", description: "The hex signature to verify" },
+          },
+          required: ["address", "message", "signature"],
         },
       },
     ],
@@ -1925,6 +1952,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: JSON.stringify({ address, amountXno: amountXno ?? null, nanoUri: uri, qr }, null, 2),
+          }],
+        };
+      }
+
+      case "sign_message": {
+        const walletName = String((args as any)?.name || "").trim();
+        const wallet = state.wallets.get(walletName);
+        if (!wallet) throw new Error(`Unknown wallet: ${walletName}`);
+
+        const index = Math.max(0, (args as any)?.index ?? 0);
+        const message = String((args as any)?.message || "");
+        
+        const acct = deriveWalletAccount(wallet, index);
+        const signature = NOMS.signMessage(message, acct.privateKey);
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              address: acct.address,
+              publicKey: acct.publicKey,
+              message,
+              signature,
+              standard: "NOMS / ORIS-001"
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "verify_message": {
+        const addressOrPubKey = String((args as any)?.address || "").trim();
+        const message = String((args as any)?.message || "");
+        const signature = String((args as any)?.signature || "").trim();
+
+        let publicKey: string;
+        if (addressOrPubKey.startsWith("nano_") || addressOrPubKey.startsWith("xrb_")) {
+          const v = validateAddress(addressOrPubKey);
+          if (!v.valid || !v.publicKey) throw new Error(`Invalid address: ${v.error}`);
+          publicKey = v.publicKey;
+        } else if (/^[0-9a-fA-F]{64}$/.test(addressOrPubKey)) {
+          publicKey = addressOrPubKey;
+        } else {
+          throw new Error("Invalid address or public key format");
+        }
+
+        const valid = NOMS.verifyMessage(message, signature, publicKey);
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              valid,
+              address: addressOrPubKey.startsWith("nano_") ? addressOrPubKey : undefined,
+              publicKey,
+              message,
+              signature,
+              standard: "NOMS / ORIS-001"
+            }, null, 2),
           }],
         };
       }
