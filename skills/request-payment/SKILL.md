@@ -27,8 +27,8 @@ When you need XNO (e.g., for testing, for a task that requires funds, or because
 
 Before creating anything new, check what you already have:
 
-1. Call `wallet_list` to see existing wallets
-2. If wallets exist, call `wallet_probe_balances` on each to check for existing funds
+1. Call `wallet_list` to see existing OWS wallets
+2. Use the `wallet://{name}` resource or `wallet_balance` to check for existing funds
 3. If an existing wallet has sufficient funds, skip to reporting — no request needed
 
 ### Step 2: Create a payment request

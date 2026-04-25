@@ -58,13 +58,6 @@ Or pass the URL explicitly:
 npx -y xno-skills rpc account-balance <address> --url "https://rpc.nano.org" --json --xno
 ```
 
-If the user has a mnemonic and isn't sure whether it's **bip39** or **legacy** (common with 24-word phrases), prefer:
-
-```bash
-# Don't paste mnemonics into chat; run locally and use stdin
-npx -y xno-skills wallet probe-mnemonic --stdin --url "https://rpc.nano.org" --json
-```
-
 ## MCP usage (`xno-mcp`)
 
 If the agent has access to the `xno-mcp` tools:
@@ -75,12 +68,11 @@ config_set: { "rpcUrl": "https://rpc.nano.org" }
 ```
 
 **Then check balance:**
-- `rpc_account_balance` with `{ "address": "...", "includeXno": true }`
-- `wallet_balance` with `{ "name": "A", "index": 0 }`
-- `wallet_probe_balances` with `{ "name": "A", "count": 5 }` - Also shows which accounts are opened
+- `rpc_account_balance` with `{ "address": "...", "rpcUrl": "..." }`
+- `wallet_balance` with `{ "name": "my-wallet", "index": 0 }`
 
 **If you see pending funds, receive them:**
-- `wallet_receive` with `{ "name": "A", "index": 0 }`
+- `wallet_receive` with `{ "name": "my-wallet", "index": 0 }`
 
 ## Fallback (no RPC available)
 

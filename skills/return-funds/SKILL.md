@@ -85,7 +85,7 @@ After the operator confirms the destination:
 
 ### Allowance blocks the refund
 If spending limits prevent the refund:
-- Tell the operator: "The current spending limit prevents this send. Please increase the limit via `wallet_set_allowance` or confirm you'd like to proceed."
+- Tell the operator: "The current spending limit prevents this send. Please increase the limit via `config_set({ maxSendXno: \"...\" })` or confirm you'd like to proceed."
 
 ## Related Skills
 

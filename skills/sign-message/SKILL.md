@@ -20,7 +20,7 @@ Use this skill when you need to prove ownership of a Nano account or provide an 
 
 ### Prerequisites
 
-- A custodial wallet must be created or imported in `xno-mcp` (e.g., using `wallet_create`).
+- A custodial wallet must be created in OWS (e.g., using `ows wallet create`) and visible in `xno-mcp` via `wallet_list`.
 
 ### Sign a message
 

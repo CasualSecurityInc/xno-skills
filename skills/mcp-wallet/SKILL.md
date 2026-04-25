@@ -7,8 +7,6 @@ triggers:
   - wallets
   - create a wallet
   - custody
-  - blackbox wallet
-  - avoid leaking seed
   - mcp wallet
   - xno-mcp
   - send nano
