@@ -16,15 +16,30 @@ This repository includes built-in skills for AI agents (Claude Code, Cursor, etc
 npx skills add CasualSecurityInc/xno-skills
 ```
 
-Available skills:
-- `create-wallet`: Wallet creation/import guidance (BIP39 default; legacy supported; safe `--stdin` workflows).
-- `convert-units`: High-precision unit conversion reference.
-- `generate-qr`: Terminal-friendly Nano payment QR codes (address + optional amount).
-- `validate-address`: Address format and checksum verification guide.
-- `check-balance`: Check balance/pending via Nano node RPC.
-- `mcp-wallet`: Use `xno-mcp` as a private “wallet” custody blackbox (addresses only; no seed leakage).
-- `request-payment`: Request XNO from operator (payment request workflow with tracking, QR, receive, report).
-- `return-funds`: Return XNO to sender (source attribution, ambiguity guards, safe refund).
+Available skills (v1.4.0+):
+- `nano-check-balance`: Check balance/pending via Nano node RPC.
+- `nano-convert-units`: High-precision unit conversion reference.
+- `nano-create-wallet`: Wallet creation/import guidance (BIP39/Legacy support).
+- `nano-generate-qr`: Terminal-friendly Nano payment QR codes.
+- `nano-mcp-wallet`: Use `xno-mcp` as a private “wallet” custody blackbox.
+- `nano-request-payment`: Request XNO from operator (payment request workflow).
+- `nano-return-funds`: Return XNO to sender safely.
+- `nano-sign-message`: Sign off-chain messages (NOMS/ORIS-001).
+- `nano-validate-address`: Address format and checksum verification.
+- `nano-verify-message`: Verify off-chain message signatures.
+- `nano-block-lattice-expert`: Deep protocol wisdom and 2026 operational facts.
+
+### Migration (from < v1.4.0)
+
+If you have old skills installed without the `nano-` prefix, you should remove them and re-add the repo to avoid name collisions and "ghost" skills:
+
+```bash
+# 1. Remove old generic names
+npx skills remove -g check-balance convert-units create-wallet generate-qr mcp-wallet request-payment return-funds sign-message validate-address verify-message
+
+# 2. Add the new prefixed skills
+npx skills add -g CasualSecurityInc/xno-skills
+```
 
 ## MCP Server
 
@@ -37,27 +52,24 @@ To use it, add the following to your MCP client configuration:
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "xno-skills@latest", "xno-mcp"]
     }
   }
 }
 ```
 
 Exposed tools:
-- `wallet_create` / `wallet_list` / `wallet_addresses`: Named “wallets” (custody inside MCP; return addresses only).
-- `wallet_balance` / `wallet_probe_balances`: Balance/pending checks for wallet accounts via RPC.
-- `wallet_receive` / `wallet_send`: Receive pending blocks and send funds (sign + work + `process` via RPC).
-- `config_get` / `config_set`: Store defaults (RPC URL, work URL, timeouts, default representative; optional wallet persistence).
-- `wallet_set_allowance` / `wallet_get_allowance`: Spending limits per wallet (per-tx cap, window budget, destination whitelist).
-- `wallet_history`: Persistent transaction log (sends, receives, linked payment requests).
-- `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list`: Payment request lifecycle.
-- `payment_request_refund`: Safe refund with source attribution and ambiguity guards.
-- `generate_qr`: Generate QR codes for Nano addresses/payment URIs.
-- `generate_wallet`: Generate a wallet (default: BIP39 derivation).
-- `derive_address`: Derive an address (supports `bip39` + `legacy`, with `auto` preference).
-- `probe_mnemonic`: Probe both derivations via RPC (helps resolve 24-word ambiguity).
-- `convert_units`: Converts between XNO and raw units.
-- `validate_address`: Validates address format and checksum.
+- `wallet_list`: List available wallets.
+- `wallet_balance`: Check balance/pending for a wallet account.
+- `wallet_receive` / `wallet_send`: Receive pending blocks or send funds.
+- `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list` / `payment_request_refund`: Full payment request lifecycle.
+- `wallet_history`: Persistent transaction log.
+- `config_get` / `config_set`: Manage server settings (RPC URL, representative, etc.).
+- `convert_units`: High-precision unit conversion.
+- `validate_address`: Offline address validation.
+- `rpc_account_balance`: Direct RPC balance check for any address.
+- `generate_qr`: Generate ASCII QR codes.
+- `sign_message` / `verify_message`: Sign and verify off-chain messages (NOMS).
 
 ## Installation
 
