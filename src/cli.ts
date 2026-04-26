@@ -554,6 +554,34 @@ rpcCmd
     }
   });
 
+program
+  .command('mcp')
+  .description('Start the MCP server or view configuration instructions')
+  .action(() => {
+    console.log(`
+To run the MCP server directly, use the 'xno-mcp' binary or run:
+  npx -y xno-skills xno-mcp
+
+Configuration for popular AI agent harnesses:
+
+1. Claude Desktop / Cursor / Roo Code (in config.json):
+{
+  "mcpServers": {
+    "xno": {
+      "command": "npx",
+      "args": ["-y", "xno-skills@latest", "xno-mcp"]
+    }
+  }
+}
+
+2. Gemini CLI:
+  gemini mcp add xno npx -y xno-skills@latest xno-mcp
+
+3. Claude Code:
+  claude mcp add xno npx -y xno-skills@latest xno-mcp
+`);
+  });
+
 program.configureHelp({
   showGlobalOptions: true
 });
