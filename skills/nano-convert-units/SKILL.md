@@ -231,5 +231,5 @@ npx xno-skills convert 1 raw --to XNO          # 0.00000000000000000000000000000
 
 ## Related Skills
 
-- **create-wallet** - Generate XNO wallet with seed phrase
-- **validate-address** - Validate XNO addresses (BIP-44, legacy)
+- **nano-create-wallet** - Generate XNO wallet with seed phrase
+- **nano-validate-address** - Validate XNO addresses (BIP-44, legacy)

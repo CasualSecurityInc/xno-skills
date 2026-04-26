@@ -91,7 +91,7 @@ By default, the wallet uses **automatic PoW selection** from `@openrai/nano-core
 Call MCP tool:
 - `wallet_list` to see which wallets exist in your OWS vault.
 
-To create a new wallet, use the `ows` CLI (outside of MCP) or the `create-wallet` skill instructions.
+To create a new wallet, use the `ows` CLI (outside of MCP) or the `nano-create-wallet` skill instructions.
 
 ## 2. Reading Balances (MCP Resources & Tools)
 

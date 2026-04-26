@@ -10,7 +10,7 @@ triggers:
   - is this signature valid
 ---
 
-# verify-message
+# nano-verify-message
 
 Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano address or public key.
 

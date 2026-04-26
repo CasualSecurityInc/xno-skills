@@ -48,7 +48,7 @@ This returns:
 Tell the operator:
 - How much you need and why
 - The `nano:` address to send to
-- Offer to generate a QR code (use `generate-qr` skill or the `generate_qr` MCP tool if available)
+- Offer to generate a QR code (use `nano-generate-qr` skill or the `generate_qr` MCP tool if available)
 
 Example message:
 > I need 0.1 XNO for [reason]. Please send to:
@@ -81,7 +81,7 @@ Once funds are received, confirm to the operator:
 
 ## Related Skills
 
-- `mcp-wallet` — wallet custody operations
-- `check-balance` — manual balance checking
-- `generate-qr` — QR code generation for payment addresses
-- `return-funds` — returning funds to the operator
+- `nano-mcp-wallet` — wallet custody operations
+- `nano-check-balance` — manual balance checking
+- `nano-generate-qr` — QR code generation for payment addresses
+- `nano-return-funds` — returning funds to the operator

@@ -11,7 +11,7 @@ A TypeScript library, CLI, and MCP server for Nano (XNO) cryptocurrency. Wallet 
 To install AI-assisted workflows:
 `npx skills add CasualSecurityInc/xno-skills`
 
-Available skills: create-wallet, mcp-wallet, request-payment, return-funds, check-balance, convert-units, generate-qr, validate-address.
+Available skills: nano-create-wallet, nano-mcp-wallet, nano-request-payment, nano-return-funds, nano-check-balance, nano-convert-units, nano-generate-qr, nano-validate-address, nano-block-lattice-expert.
 
 ## MCP Server
 A built-in Model Context Protocol (MCP) server for AI agents.

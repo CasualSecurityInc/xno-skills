@@ -10,7 +10,7 @@ triggers:
   - noms signature
 ---
 
-# sign-message
+# nano-sign-message
 
 Sign an off-chain message (plain text) using a custodial wallet managed by `xno-mcp`. This follows the NOMS (Nano Off-chain Message Signature) / ORIS-001 standard.
 

@@ -64,7 +64,7 @@ Nano funds show as **pending** until the recipient publishes a receive block.
 
 ## Related skills
 
-- `mcp-wallet` – Use OWS wallets via the `xno-mcp` service (recommended for agents)
-- `generate-qr` – Make a QR for the address
-- `validate-address` – Verify a Nano address before sending
-- `check-balance` – Verify balance/pending via RPC
+- `nano-mcp-wallet` – Use OWS wallets via the `xno-mcp` service (recommended for agents)
+- `nano-generate-qr` – Make a QR for the address
+- `nano-validate-address` – Verify a Nano address before sending
+- `nano-check-balance` – Verify balance/pending via RPC

@@ -72,4 +72,4 @@ In interactive flows, ask for:
 - The receiving address (or confirm it).
 - Optional amount in XNO.
 
-If the user asks to send XNO “to the agent” or “to you”, initialize or import a wallet via the MCP server (`mcp-wallet` skill) and generate a QR code for its active address. Remember that you must subsequently call `wallet_receive` from the `mcp-wallet` skill to actually pocket the funds once they send them.
+If the user asks to send XNO “to the agent” or “to you”, initialize or import a wallet via the MCP server (`nano-mcp-wallet` skill) and generate a QR code for its active address. Remember that you must subsequently call `wallet_receive` from the `nano-mcp-wallet` skill to actually pocket the funds once they send them.

@@ -89,6 +89,6 @@ If spending limits prevent the refund:
 
 ## Related Skills
 
-- `request-payment` — the inbound counterpart
-- `mcp-wallet` — wallet operations
-- `validate-address` — verify addresses before sending
+- `nano-request-payment` — the inbound counterpart
+- `nano-mcp-wallet` — wallet operations
+- `nano-validate-address` — verify addresses before sending
