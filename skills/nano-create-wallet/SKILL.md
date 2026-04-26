@@ -17,6 +17,20 @@ triggers:
 
 # Create / Restore a Nano (XNO) Wallet (via OWS)
 
+> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. When executing CLI commands, always use the following order of priority to ensure successful execution:
+> 1. `bunx -y <command>`
+> 2. `pnpm dlx <command>`
+> 3. `npx -y <command>`
+> 
+> *Example:* `bunx -y ows wallet list` or `bunx -y xno-skills rpc account-balance <address>`
+
+> **Safety & Best Practices**:
+> - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
+> - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
+> - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
+> - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+
 Nano wallet management is delegated to the **Open Wallet Standard (OWS)**. This provides a unified, policy-gated vault for all agent keys.
 
 ## Assistant guardrails (match user intent)
@@ -30,7 +44,7 @@ If a user says "I want to send you XNO" or "can you receive it?":
 If the agent has access to **OWS**:
 
 - Always prefer OWS for custody. It keeps secrets encrypted at rest and allows for standardized signing across different tools.
-- Create a named wallet: `ows wallet create --name "my-agent"`
+- Create a named wallet: `bunx -y ows wallet create --name "my-agent"`
 
 ## CLI usage (via OWS)
 
@@ -38,21 +52,21 @@ If the agent has access to **OWS**:
 
 ```bash
 # This derives addresses for all supported chains, including Nano
-ows wallet create --name "my-wallet"
+bunx -y ows wallet create --name "my-wallet"
 ```
 
 ### Import an existing mnemonic into OWS
 
 ```bash
 # Follow the interactive prompt to enter the mnemonic securely
-ows wallet import --name "imported-vault"
+bunx -y ows wallet import --name "imported-vault"
 ```
 
 ## Integrating with xno-skills
 
 While OWS handles the **keys**, `xno-skills` handles the **Nano network**. 
 
-1.  **Creation**: Use `ows wallet create`.
+1.  **Creation**: Use `bunx -y ows wallet create`.
 2.  **Discovery**: Use `wallet_list` (in `xno-mcp`) to see your OWS wallets and Nano addresses.
 3.  **Sending/Receiving**: Use `wallet_send` and `wallet_receive` (in `xno-mcp`). These tools will automatically bridge your OWS wallet with the Nano RPC to construct and publish blocks.
 
@@ -62,8 +76,10 @@ Nano funds show as **pending** until the recipient publishes a receive block.
 
 **After an operator sends funds, you MUST call `wallet_receive` or `payment_request_receive` to pocket the funds.**
 
-## Related skills
+> **💡 Troubleshooting "Account Not Found"**: If `wallet_receive` or `xno-skills` returns "Account not found" for a brand new wallet, **this is normal**. It means the account hasn't been opened on the ledger yet. Simply proceed with `wallet_receive`; the tools will automatically use an "open" block format (setting `previous` to zeros) to establish the account. **Do not write custom scripts.**
 
+## Related skills
+...
 - `nano-mcp-wallet` – Use OWS wallets via the `xno-mcp` service (recommended for agents)
 - `nano-generate-qr` – Make a QR for the address
 - `nano-validate-address` – Verify a Nano address before sending

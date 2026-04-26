@@ -14,6 +14,20 @@ triggers:
 
 # Validate XNO Address
 
+> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. When executing CLI commands, always use the following order of priority to ensure successful execution:
+> 1. `bunx -y <command>`
+> 2. `pnpm dlx <command>`
+> 3. `npx -y <command>`
+> 
+> *Example:* `bunx -y ows wallet list` or `bunx -y xno-skills rpc account-balance <address>`
+
+> **Safety & Best Practices**:
+> - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
+> - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
+> - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
+> - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+
 Validates XNO (Nano) cryptocurrency addresses offline.
 
 ## Quick Verification Summary
@@ -53,13 +67,13 @@ Addresses use Nano’s Base32 alphabet:
 ## CLI Validation
 
 ```bash
-npx xno-skills validate <address>
+bunx -y xno-skills validate <address>
 ```
 
 Or via QR generation (also validates):
 
 ```bash
-npx xno-skills qr <address>
+bunx -y xno-skills qr <address>
 ```
 
 ## Checksum Verification

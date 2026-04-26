@@ -20,6 +20,20 @@ triggers:
 
 # Generate Nano QR Code
 
+> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. When executing CLI commands, always use the following order of priority to ensure successful execution:
+> 1. `bunx -y <command>`
+> 2. `pnpm dlx <command>`
+> 3. `npx -y <command>`
+> 
+> *Example:* `bunx -y ows wallet list` or `bunx -y xno-skills rpc account-balance <address>`
+
+> **Safety & Best Practices**:
+> - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
+> - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
+> - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
+> - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+
 Generates a terminal-friendly ASCII QR code for a Nano address, optionally including an amount.
 
 ## CLI Usage
@@ -27,19 +41,19 @@ Generates a terminal-friendly ASCII QR code for a Nano address, optionally inclu
 ### Basic QR (address only)
 
 ```bash
-npx -y xno-skills qr nano_1abc123...
+bunx -y xno-skills qr nano_1abc123...
 ```
 
 ### QR with amount (in XNO, decimal)
 
 ```bash
-npx -y xno-skills qr nano_1abc123... --amount 1.5
+bunx -y xno-skills qr nano_1abc123... --amount 1.5
 ```
 
 ### JSON output (for scripts)
 
 ```bash
-npx -y xno-skills qr nano_1abc123... --amount 1.5 --json
+bunx -y xno-skills qr nano_1abc123... --amount 1.5 --json
 ```
 
 Returns:
@@ -53,7 +67,6 @@ Returns:
 > Instead, either:
 > 1. Run with `--json` and explicitly parse out the `"qr"` field (which contains the full string).
 > 2. Pipe the output to a temporary file (`> /tmp/qr.txt`) and use your file-reading tool (e.g., `view_file` or `cat`) to read the complete string without truncation, then present it to the user.
-
 
 ## Notes
 

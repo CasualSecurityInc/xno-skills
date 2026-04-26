@@ -48,6 +48,20 @@ triggers:
 
 # xno-mcp Wallet Custody (via OWS)
 
+> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. When executing CLI commands, always use the following order of priority to ensure successful execution:
+> 1. `bunx -y <command>`
+> 2. `pnpm dlx <command>`
+> 3. `npx -y <command>`
+> 
+> *Example:* `bunx -y ows wallet list` or `bunx -y xno-skills rpc account-balance <address>`
+
+> **Safety & Best Practices**:
+> - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
+> - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
+> - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
+> - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+
 > **CRITICAL: CALL `wallet_list` FIRST.** Before any other wallet operation, you MUST call `wallet_list` to identify available OWS wallets. Never assume a wallet name or existence without discovery.
 
 > **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (wallet_list, wallet_balance, wallet_send, wallet_receive, etc.) are YOUR tools that YOU call directly.
@@ -91,8 +105,15 @@ Call MCP tool:
 
 To create a new wallet, use the `ows` CLI (outside of MCP) or the `nano-create-wallet` skill instructions.
 
-## 2. Reading Balances (MCP Resources & Tools)
+## Troubleshooting: "Account Not Found" (Receiving First Funds)
+On the Nano network, an account does not exist on the ledger until its first receive block (often called an "open" block) is published.
+- If you check a balance or attempt to build a block and receive an `"Account not found"` error, **this is normal for a brand new wallet**.
+- **Do not** write custom scripts to bypass this.
+- If a wallet has pending funds but no balance, use `wallet_receive` or `xno-skills block receive`. The tools are designed to automatically handle the transition from "unopened" to "opened" by setting the `previous` hash to all zeros (`00000...`).
+- If the tool still fails, the configured RPC node may be offline or misconfigured. Use `config_set` to switch to a reliable public node like `https://rpc.nano.org`.
 
+## 2. Reading Balances (MCP Resources & Tools)
+...
 **Passively reading state via MCP Resources (Recommended):**
 You can passively read the available accounts, their open state, and balances by requesting the MCP Resource URI:
 - `wallet://{name}` - Returns a summary of the wallet and its first 5 accounts.

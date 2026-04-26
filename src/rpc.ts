@@ -46,6 +46,14 @@ export async function nanoRpcCall<T>(
     }
     return json as T;
   } catch (e: any) {
+    // If we're allowing RPC errors, and the error looks like a "not found" or similar
+    // we should return it as an object if possible.
+    if (options.allowRpcError) {
+      const msg = e.message || String(e);
+      if (msg.includes('Account not found') || msg.includes('404')) {
+        return { error: 'Account not found' } as unknown as T;
+      }
+    }
     if (e.message?.includes('RPC error:')) throw e;
     throw new Error(`RPC request failed: ${e.message}`);
   }
