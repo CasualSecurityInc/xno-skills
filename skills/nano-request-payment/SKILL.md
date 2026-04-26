@@ -1,5 +1,5 @@
 ---
-name: request-payment
+name: nano-request-payment
 description: Request XNO from the operator. Creates a payment request, presents address/QR, watches for funds, receives them, and reports back.
 triggers:
   - request payment

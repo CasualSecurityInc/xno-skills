@@ -1,5 +1,5 @@
 ---
-name: check-balance
+name: nano-check-balance
 description: "Check a Nano account's balance and pending amount. You can check YOUR wallet's balance (via wallet_balance/wallet_probe_balances) or any address (via rpc_account_balance)."
 triggers:
   - check balance

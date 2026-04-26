@@ -1,5 +1,5 @@
 ---
-name: mcp-wallet
+name: nano-mcp-wallet
 description: "You ARE a Nano (XNO) wallet operator via xno-mcp (bridging OWS). You can list wallets, check balances, send and receive XNO using OWS keys. Call wallet_list first."
 triggers:
   - purse

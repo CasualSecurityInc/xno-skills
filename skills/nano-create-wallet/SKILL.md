@@ -1,5 +1,5 @@
 ---
-name: create-wallet
+name: nano-create-wallet
 description: "Create or restore a Nano (XNO) wallet via Open Wallet Standard (OWS). For secure custody, rely on the unified OWS framework."
 triggers:
   - create wallet

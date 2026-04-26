@@ -1,5 +1,5 @@
 ---
-name: generate-qr
+name: nano-generate-qr
 description: Generate an ASCII QR code for a Nano address (optionally with an amount).
 triggers:
   - qr code

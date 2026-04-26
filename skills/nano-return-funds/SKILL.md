@@ -1,5 +1,5 @@
 ---
-name: return-funds
+name: nano-return-funds
 description: Return XNO to the operator or original sender. Identifies source addresses, confirms before sending, handles ambiguity safely.
 triggers:
   - return funds
