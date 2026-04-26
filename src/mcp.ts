@@ -17,13 +17,12 @@ import {
   rpcAccountsFrontiers,
   rpcAccountInfo,
   rpcReceivable,
-  rpcWorkGenerate,
   rpcProcess,
 } from "./rpc.js";
 import { hashNanoStateBlock } from "./state-block.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { localWorkGenerate, getThresholdForSubtype } from "./pow.js";
-import { NOMS } from "@openrai/nano-core";
+import { NanoClient, NOMS } from "@openrai/nano-core";
+import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from "nano-pow-with-fallback";
 import { listWallets, getWallet, signTransaction } from "@open-wallet-standard/core";
 import { version } from "./version.js";
 import fs from "node:fs";
@@ -116,11 +115,39 @@ const DEFAULT_MAX_SEND_XNO = (() => {
   return "1.0";
 })();
 
-const state = {
+type McpState = {
+  config: McpConfig;
+  paymentRequests: Map<string, PaymentRequest>;
+  transactions: TransactionRecord[];
+  nanoClient?: NanoClient;
+};
+
+const state: McpState = {
   config: {} as McpConfig,
   paymentRequests: new Map<string, PaymentRequest>(),
   transactions: [] as TransactionRecord[],
 };
+
+function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient {
+  const rpc = (explicitRpc || state.config.rpcUrl || process.env.NANO_RPC_URL || "").split(',').filter(Boolean);
+  const work = (explicitWork || state.config.workPeerUrl || process.env.XNO_WORK_URL || "").split(',').filter(Boolean);
+
+  // If we already have a client and the requested overrides match (or are absent), reuse it.
+  if (state.nanoClient && !explicitRpc && !explicitWork) {
+    return state.nanoClient;
+  }
+
+  const client = NanoClient.initialize({
+    rpc: rpc.length > 0 ? rpc : undefined,
+    work: work.length > 0 ? work : undefined,
+  });
+
+  if (!explicitRpc && !explicitWork) {
+    state.nanoClient = client;
+  }
+
+  return client;
+}
 
 function getInstalledDir(): string {
   // @ts-ignore
@@ -233,14 +260,6 @@ function requireRepresentativeAddress(explicit?: string): string {
   return rep;
 }
 
-function effectiveRpcUrl(explicit?: string): string {
-  return explicit || state.config.rpcUrl || process.env.NANO_RPC_URL || "";
-}
-
-function effectiveWorkPeerUrl(explicit?: string): string {
-  return explicit || state.config.workPeerUrl || process.env.XNO_WORK_URL || effectiveRpcUrl();
-}
-
 function effectiveTimeoutMs(explicit?: number): number {
   return explicit || state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
 }
@@ -249,10 +268,6 @@ function effectiveUseWorkPeer(explicit?: boolean): boolean {
   if (explicit !== undefined) return explicit;
   if (state.config.useWorkPeer !== undefined) return state.config.useWorkPeer;
   return process.env.XNO_USE_WORK_PEER === 'true';
-}
-
-function rpcUrlErrorMessage(): string {
-  return "Missing Nano RPC URL. Set via config_set({ rpcUrl: '...' }) or NANO_RPC_URL env var.";
 }
 
 function enforceMaxSend(amountRaw: string): void {
@@ -305,7 +320,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const walletMatch = /^wallet:\/\/([^/]+)$/.exec(uri);
   const accountMatch = /^wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
 
-  const rpcUrl = effectiveRpcUrl();
+  const client = getNanoClient();
   const timeoutMs = effectiveTimeoutMs();
 
   if (walletMatch) {
@@ -318,12 +333,10 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     let balances: any = {};
     let frontiers: any = {};
-    if (rpcUrl) {
-      try {
-        balances = await rpcAccountsBalances(rpcUrl, addresses, { timeoutMs }).catch(() => ({}));
-        frontiers = await rpcAccountsFrontiers(rpcUrl, addresses, { timeoutMs }).catch(() => ({}));
-      } catch (e) {}
-    }
+    try {
+      balances = await rpcAccountsBalances(client, addresses, { timeoutMs }).catch(() => ({}));
+      frontiers = await rpcAccountsFrontiers(client, addresses, { timeoutMs }).catch(() => ({}));
+    } catch (e) {}
 
     const rows = nanoAccts.map((a: any, i: number) => {
       const b = balances?.balances?.[a.address];
@@ -364,12 +377,10 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     let info: any = { error: "Account unopened or network error" };
     let receivable: any[] = [];
 
-    if (rpcUrl) {
-      try {
-        info = await rpcAccountInfo(rpcUrl, acct.address, { timeoutMs }).catch((e) => ({ error: String(e) }));
-        receivable = await rpcReceivable(rpcUrl, acct.address, 10, { timeoutMs }).catch(() => []);
-      } catch (e) {}
-    }
+    try {
+      info = await rpcAccountInfo(client, acct.address, { timeoutMs }).catch((e) => ({ error: String(e) }));
+      receivable = await rpcReceivable(client, acct.address, 10, { timeoutMs }).catch(() => []);
+    } catch (e) {}
 
     const opened = !(typeof info?.error === "string");
     const data = {
@@ -583,25 +594,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 async function handleWalletReceive(args: any) {
-  const { name: walletName, index = 0, count = 10, onlyHash, representative: explicitRep, rpcUrl: explicitRpc, useWorkPeer: explicitUseWork } = args;
+  const { name: walletName, index = 0, count = 10, onlyHash, representative: explicitRep, rpcUrl: explicitRpc } = args;
   const acct = await getOwsAccount(walletName, index);
-  const rpcUrl = effectiveRpcUrl(explicitRpc);
-  if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+  const client = getNanoClient(explicitRpc);
 
-  const info = await rpcAccountInfo(rpcUrl, acct.address);
+  const info = await rpcAccountInfo(client, acct.address);
   const opened = !(typeof (info as any).error === 'string');
   let previous = opened ? (info as any).frontier : ZERO_32_HEX;
   let balanceRaw = opened ? (info as any).balance : "0";
   const rep = opened ? (info as any).representative : requireRepresentativeAddress(explicitRep);
   const repVal = validateAddress(rep);
 
-  const receivable = await rpcReceivable(rpcUrl, acct.address, count);
+  const receivable = await rpcReceivable(client, acct.address, count);
   const pending = onlyHash ? receivable.filter(r => r.hash === onlyHash) : receivable;
   if (!pending.length) return { address: acct.address, message: "No pending blocks" };
 
   const received = [];
-  const useWorkPeer = effectiveUseWorkPeer(explicitUseWork);
-  const workPeerUrl = effectiveWorkPeerUrl();
 
   for (const p of pending) {
     const newBalance = (BigInt(balanceRaw) + BigInt(p.amount)).toString();
@@ -616,12 +624,12 @@ async function handleWalletReceive(args: any) {
 
     const signResult = await signTransactionProxy(walletName, acct.chainId, bytesToHex(blockHash));
     const subtype = previous === ZERO_32_HEX ? "open" : "receive";
-    let work = useWorkPeer 
-      ? (await rpcWorkGenerate(workPeerUrl, workRoot)).work 
-      : (await localWorkGenerate(workRoot, getThresholdForSubtype(subtype))).work;
+    const difficulty = THRESHOLD__OPEN_RECEIVE;
+    
+    const work = await client.workProvider.generate(workRoot, difficulty);
 
     const block = { type: "state", account: acct.address, previous, representative: rep, balance: newBalance, link: p.hash, signature: signResult.signature, work };
-    const processed = await rpcProcess(rpcUrl, block, subtype as any);
+    const processed = await rpcProcess(client, block, subtype as any);
 
     received.push({ hash: processed.hash, amountRaw: p.amount });
     state.transactions.push({ id: generateId(), owsWalletId: walletName, accountIndex: index, address: acct.address, type: 'receive', amountRaw: p.amount, counterparty: p.source ?? "", hash: processed.hash, timestamp: new Date().toISOString() });
@@ -633,15 +641,14 @@ async function handleWalletReceive(args: any) {
 }
 
 async function handleWalletSend(args: any) {
-  const { name: walletName, index = 0, destination, amountXno, rpcUrl: explicitRpc, useWorkPeer: explicitUseWork } = args;
+  const { name: walletName, index = 0, destination, amountXno, rpcUrl: explicitRpc } = args;
   const acct = await getOwsAccount(walletName, index);
-  const rpcUrl = effectiveRpcUrl(explicitRpc);
-  if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
+  const client = getNanoClient(explicitRpc);
 
   const amountRaw = nanoToRaw(amountXno);
   enforceMaxSend(amountRaw);
 
-  const info = await rpcAccountInfo(rpcUrl, acct.address);
+  const info = await rpcAccountInfo(client, acct.address);
   if (typeof (info as any).error === 'string') throw new Error("Account unopened.");
 
   const currentBalance = BigInt((info as any).balance);
@@ -660,13 +667,10 @@ async function handleWalletSend(args: any) {
   });
 
   const signResult = await signTransactionProxy(walletName, acct.chainId, bytesToHex(blockHash));
-  const useWorkPeer = effectiveUseWorkPeer(explicitUseWork);
-  let work = useWorkPeer 
-    ? (await rpcWorkGenerate(effectiveWorkPeerUrl(), (info as any).frontier)).work 
-    : (await localWorkGenerate((info as any).frontier, 'send')).work;
+  const work = await client.workProvider.generate((info as any).frontier, THRESHOLD__SEND_CHANGE);
 
   const block = { type: "state", account: acct.address, previous: (info as any).frontier, representative: (info as any).representative, balance: newBalance, link: destVal.publicKey!, signature: signResult.signature, work };
-  const processed = await rpcProcess(rpcUrl, block, "send");
+  const processed = await rpcProcess(client, block, "send");
 
   state.transactions.push({ id: generateId(), owsWalletId: walletName, accountIndex: index, address: acct.address, type: 'send', amountRaw, counterparty: destination, hash: processed.hash, timestamp: new Date().toISOString() });
   persistTransactions();
@@ -683,12 +687,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "config_set": {
         const c = args as any;
-        if (c.rpcUrl !== undefined) state.config.rpcUrl = String(c.rpcUrl);
-        if (c.workPeerUrl !== undefined) state.config.workPeerUrl = String(c.workPeerUrl);
+        let changed = false;
+        if (c.rpcUrl !== undefined) { state.config.rpcUrl = String(c.rpcUrl); changed = true; }
+        if (c.workPeerUrl !== undefined) { state.config.workPeerUrl = String(c.workPeerUrl); changed = true; }
         if (c.timeoutMs !== undefined) state.config.timeoutMs = Number(c.timeoutMs);
         if (c.defaultRepresentative !== undefined) state.config.defaultRepresentative = String(c.defaultRepresentative);
         if (c.useWorkPeer !== undefined) state.config.useWorkPeer = Boolean(c.useWorkPeer);
         if (c.maxSendXno !== undefined) state.config.maxSendXno = String(c.maxSendXno);
+        
+        if (changed) {
+          state.nanoClient = undefined;
+        }
+        
         persistConfig();
         return { content: [{ type: "text", text: JSON.stringify(state.config, null, 2) }] };
       }
@@ -702,9 +712,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const walletName = String((args as any)?.name);
         const index = Number((args as any)?.index ?? 0);
         const acct = await getOwsAccount(walletName, index);
-        const rpcUrl = effectiveRpcUrl(String((args as any)?.rpcUrl ?? ""));
-        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
-        const bal = await rpcAccountBalance(rpcUrl, acct.address, { timeoutMs: effectiveTimeoutMs() });
+        const client = getNanoClient(String((args as any)?.rpcUrl ?? ""));
+        const bal = await rpcAccountBalance(client, acct.address, { timeoutMs: effectiveTimeoutMs() });
         const out: any = { address: acct.address, balanceRaw: bal.balance, pendingRaw: bal.pending };
         if ((args as any)?.includeXno !== false) {
           out.balanceXno = rawToNano(bal.balance);
@@ -797,9 +806,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(validateAddress(String((args as any)?.address)), null, 2) }] };
 
       case "rpc_account_balance": {
-        const rpcUrl = effectiveRpcUrl(String((args as any)?.rpcUrl ?? ""));
-        if (!rpcUrl) throw new Error(rpcUrlErrorMessage());
-        const bal = await rpcAccountBalance(rpcUrl, String((args as any)?.address));
+        const client = getNanoClient(String((args as any)?.rpcUrl ?? ""));
+        const bal = await rpcAccountBalance(client, String((args as any)?.address));
         return { content: [{ type: "text", text: JSON.stringify(bal, null, 2) }] };
       }
 

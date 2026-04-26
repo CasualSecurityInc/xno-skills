@@ -9,7 +9,7 @@ import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccoun
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
-import { NOMS } from '@openrai/nano-core';
+import { NanoClient, NOMS } from '@openrai/nano-core';
 import { pkg, version } from './version.js';
 
 const programName = pkg.name;
@@ -291,19 +291,15 @@ rpcCmd
   .command('account-balance')
   .description('Fetch account balance + pending (raw) from a Nano node')
   .argument('<address>', 'Nano address')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('--timeout-ms <ms>', 'Timeout in milliseconds', (v) => parseInt(v, 10), 15000)
   .option('--xno', 'Also include XNO-formatted values')
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; timeoutMs: number; xno?: boolean; json?: boolean }) => {
-    const rpcUrl = options.url || process.env.NANO_RPC_URL;
-    if (!rpcUrl) {
-      console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
-      process.exit(1);
-    }
+    const client = getNanoClient(options);
 
     try {
-      const bal = await rpcAccountBalance(rpcUrl, address, { timeoutMs: options.timeoutMs });
+      const bal = await rpcAccountBalance(client, address, { timeoutMs: options.timeoutMs });
       const out: any = { address, balanceRaw: bal.balance, pendingRaw: bal.pending };
       if (options.xno) {
         out.balanceXno = rawToNano(bal.balance);
@@ -333,13 +329,11 @@ const blockCmd = program
 const ZERO_HASH = '0'.repeat(64);
 const DEFAULT_REP = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
 
-function resolveRpcUrl(options: { url?: string }): string {
-  const url = options.url || process.env.NANO_RPC_URL;
-  if (!url) {
-    console.error('Missing RPC URL. Pass --url or set NANO_RPC_URL.');
-    process.exit(1);
-  }
-  return url;
+function getNanoClient(options: { url?: string }): NanoClient {
+  const rpc = options.url || process.env.NANO_RPC_URL;
+  return NanoClient.initialize({
+    rpc: rpc ? [rpc] : undefined,
+  });
 }
 
 function isRpcError(resp: any): resp is NanoRpcErrorResponse {
@@ -352,16 +346,16 @@ blockCmd
   .requiredOption('-a, --account <address>', 'Sender nano_ address')
   .requiredOption('-t, --to <address>', 'Recipient nano_ address')
   .requiredOption('--amount-xno <xno>', 'Amount to send in XNO')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('-j, --json', 'Output JSON with block hex + hash + metadata')
   .action(async (options: { account: string; to: string; amountXno: string; url?: string; json?: boolean }) => {
-    const rpcUrl = resolveRpcUrl(options);
+    const client = getNanoClient(options);
 
     try {
       const senderPk = decodeNanoAddress(options.account).publicKey;
       const recipientPk = decodeNanoAddress(options.to).publicKey;
 
-      const info = await rpcAccountInfo(rpcUrl, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      const info = await rpcAccountInfo(client, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
       if (isRpcError(info)) {
         console.error(`Error: account not opened (${info.error}). Cannot send from an unopened account.`);
         process.exit(1);
@@ -413,10 +407,10 @@ blockCmd
   .option('--hash <blockhash>', 'Hash of the pending send block (auto-detected if omitted)')
   .option('--amount-raw <raw>', 'Amount in raw (auto-detected if omitted)')
   .option('--amount-xno <xno>', 'Amount in XNO (auto-detected if omitted)')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('-j, --json', 'Output JSON with block hex + hash + metadata')
   .action(async (options: { account: string; hash?: string; amountRaw?: string; amountXno?: string; url?: string; json?: boolean }) => {
-    const rpcUrl = resolveRpcUrl(options);
+    const client = getNanoClient(options);
 
     try {
       if (options.amountRaw && options.amountXno) {
@@ -436,7 +430,7 @@ blockCmd
         process.exit(1);
       }
       if (!hash) {
-        const pending = await rpcReceivable(rpcUrl, options.account, 1);
+        const pending = await rpcReceivable(client, options.account, 1);
         if (pending.length === 0) {
           console.error('Error: no receivable blocks found for this account.');
           process.exit(1);
@@ -447,7 +441,7 @@ blockCmd
         console.error(`Auto-detected pending block: ${hash} (${xno} XNO)`);
       }
 
-      const info = await rpcAccountInfo(rpcUrl, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      const info = await rpcAccountInfo(client, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
       const isOpen = !isRpcError(info);
 
       const previous = isOpen ? info.frontier : ZERO_HASH;
@@ -492,14 +486,14 @@ rpcCmd
   .command('receivable')
   .description('List receivable (pending) blocks for an account')
   .argument('<address>', 'Nano address')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('-c, --count <n>', 'Max blocks to return', (v) => parseInt(v, 10), 10)
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; count: number; json?: boolean }) => {
-    const rpcUrl = resolveRpcUrl(options);
+    const client = getNanoClient(options);
 
     try {
-      const items = await rpcReceivable(rpcUrl, address, options.count);
+      const items = await rpcReceivable(client, address, options.count);
       if (options.json) {
         console.log(JSON.stringify({ account: address, blocks: items }, null, 2));
       } else if (items.length === 0) {
@@ -521,14 +515,14 @@ rpcCmd
   .command('account-info')
   .description('Fetch account info (frontier, balance, representative)')
   .argument('<address>', 'Nano address')
-  .option('--url <url>', 'RPC URL (or set NANO_RPC_URL)')
+  .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('--xno', 'Also include XNO-formatted balance')
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; xno?: boolean; json?: boolean }) => {
-    const rpcUrl = resolveRpcUrl(options);
+    const client = getNanoClient(options);
 
     try {
-      const info = await rpcAccountInfo(rpcUrl, address) as AccountInfoResponse | NanoRpcErrorResponse;
+      const info = await rpcAccountInfo(client, address) as AccountInfoResponse | NanoRpcErrorResponse;
       if (isRpcError(info)) {
         if (options.json) {
           console.log(JSON.stringify({ account: address, opened: false }, null, 2));
