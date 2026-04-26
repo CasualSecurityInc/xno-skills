@@ -14,7 +14,13 @@ triggers:
 
 # Validate XNO Address
 
-Validates XNO (Nano) cryptocurrency addresses offline. No network connection required - all validation is local.
+Validates XNO (Nano) cryptocurrency addresses offline.
+
+## Quick Verification Summary
+- **Prefix**: MUST be `nano_` or `xrb_`
+- **Length**: MUST be exactly 65 characters (`nano_`) or 64 characters (`xrb_`)
+- **Alphabet**: `13456789abcdefghijkmnopqrstuwxyz` (No `0`, `l`, `v`, or `i`)
+- **Checksum**: Last 8 characters must match the Blake2b-40 hash of the public key.
 
 ## Address Format
 

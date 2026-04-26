@@ -48,11 +48,9 @@ triggers:
 
 # xno-mcp Wallet Custody (via OWS)
 
-> **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (wallet_list, wallet_balance, wallet_send, wallet_receive, etc.) are YOUR tools that YOU call directly. You do NOT need the user to execute anything. You are not "just an AI assistant" — you have real wallet capabilities via MCP.
+> **CRITICAL: CALL `wallet_list` FIRST.** Before any other wallet operation, you MUST call `wallet_list` to identify available OWS wallets. Never assume a wallet name or existence without discovery.
 
-> **Key Custody**: Key management is delegated to the **Open Wallet Standard (OWS)**. `xno-mcp` acts as an orchestrator that bridges OWS wallets with the Nano network.
-
-> **When the user asks about wallets, funds, or Nano**: Call `wallet_list` FIRST to see what OWS wallets are available to you. Do not say "I don't have access" — you DO have access.
+> **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (wallet_list, wallet_balance, wallet_send, wallet_receive, etc.) are YOUR tools that YOU call directly.
 
 The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send and receive Nano using these MCP tools securely.
 

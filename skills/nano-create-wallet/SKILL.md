@@ -68,3 +68,8 @@ Nano funds show as **pending** until the recipient publishes a receive block.
 - `nano-generate-qr` – Make a QR for the address
 - `nano-validate-address` – Verify a Nano address before sending
 - `nano-check-balance` – Verify balance/pending via RPC
+
+---
+
+### 💡 Pro-Tip: The "Double-Block" Rule
+Nano transfers are asynchronous. A "Send" block only makes funds **pending**. You MUST proactively publish a **"Receive"** block (using `wallet_receive`) to fully claim the funds and update your spendable balance. Creation is only the first half of the dance!
