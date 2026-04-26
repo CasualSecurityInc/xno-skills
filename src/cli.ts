@@ -227,7 +227,7 @@ program
 // Sign command (NOMS)
 program
   .command('sign')
-  .description('Sign a NOMS off-chain message (requires private key)')
+  .description('Sign a NOMS message with a private key')
   .argument('<message>', 'The message text to sign')
   .requiredOption('-k, --key <hex>', 'Private key in hex')
   .option('-j, --json', 'Output in JSON format')
@@ -251,7 +251,7 @@ program
 // Verify command (NOMS)
 program
   .command('verify')
-  .description('Verify a NOMS off-chain message signature')
+  .description('Verify a NOMS message signature')
   .argument('<address>', 'Nano address or public key')
   .argument('<message>', 'The original message text')
   .argument('<signature>', 'The hex-encoded signature')
@@ -285,11 +285,11 @@ program
 // RPC helpers
 const rpcCmd = program
   .command('rpc')
-  .description('Query a Nano node RPC (requires network access)');
+  .description('Query a Nano node RPC');
 
 rpcCmd
   .command('account-balance')
-  .description('Fetch account balance + pending (raw) from a Nano node')
+  .description('Fetch account balance and pending amount')
   .argument('<address>', 'Nano address')
   .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('--timeout-ms <ms>', 'Timeout in milliseconds', (v) => parseInt(v, 10), 15000)
@@ -324,7 +324,7 @@ rpcCmd
 // Block construction helpers (for use with `ows sign tx --chain nano` / `ows send-tx --chain nano`)
 const blockCmd = program
   .command('block')
-  .description('Construct unsigned Nano state blocks (hex output for OWS)');
+  .description('Build raw state blocks for OWS signing');
 
 const ZERO_HASH = '0'.repeat(64);
 const DEFAULT_REP = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
@@ -342,7 +342,7 @@ function isRpcError(resp: any): resp is NanoRpcErrorResponse {
 
 blockCmd
   .command('send')
-  .description('Construct an unsigned send block (outputs 176-byte hex)')
+  .description('Build an unsigned send block')
   .requiredOption('-a, --account <address>', 'Sender nano_ address')
   .requiredOption('-t, --to <address>', 'Recipient nano_ address')
   .requiredOption('--amount-xno <xno>', 'Amount to send in XNO')
@@ -402,7 +402,7 @@ blockCmd
 
 blockCmd
   .command('receive')
-  .description('Construct an unsigned receive block (outputs 176-byte hex)')
+  .description('Build an unsigned receive block')
   .requiredOption('-a, --account <address>', 'Recipient nano_ address')
   .option('--hash <blockhash>', 'Hash of the pending send block (auto-detected if omitted)')
   .option('--amount-raw <raw>', 'Amount in raw (auto-detected if omitted)')
@@ -484,7 +484,7 @@ blockCmd
 // Also add `rpc receivable` since it's needed to find pending blocks
 rpcCmd
   .command('receivable')
-  .description('List receivable (pending) blocks for an account')
+  .description('List receivable blocks for an account')
   .argument('<address>', 'Nano address')
   .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('-c, --count <n>', 'Max blocks to return', (v) => parseInt(v, 10), 10)
@@ -513,7 +513,7 @@ rpcCmd
 // Also add `rpc account-info` for completeness
 rpcCmd
   .command('account-info')
-  .description('Fetch account info (frontier, balance, representative)')
+  .description('Fetch account info including frontier and balance')
   .argument('<address>', 'Nano address')
   .option('--url <url>', 'RPC URL (default: use zero-config public nodes)')
   .option('--xno', 'Also include XNO-formatted balance')
