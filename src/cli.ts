@@ -24,26 +24,25 @@ async function readAllStdin(): Promise<string> {
   });
 }
 
-function checkOwsCli(): string {
+function checkOwsCli(): { status: string; label: string; color: string } {
   const disableNpx = process.env.XNO_SKILLS_DISABLE_NPX === 'true';
   
   // 1. Check if 'ows' is available natively
   try {
     execSync('ows --version', { stdio: 'ignore' });
-    return `Working (native)`;
+    return { status: 'Ready (Native)', label: '✓', color: '\x1b[1;32m' }; // Bold Green
   } catch (e) {}
 
   if (disableNpx) {
-    return `Missing (global 'ows' not found & npx disabled)`;
+    return { status: 'Disabled (npx off)', label: '✗', color: '\x1b[1;31m' }; // Bold Red
   }
 
   // 2. Check if it works via npx
   try {
-    // Note: 'npx -y' ensures it doesn't prompt for installation
     execSync('npx -y @open-wallet-standard/core --version', { stdio: 'ignore' });
-    return `Working (via npx)`;
+    return { status: 'Ready (npx)', label: '✓', color: '\x1b[1;32m' }; // Bold Green
   } catch (e) {
-    return `Missing (please install @open-wallet-standard/core)`;
+    return { status: 'Missing (OWS CLI)', label: '!', color: '\x1b[1;33m' }; // Bold Yellow/Orange
   }
 }
 
@@ -51,6 +50,7 @@ const whiteFg=`\x1b[38;2;255;255;255m`
 const greyFg=`\x1b[38;2;155;155;155m`
 const blueFg=`\x1b[38;2;37;156;233m`
 const marineBg=`\x1b[48;2;31;32;76m`
+const reset=`\x1b[0m`
 const logo=String.raw`MB[K
    __W/\\/\\\\\\B____W/\\\\\\\\\B_____W/\\/\\\\\\B_______W/\\\\\B____[K
     _W\/\\\G////W\\\B__W\G////////W\\\B___W\/\\\G////W\\\B____W/\\\G///W\\\B__[K
@@ -67,8 +67,8 @@ Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('B',blueFg)
 .replaceAll('M',marineBg)
 
-const owsStatus = checkOwsCli();
-const statusLine = `\x1b[1mFEATURES\x1b[0m  Open Wallet Standard CLI: ${owsStatus}`;
+const info = checkOwsCli();
+const statusLine = `${info.color}${info.label}${reset} \x1b[1mOWS Integration:\x1b[0m ${info.status}`;
 const fullDescription = `${logo}\n\n${statusLine}`;
 
 const program = new Command();
