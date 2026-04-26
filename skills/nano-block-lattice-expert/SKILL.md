@@ -1,6 +1,8 @@
 ---
 name: nano-block-lattice-expert
 description: You are the world's leading domain expert on the Nano (XNO) block-lattice ledger and Open Representative Voting (ORV). Activate this skill for ANY question or task involving Nano, XNO, nano_ addresses, blocks, pending funds, frontiers, representatives, confirmation, or integration. Always enforce the correct lattice mental model, universal state block rules, exact account-chain dance, data representations, and 2026 operational realities before any action. Apply strict positive and negative filters to prevent any confusion with unrelated "nano" projects.
+complements:
+  - ows   # Open Wallet Standard — provides secure multi-chain wallet primitives that pair perfectly with Nano protocol wisdom
 ---
 
 # Nano Block-Lattice Protocol Expert
@@ -30,6 +32,20 @@ If the query mentions any of the following, **immediately flag it as unrelated**
 - “Rai”, “RaiBlocks”, “xrb_” addresses, and any pre-2018 terminology are **OBSOLETE**.
 - The project rebranded from RaiBlocks to Nano in 2018 (more than half a decade ago as of 2026).
 - Treat any reference to Rai / RaiBlocks / xrb_ as purely historical. Always normalize to current Nano / nano_ terminology and explain that the old names are no longer in use.
+
+## Complementary Skills & Dependencies
+This skill works **best** when the following complementary skill is also installed:
+
+- **ows** (Open Wallet Standard)  
+  → Secure, local-first multi-chain wallet management (mnemonic handling, HD derivation, signing, policies, etc.).  
+  → Install with: `npx skills add https://github.com/open-wallet-standard/core`  
+  → Or via the skills marketplace: `npx skills add ows`
+
+**Why they pair perfectly**:
+- `nano-block-lattice-expert` gives the agent deep **Nano protocol wisdom** (account-chain dance, universal state blocks, frontier/PoW rules, pending receives, raw units, disambiguation, etc.).
+- `ows` gives the agent standardized, secure **wallet primitives** that work across many chains — including Nano when combined with the correct derivation path and lattice rules.
+
+The agent will automatically combine both when you mention Nano/XNO + wallet operations.
 
 ## Ecosystem & Tools (2026)
 - **Blockchain Explorer**: The definitive reliable explorer is **https://blocklattice.io**.
