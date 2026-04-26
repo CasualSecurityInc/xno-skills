@@ -19,11 +19,11 @@ import {
   rpcReceivable,
   rpcProcess,
 } from "./rpc.js";
-import { hashNanoStateBlock } from "./state-block.js";
+import { buildNanoStateBlockHex } from "./state-block.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { NanoClient, NOMS } from "@openrai/nano-core";
 import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from "nano-pow-with-fallback";
-import { listWallets, getWallet, signTransaction } from "@open-wallet-standard/core";
+import { listWallets, getWallet, signTransaction, signMessage } from "@open-wallet-standard/core";
 import { version } from "./version.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -67,8 +67,12 @@ const getWalletProxy = useMockOws
   : getWallet;
 
 const signTransactionProxy = useMockOws
-  ? async (wallet: string, chain: string, tx: string) => ({ signature: '0'.repeat(128) })
+  ? async (wallet: string, chain: string, tx: string, passphrase?: string, index?: number) => ({ signature: '0'.repeat(128) })
   : signTransaction;
+
+const signMessageProxy = useMockOws
+  ? async (wallet: string, chain: string, msg: string, passphrase?: string, encoding?: string, index?: number) => ({ signature: '0'.repeat(128) })
+  : signMessage;
 
 type McpConfig = {
   rpcUrl?: string;
@@ -605,7 +609,7 @@ async function handleWalletReceive(args: any) {
   for (const p of pending) {
     const newBalance = (BigInt(balanceRaw) + BigInt(p.amount)).toString();
     const workRoot = previous !== ZERO_32_HEX ? previous : decodeNanoAddress(acct.address).publicKey;
-    const blockHash = hashNanoStateBlock({
+    const blockHex = buildNanoStateBlockHex({
       accountPublicKey: decodeNanoAddress(acct.address).publicKey,
       previous,
       representativePublicKey: repVal.publicKey!,
@@ -613,7 +617,7 @@ async function handleWalletReceive(args: any) {
       link: p.hash,
     });
 
-    const signResult = await signTransactionProxy(walletName, acct.chainId, bytesToHex(blockHash));
+    const signResult = await signTransactionProxy(walletName, acct.chainId, blockHex, undefined, index);
     const subtype = previous === ZERO_32_HEX ? "open" : "receive";
     const difficulty = THRESHOLD__OPEN_RECEIVE;
     
@@ -649,7 +653,7 @@ async function handleWalletSend(args: any) {
   const destVal = validateAddress(destination);
   const repVal = validateAddress((info as any).representative);
 
-  const blockHash = hashNanoStateBlock({
+  const blockHex = buildNanoStateBlockHex({
     accountPublicKey: decodeNanoAddress(acct.address).publicKey,
     previous: (info as any).frontier,
     representativePublicKey: repVal.publicKey!,
@@ -657,7 +661,7 @@ async function handleWalletSend(args: any) {
     link: destVal.publicKey!,
   });
 
-  const signResult = await signTransactionProxy(walletName, acct.chainId, bytesToHex(blockHash));
+  const signResult = await signTransactionProxy(walletName, acct.chainId, blockHex, undefined, index);
   const work = await client.workProvider.generate((info as any).frontier, THRESHOLD__SEND_CHANGE);
 
   const block = { type: "state", account: acct.address, previous: (info as any).frontier, representative: (info as any).representative, balance: newBalance, link: destVal.publicKey!, signature: signResult.signature, work };
@@ -812,8 +816,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const message = String((args as any)?.message);
         
         const acct = await getOwsAccount(walletName, index);
-        const hash = NOMS.hashMessage(message);
-        const signResult = await signTransactionProxy(walletName, acct.chainId, hash);
+        const signResult = await signMessageProxy(walletName, acct.chainId, message, undefined, undefined, index);
         return { content: [{ type: "text", text: JSON.stringify({ address: acct.address, signature: signResult.signature }, null, 2) }] };
       }
 
