@@ -60,6 +60,7 @@ triggers:
 > - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
 > - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
 > - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `wallet_receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
 
 > **CRITICAL: CALL `wallet_list` FIRST.** Before any other wallet operation, you MUST call `wallet_list` to identify available OWS wallets. Never assume a wallet name or existence without discovery.
@@ -122,18 +123,23 @@ You can passively read the available accounts, their open state, and balances by
 **Actively reading state via Tools:**
 - `wallet_balance` with `{ "name": "my-agent", "index": 0 }`
 
-## 3. Receiving Funds (Crucial: Opening Accounts)
+## 3. Receiving Funds (Opening Brand-New Accounts)
 
-Nano transfers can show up as **pending** until you publish a corresponding receive/open block. A raw address alone does not "auto-receive" funds.
+Nano transfers show as **pending** until you publish a corresponding receive/open block. **A raw address alone does not "auto-receive" funds.**
 
-**If someone sends you funds, you MUST proactively call `wallet_receive` to fully pocket the funds and open the account.**
+**CRITICAL: Your wallet MUST proactively call `wallet_receive` to claim funds. This is especially true for brand-new, unopened accounts.**
 
+- **The tool `wallet_receive` handles the entire process**: It detects if the account is unopened, builds the special "Open Block" (previous = zeros), handles PoW, requests OWS to sign, and broadcasts it.
+- **NEVER conclude that you "cannot open an account" or "need a seed"** to perform this action. The `xno-mcp` tools are fully authorized to do this via the OWS bridge.
+- If a user sends you funds and tells you to receive them, **the "next right thing" is to call `wallet_receive` immediately.** Do not analyze if the account "exists" first—just call the tool.
+
+**Usage:**
 - `wallet_receive` with `{ "name": "my-agent", "index": 0, "count": 10 }`
 
 **Important for unopened accounts:**
-- If the account is unopened (first receive), `wallet_receive` requires a representative.
-- If you set `defaultRepresentative` in `config_set`, it will be used automatically.
-- Otherwise, pass `representative` parameter explicitly.
+- The first receive block requires a representative.
+- If you haven't set a `defaultRepresentative` in `config_set`, pass the `representative` parameter explicitly.
+- **Do not stop or ask for permission** if you see pending funds; receive them.
 
 ## 4. Sending Funds
 
