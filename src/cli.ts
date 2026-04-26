@@ -554,14 +554,7 @@ rpcCmd
     }
   });
 
-program
-  .command('mcp')
-  .description('Start the MCP server or view configuration instructions')
-  .action(() => {
-    console.log(`
-To run the MCP server directly, use the 'xno-mcp' binary or run:
-  npx -y xno-skills xno-mcp
-
+const mcpHelp = `
 Configuration for popular AI agent harnesses:
 
 1. Claude Desktop / Cursor / Roo Code (in config.json):
@@ -579,7 +572,17 @@ Configuration for popular AI agent harnesses:
 
 3. Claude Code:
   claude mcp add xno npx -y xno-skills@latest xno-mcp
-`);
+
+To run the MCP server directly in this terminal:
+  npx -y xno-skills xno-mcp
+`;
+
+program
+  .command('mcp')
+  .description('Start the MCP server or view configuration instructions')
+  .addHelpText('after', mcpHelp)
+  .action(() => {
+    console.log(mcpHelp);
   });
 
 program.configureHelp({
