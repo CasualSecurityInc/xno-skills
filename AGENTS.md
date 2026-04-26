@@ -37,9 +37,9 @@ State is stored in `${XNO_MCP_HOME}` (default: `~/.xno-mcp` or project root).
 |---|---|---|
 | `XNO_MCP_HOME` | Home directory for config/state | `<installed-dir>/.xno-mcp` |
 | `XNO_MAX_SEND` | Max send per transaction (XNO) | `1.0` |
-| `NANO_RPC_URL` | Primary Nano node RPC URL | — |
-| `XNO_WORK_URL` | Remote PoW (work_generate) URL | — |
-| `XNO_USE_WORK_PEER`| Prefer `XNO_WORK_URL` over local PoW | `false` |
+| `NANO_RPC_URL` | Override primary Nano node RPC URL | Zero-config public nodes |
+| `XNO_WORK_URL` | Override remote PoW (work_generate) URL | Automatic local/remote probing |
+
 
 ---
 

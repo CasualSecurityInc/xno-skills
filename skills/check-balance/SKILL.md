@@ -40,19 +40,13 @@ If the user doesn't have an RPC URL, suggest these public nodes:
 
 ## CLI usage (`xno-skills`)
 
-Set an RPC URL (recommended):
-
-```bash
-export NANO_RPC_URL="https://rpc.nano.org"
-```
-
-Then:
+Check balance using built-in public zero-config nodes:
 
 ```bash
 npx -y xno-skills rpc account-balance <address> --json --xno
 ```
 
-Or pass the URL explicitly:
+Or pass a specific node URL explicitly if the user provides one:
 
 ```bash
 npx -y xno-skills rpc account-balance <address> --url "https://rpc.nano.org" --json --xno
@@ -62,21 +56,20 @@ npx -y xno-skills rpc account-balance <address> --url "https://rpc.nano.org" --j
 
 If the agent has access to the `xno-mcp` tools:
 
-**First, set defaults (recommended):**
-```
-config_set: { "rpcUrl": "https://rpc.nano.org" }
-```
-
-**Then check balance:**
-- `rpc_account_balance` with `{ "address": "...", "rpcUrl": "..." }`
+**Check balance (zero-config, works automatically):**
+- `rpc_account_balance` with `{ "address": "..." }`
 - `wallet_balance` with `{ "name": "my-wallet", "index": 0 }`
+
+You may optionally specify an RPC node if the built-in defaults are insufficient:
+- `config_set: { "rpcUrl": "https://rpc.nano.org" }`
+- `rpc_account_balance` with `{ "address": "...", "rpcUrl": "..." }`
 
 **If you see pending funds, receive them:**
 - `wallet_receive` with `{ "name": "my-wallet", "index": 0 }`
 
-## Fallback (no RPC available)
+## Fallback (no network available)
 
-If the user can't provide an RPC URL (or the environment has no network access), ask them to check the address in a block explorer or in their wallet app and report back:
+If the environment has no network access at all, ask them to check the address in a block explorer or in their wallet app and report back:
 
 - confirmed on-chain balance
 - pending/receivable amount (if shown)

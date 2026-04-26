@@ -185,10 +185,9 @@ xno-skills wallet from-mnemonic --stdin --json
 
 #### Probe mnemonic ambiguity (24-word)
 
-If you have a Nano RPC endpoint, you can probe the first few indexes for both derivations and see which accounts are opened / have balances:
+If you have a specific Nano RPC endpoint you want to use, you can set `NANO_RPC_URL`. Otherwise, it will automatically use public zero-config nodes:
 
 ```bash
-export NANO_RPC_URL="http://127.0.0.1:7076"
 echo "word1 word2 ... word24" | xno-skills wallet probe-mnemonic --stdin --json
 ```
 
@@ -235,9 +234,16 @@ xno-skills validate nano_1abc123...
 
 ### RPC (balance/pending)
 
+Check balance using built-in public nodes:
+
 ```bash
-export NANO_RPC_URL="http://127.0.0.1:7076"
 xno-skills rpc account-balance nano_1abc123... --json --xno
+```
+
+Or override with a specific URL:
+
+```bash
+xno-skills rpc account-balance nano_1abc123... --url "http://127.0.0.1:7076" --json --xno
 ```
 
 ## API Reference

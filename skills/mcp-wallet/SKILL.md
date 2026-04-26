@@ -59,21 +59,18 @@ The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send a
 - Access **named OWS wallets** (e.g. `"my-agent"`) via `wallet_list`.
 - **Key Security**: Secrets stay encrypted in the OWS vault (`~/.ows`). `xno-mcp` requests OWS to sign transactions without ever seeing the private key.
 
-## Prerequisites: RPC URL and Representative
+## Built-in Zero-Config Defaults
 
-Before using wallet operations that require network access, you need:
+As of v1.1.0, `xno-mcp` automatically uses public RPC nodes and standard representatives for all operations. You do **NOT** need to configure anything to get started.
 
-1. **RPC URL** - A Nano node RPC endpoint. Well-known public nodes:
-   - `https://rpc.nano.org` (Nano Foundation)
-   - `https://app.natrium.io/api/rpc` (Natrium)
-   - `https://nanonode.cc/api` (NanoNode.cc)
-   - `https://node.somenano.site/api` (SomeNano)
+### Overriding Defaults (Optional)
 
-2. **Representative** - Required for opening new accounts. Well-known representatives:
-   - `nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4` (Nano Foundation #1)
-   - `nano_1stofnrxuz3cai7ze75o174bpm7scwj9jn3nxsn8ntzg784jf1gzn1jjdkou` (Nano Foundation #2)
+If you prefer to use specific endpoints or your own node, you can override the built-in defaults:
 
-**Recommended: Set defaults once to avoid repeating parameters:**
+1. **RPC URL** - A specific Nano node RPC endpoint.
+2. **Representative** - Required for opening new accounts if you want to use someone other than the default.
+
+**Optional: Set overrides if needed:**
 
 ```json
 {
@@ -83,15 +80,11 @@ Before using wallet operations that require network access, you need:
 }
 ```
 
-Call `config_set` with these values at the start of your session.
+Call `config_set` with these values at the start of your session only if you need non-default behavior.
 
 ## Local PoW vs Remote PoW
 
-By default, the wallet uses **local PoW** (`nano-pow-with-fallback`) using WASM or WebGPU. This is recommended as it doesn't rely on the RPC node supporting `work_generate`.
-
-If you prefer to use a remote work server (e.g. a high-performance PoW service or your own node):
-1. Set `useWorkPeer: true` in `config_set`.
-2. Provide a `workPeerUrl` (defaults to `rpcUrl`).
+By default, the wallet uses **automatic PoW selection** from `@openrai/nano-core`. It probes your local environment (WASM, WebGPU) and available public/remote work peers to find the fastest way to generate work. No configuration is required.
 
 ## 1. Discovering OWS Wallets
 
@@ -153,9 +146,8 @@ All sends and receives are logged persistently:
 ## Quick Start Example
 
 ```
-1. config_set: { "rpcUrl": "https://rpc.nano.org", "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4" }
-2. wallet_list: {}  (identify "my-agent" exists)
-3. (User sends funds to the address)
-4. wallet_receive: { "name": "my-agent" }
-5. wallet_send: { "name": "my-agent", "destination": "nano_...", "amountXno": "0.01" }
+1. wallet_list: {}  (identify "my-agent" exists)
+2. (User sends funds to the address)
+3. wallet_receive: { "name": "my-agent" }
+4. wallet_send: { "name": "my-agent", "destination": "nano_...", "amountXno": "0.01" }
 ```

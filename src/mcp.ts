@@ -264,12 +264,6 @@ function effectiveTimeoutMs(explicit?: number): number {
   return explicit || state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
 }
 
-function effectiveUseWorkPeer(explicit?: boolean): boolean {
-  if (explicit !== undefined) return explicit;
-  if (state.config.useWorkPeer !== undefined) return state.config.useWorkPeer;
-  return process.env.XNO_USE_WORK_PEER === 'true';
-}
-
 function enforceMaxSend(amountRaw: string): void {
   const xno = state.config.maxSendXno ?? DEFAULT_MAX_SEND_XNO;
   const maxRaw = BigInt(nanoToRaw(xno));
@@ -424,7 +418,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             workPeerUrl: { type: "string" },
             timeoutMs: { type: "number" },
             defaultRepresentative: { type: "string" },
-            useWorkPeer: { type: "boolean" },
             maxSendXno: { type: "string" },
           },
         },
@@ -460,7 +453,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             onlyHash: { type: "string" },
             representative: { type: "string" },
             rpcUrl: { type: "string" },
-            useWorkPeer: { type: "boolean", default: false },
           },
           required: ["name"],
         },
@@ -476,7 +468,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             destination: { type: "string" },
             amountXno: { type: "string" },
             rpcUrl: { type: "string" },
-            useWorkPeer: { type: "boolean", default: false },
           },
           required: ["name", "destination", "amountXno"],
         },
@@ -692,7 +683,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (c.workPeerUrl !== undefined) { state.config.workPeerUrl = String(c.workPeerUrl); changed = true; }
         if (c.timeoutMs !== undefined) state.config.timeoutMs = Number(c.timeoutMs);
         if (c.defaultRepresentative !== undefined) state.config.defaultRepresentative = String(c.defaultRepresentative);
-        if (c.useWorkPeer !== undefined) state.config.useWorkPeer = Boolean(c.useWorkPeer);
         if (c.maxSendXno !== undefined) state.config.maxSendXno = String(c.maxSendXno);
         
         if (changed) {
