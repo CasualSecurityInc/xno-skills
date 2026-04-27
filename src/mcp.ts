@@ -21,7 +21,7 @@ import {
 } from "./rpc.js";
 import { buildNanoStateBlockHex } from "./state-block.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { NanoClient, NOMS } from "@openrai/nano-core";
+import { NanoClient, WorkProvider, NOMS } from "@openrai/nano-core";
 import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from "nano-pow-with-fallback";
 import { listWallets, getWallet, signTransaction, signMessage } from "@open-wallet-standard/core";
 import { version } from "./version.js";
@@ -141,9 +141,20 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
     return state.nanoClient;
   }
 
+  // Apply a per-request timeout to the work pool so a blocked/unreachable remote
+  // work peer fails fast instead of hanging for the OS TCP timeout (~75 s).
+  const workTimeoutMs = effectiveTimeoutMs();
+
+  process.stderr.write(
+    `[xno-mcp] NanoClient init — rpc=[${rpc.join(',')||'(defaults)'}] work=[${work.join(',')||'(defaults)'}] workTimeoutMs=${workTimeoutMs}\n`
+  );
+
   const client = NanoClient.initialize({
     rpc: rpc.length > 0 ? rpc : undefined,
-    work: work.length > 0 ? work : undefined,
+    workProvider: WorkProvider.auto({
+      ...(work.length > 0 ? { urls: work } : {}),
+      timeoutMs: workTimeoutMs,
+    }),
   });
 
   if (!explicitRpc && !explicitWork) {
@@ -610,6 +621,7 @@ async function handleWalletReceive(args: any) {
 
   let info: any;
   try {
+    process.stderr.write(`[xno-mcp] receive: account_info for ${acct.address}\n`);
     info = await rpcAccountInfo(client, acct.address);
   } catch (e) {
     info = { error: 'Account not found' };
@@ -625,6 +637,7 @@ async function handleWalletReceive(args: any) {
     throw new Error(`Invalid representative address "${rep}" on account ${acct.address}: ${repVal.error}`);
   }
 
+  process.stderr.write(`[xno-mcp] receive: fetching receivable for ${acct.address} (opened=${opened})\n`);
   const receivable = await rpcReceivable(client, acct.address, count);
   const pending = onlyHash ? receivable.filter(r => r.hash === onlyHash) : receivable;
   if (!pending.length) return { address: acct.address, message: "No pending blocks" };
@@ -642,11 +655,14 @@ async function handleWalletReceive(args: any) {
       link: p.hash,
     });
 
+    process.stderr.write(`[xno-mcp] receive: signing block for ${p.hash}\n`);
     const signResult = await signTransactionProxy(walletName, acct.chainId, blockHex, undefined, index);
     const subtype = previous === ZERO_32_HEX ? "open" : "receive";
     const difficulty = THRESHOLD__OPEN_RECEIVE;
-    
+
+    process.stderr.write(`[xno-mcp] receive: generating PoW for root ${workRoot} (subtype=${subtype})\n`);
     const work = await client.workProvider.generate(workRoot, difficulty);
+    process.stderr.write(`[xno-mcp] receive: broadcasting block\n`);
 
     const block = { type: "state", account: acct.address, previous, representative: rep, balance: newBalance, link: p.hash, signature: signResult.signature, work };
     const processed = await rpcProcess(client, block, subtype as any);
@@ -668,6 +684,7 @@ async function handleWalletSend(args: any) {
   const amountRaw = nanoToRaw(amountXno);
   enforceMaxSend(amountRaw);
 
+  process.stderr.write(`[xno-mcp] send: account_info for ${acct.address}\n`);
   const info = await rpcAccountInfo(client, acct.address);
   if (typeof (info as any).error === 'string') throw new Error("Account unopened.");
 
@@ -686,8 +703,11 @@ async function handleWalletSend(args: any) {
     link: destVal.publicKey!,
   });
 
+  process.stderr.write(`[xno-mcp] send: signing block\n`);
   const signResult = await signTransactionProxy(walletName, acct.chainId, blockHex, undefined, index);
+  process.stderr.write(`[xno-mcp] send: generating PoW for frontier ${(info as any).frontier}\n`);
   const work = await client.workProvider.generate((info as any).frontier, THRESHOLD__SEND_CHANGE);
+  process.stderr.write(`[xno-mcp] send: broadcasting block\n`);
 
   const block = { type: "state", account: acct.address, previous: (info as any).frontier, representative: (info as any).representative, balance: newBalance, link: destVal.publicKey!, signature: signResult.signature, work };
   const processed = await rpcProcess(client, block, "send");
