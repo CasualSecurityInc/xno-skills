@@ -454,11 +454,12 @@ blockCmd
       }
       
       const isOpen = !isRpcError(info);
+      const infoOpen = info as AccountInfoResponse;
 
-      const previous = isOpen ? info.frontier : ZERO_HASH;
-      const currentBalance = isOpen ? BigInt(info.balance) : 0n;
-      const repPk = isOpen && info.representative
-        ? decodeNanoAddress(info.representative).publicKey
+      const previous = isOpen ? infoOpen.frontier : ZERO_HASH;
+      const currentBalance = isOpen ? BigInt(infoOpen.balance) : 0n;
+      const repPk = isOpen && infoOpen.representative
+        ? decodeNanoAddress(infoOpen.representative).publicKey
         : decodeNanoAddress(DEFAULT_REP).publicKey;
 
       const receiveRaw = BigInt(amountRaw!);
