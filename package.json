@@ -7,8 +7,7 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "bin": {
-    "xno-skills": "bin/xno-skills",
-    "xno-mcp": "bin/xno-mcp"
+    "xno-skills": "bin/xno-skills"
   },
   "exports": {
     ".": {

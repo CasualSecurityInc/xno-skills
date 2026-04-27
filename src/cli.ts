@@ -566,19 +566,19 @@ Configuration for popular AI agent harnesses:
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "xno-skills@latest", "mcp"]
     }
   }
 }
 
 2. Gemini CLI:
-  gemini mcp add xno npx -y xno-skills@latest xno-mcp
+  gemini mcp add xno npx -y xno-skills@latest mcp
 
 3. Claude Code:
-  claude mcp add xno npx -y xno-skills@latest xno-mcp
+  claude mcp add xno npx -y xno-skills@latest mcp
 
 To run the MCP server directly in this terminal:
-  npx -y xno-skills xno-mcp
+  npx -y xno-skills mcp
 `;
 
 program
