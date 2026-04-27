@@ -837,12 +837,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-async function main() {
+export async function runMcpServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
-
-main().catch((error) => {
-  console.error("Server error:", error);
-  process.exit(1);
-});

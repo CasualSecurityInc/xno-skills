@@ -585,8 +585,14 @@ program
   .command('mcp')
   .description('Start the MCP server or view configuration instructions')
   .addHelpText('after', mcpHelp)
-  .action(() => {
-    console.log(mcpHelp);
+  .action(async () => {
+    try {
+      const { runMcpServer } = await import('./mcp.js');
+      await runMcpServer();
+    } catch (e: any) {
+      console.error(`Failed to start MCP server: ${e?.message ?? e}`);
+      process.exit(1);
+    }
   });
 
 program.configureHelp({
