@@ -36,8 +36,15 @@ export async function nanoRpcCall<T>(
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? 15_000;
 
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`RPC request timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+
   try {
-    const json = await client.rpcPool.postJson<any>(body);
+    const json = await Promise.race([
+      client.rpcPool.postJson<any>(body),
+      timeoutPromise
+    ]);
     if (typeof json?.error === 'string') {
       if (options.allowRpcError) {
         return json as T;

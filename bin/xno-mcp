@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+/**
+ * Compatibility wrapper for the old 'xno-mcp' standalone command.
+ * Modern usage: 'xno-skills mcp'
+ */
+import { runMcpServer } from '../dist/esm/mcp.js';
+
+runMcpServer().catch((error) => {
+  console.error("Failed to start MCP server:", error);
+  process.exit(1);
+});
