@@ -17,7 +17,7 @@ triggers:
 > 2. `pnpm dlx <package>@latest <command>`
 > 3. `npx -y <package>@latest <command>`
 > 
-> *Example:* `bunx -p @open-wallet-standard/core ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
+> *Example:* `bunx -p @open-wallet-standard/core@latest ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -37,7 +37,7 @@ Use this skill when you need to prove ownership of a Nano account or provide an 
 
 ### Prerequisites
 
-- A custodial wallet must be created in OWS (e.g., using `bunx -p @open-wallet-standard/core ows wallet create`) and visible in `xno-mcp` via `wallet_list`.
+- A custodial wallet must be created in OWS (e.g., using `bunx -p @open-wallet-standard/core@latest ows wallet create`) and visible in `xno-mcp` via `wallet_list`.
 
 ### Sign a message
 

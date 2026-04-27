@@ -39,7 +39,7 @@ function checkOwsCli(): { status: string; label: string; color: string } {
 
   // 2. Check if it works via npx
   try {
-    execSync('npx -y @open-wallet-standard/core --version', { stdio: 'ignore' });
+    execSync('npx -y @open-wallet-standard/core@latest --version', { stdio: 'ignore' });
     return { status: 'Ready (npx)', label: '✓', color: '\x1b[1;32m' }; // Bold Green
   } catch (e) {
     return { status: 'Missing (OWS CLI)', label: '!', color: '\x1b[1;33m' }; // Bold Yellow/Orange

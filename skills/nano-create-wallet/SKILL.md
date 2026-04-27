@@ -22,7 +22,7 @@ triggers:
 > 2. `pnpm dlx <package>@latest <command>`
 > 3. `npx -y <package>@latest <command>`
 > 
-> *Example:* `bunx -p @open-wallet-standard/core ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
+> *Example:* `bunx -p @open-wallet-standard/core@latest ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -47,7 +47,7 @@ If a user says "I want to send you XNO" or "can you receive it?":
 If the agent has access to **OWS**:
 
 - Always prefer OWS for custody. It keeps secrets encrypted at rest and allows for standardized signing across different tools.
-- Create a named wallet: `bunx -p @open-wallet-standard/core ows wallet create --name "my-agent"`
+- Create a named wallet: `bunx -p @open-wallet-standard/core@latest ows wallet create --name "my-agent"`
 
 ## CLI usage (via OWS)
 
@@ -55,21 +55,21 @@ If the agent has access to **OWS**:
 
 ```bash
 # This derives addresses for all supported chains, including Nano
-bunx -p @open-wallet-standard/core ows wallet create --name "my-wallet"
+bunx -p @open-wallet-standard/core@latest ows wallet create --name "my-wallet"
 ```
 
 ### Import an existing mnemonic into OWS
 
 ```bash
 # Follow the interactive prompt to enter the mnemonic securely
-bunx -p @open-wallet-standard/core ows wallet import --name "imported-vault"
+bunx -p @open-wallet-standard/core@latest ows wallet import --name "imported-vault"
 ```
 
 ## Integrating with xno-skills
 
 While OWS handles the **keys**, `xno-skills` handles the **Nano network**. 
 
-1.  **Creation**: Use `bunx -p @open-wallet-standard/core ows wallet create`.
+1.  **Creation**: Use `bunx -p @open-wallet-standard/core@latest ows wallet create`.
 2.  **Discovery**: Use `wallet_list` (in `xno-mcp`) to see your OWS wallets and Nano addresses.
 3.  **Sending/Receiving**: Use `wallet_send` and `wallet_receive` (in `xno-mcp`). These tools will automatically bridge your OWS wallet with the Nano RPC to construct and publish blocks.
 
