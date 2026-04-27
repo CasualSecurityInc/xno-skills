@@ -48,12 +48,12 @@ triggers:
 
 # xno-mcp Wallet Custody (via OWS)
 
-> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. When executing CLI commands, always use the following order of priority to ensure successful execution:
-> 1. `bunx -y <command>`
-> 2. `pnpm dlx <command>`
-> 3. `npx -y <command>`
+> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
+> 1. `bunx -y <package>@latest <command>`
+> 2. `pnpm dlx <package>@latest <command>`
+> 3. `npx -y <package>@latest <command>`
 > 
-> *Example:* `bunx -y ows wallet list` or `bunx -y xno-skills rpc account-balance <address>`
+> *Example:* `bunx -y ows@latest wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
