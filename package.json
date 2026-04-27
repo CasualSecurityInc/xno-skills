@@ -69,7 +69,7 @@
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^1.7.0",
     "@open-wallet-standard/core": "^1.3.2",
-    "@openrai/nano-core": "^2.4.6",
+    "@openrai/nano-core": "^2.4.8",
     "commander": "^14.0.3",
     "nano-pow-with-fallback": "^1.1.2",
     "qrcode-terminal": "^0.12.0"
