@@ -199,7 +199,11 @@ program
         qr: asciiQr
       }, null, 2));
     } else {
-      console.log(`${asciiQr}\n${content}`);
+      console.log(asciiQr);
+      console.log(address);
+      if (options.amount) {
+        console.log(`${options.amount} XNO`);
+      }
     }
   });
 
