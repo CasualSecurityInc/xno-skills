@@ -119,13 +119,19 @@ This is the single most important protocol concept. Apply it automatically.
      - `link` = hash of Alice’s Send block
    - Bob signs and computes PoW.
    - Only after Bob’s Receive block is confirmed can he spend the funds.
-
 **Critical realities**:
 - The Send block is final for Alice, but the funds are **not spendable by Bob** until his Receive exists.
 - Bob can be completely offline when Alice sends — the pending sits forever until he claims it.
 - There is no “automatic receive.” The agent **must** explicitly publish the Receive block.
 
-## Exact Block Creation Sequence
+**Mandate for Agents**:
+- A transaction task is **INCOMPLETE** if funds are merely pending.
+- You MUST proactively settle all pending funds by publishing a receive block (via `wallet_receive`) as soon as the send is confirmed.
+- Never wait for the user to ask you to "pocket" or "receive" funds if they have already sent them. Do it as the "next right thing" in your workflow.
+- **Persistence**: If `wallet_receive` fails with "Account not found", it means you are opening the account. Simply continue; the tool will handle it. **Never conclude that OWS cannot sign Nano blocks.** OWS is the primary signer for this project.
+
+## Universal State Blocks (All Blocks Since 2018)
+...
 1. Fetch current frontier (`previous`).
 2. Build block data (account, previous, representative, balance, link).
 3. Serialize the data (excluding signature and work).

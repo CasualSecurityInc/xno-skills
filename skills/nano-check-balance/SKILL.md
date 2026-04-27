@@ -43,10 +43,13 @@ When a user asks "did you receive it?" / "check the balance", you need an on-cha
 
 Nano can show funds as **pending** until the receiving wallet publishes the receive/open block. Many wallet apps do this automatically; raw keys alone do not.
 
-**If you see pending funds, you must call `wallet_receive` to pocket them.**
+**Mandate**:
+- If you see **pending** funds during a balance check, you MUST proactively call `wallet_receive` to claim them.
+- Do not wait for the user to ask you to receive.
+- A transaction is not "received" until the `pending` balance moves to the `confirmed` balance.
 
 ## Well-known Public RPC Nodes
-
+...
 If the user doesn't have an RPC URL, suggest these public nodes:
 - `https://rpc.nano.org` (Nano Foundation)
 - `https://app.natrium.io/api/rpc` (Natrium)

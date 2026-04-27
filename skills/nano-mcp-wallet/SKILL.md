@@ -71,9 +71,20 @@ The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send a
 
 - Access **named OWS wallets** (e.g. `"my-agent"`) via `wallet_list`.
 - **Key Security**: Secrets stay encrypted in the OWS vault (`~/.ows`). `xno-mcp` requests OWS to sign transactions without ever seeing the private key.
+- **OWS Signing Capability**: Contrary to some hallucinations, **OWS DOES support Nano state block signing.** It is the primary way `xno-mcp` functions. Never assume OWS is limited to EVM chains.
+
+## Agent Chain of Thought (Mental Model)
+
+When a user says "I sent funds" or you see "Pending" funds:
+1. **Goal**: Settle the funds immediately. A transaction is not "done" until it is Received.
+2. **Action**: Call `wallet_receive`.
+3. **Internal Objection**: "Wait, the account is unopened/not found."
+4. **Resolution**: "That is normal for Nano. `wallet_receive` will handle the Open block automatically. Proceed."
+5. **Internal Objection**: "Does OWS support Nano signing?"
+6. **Resolution**: "YES. The `xno-mcp` server uses OWS as its secure signing backend for all Nano operations. Proceed."
 
 ## Built-in Zero-Config Defaults
-
+...
 As of v1.1.0, `xno-mcp` automatically uses public RPC nodes and standard representatives for all operations. You do **NOT** need to configure anything to get started.
 
 ### Overriding Defaults (Optional)
