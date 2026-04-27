@@ -584,9 +584,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["address", "message", "signature"],
         },
       },
+      {
+        name: "ows_health_check",
+        description: "Check if the OWS wallet daemon is reachable and responding correctly.",
+        inputSchema: { type: "object", properties: {} },
+      },
     ],
   };
 });
+
+async function checkOwsHealth() {
+  if (useMockOws) return { status: "Ready", mode: "Mock" };
+  try {
+    const wallets = await listWallets();
+    return { status: "Ready", walletCount: wallets.length, mode: "Native" };
+  } catch (e: any) {
+    return { status: "Error", message: e.message, mode: "Native" };
+  }
+}
 
 async function handleWalletReceive(args: any) {
   const { name: walletName, index = 0, count = 10, onlyHash, representative: explicitRep, rpcUrl: explicitRpc } = args;
@@ -835,6 +850,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify({ valid }, null, 2) }] };
       }
 
+      case "ows_health_check": {
+        const health = await checkOwsHealth();
+        return { content: [{ type: "text", text: JSON.stringify(health, null, 2) }] };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -845,5 +865,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 export async function runMcpServer() {
   const transport = new StdioServerTransport();
-  await server.connect(transport);
+  
+  process.stderr.write(`[xno-mcp] Starting v${version}...\n`);
+  
+  // Handle process signals for graceful shutdown
+  const shutdown = async () => {
+    process.stderr.write(`[xno-mcp] Shutting down...\n`);
+    try {
+      await server.close();
+    } catch (e) {}
+    process.exit(0);
+  };
+
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+
+  try {
+    await server.connect(transport);
+    process.stderr.write(`[xno-mcp] Connected to stdio.\n`);
+  } catch (error: any) {
+    process.stderr.write(`[xno-mcp] Connection failed: ${error.message}\n`);
+    process.exit(1);
+  }
 }

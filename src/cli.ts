@@ -67,17 +67,24 @@ Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('B',blueFg)
 .replaceAll('M',marineBg)
 
-const info = checkOwsCli();
-const statusLine = `${info.color}${info.label}${reset} \x1b[1mOWS Integration:\x1b[0m ${info.status}`;
-const fullDescription = `${logo}\n\n${statusLine}`;
+function getFullDescription(): string {
+  const info = checkOwsCli();
+  const statusLine = `${info.color}${info.label}${reset} \x1b[1mOWS Integration:\x1b[0m ${info.status}`;
+  return `${logo}\n\n${statusLine}`;
+}
 
 const program = new Command();
 
 program
   .name(programName)
-  .description(fullDescription)
+  .description('Interact with the Nano ($XNO / Ӿ) cryptocurrency')
   .version(version)
   .option('-q, --quiet', 'Suppress non-essential output');
+
+// Add full description only when help is requested to avoid slow startup
+program.on('--help', () => {
+  console.log('\n' + getFullDescription());
+});
 
 // Global options accessible via hook
 program

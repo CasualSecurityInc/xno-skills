@@ -11,6 +11,23 @@ describe('MCP Server Integration', () => {
   let client: Client;
   let transport: StdioClientTransport;
 
+  it('should start and connect successfully (Handshake test)', async () => {
+    const testClient = new Client(
+      { name: "startup-test", version: "1.0.0" },
+      { capabilities: {} }
+    );
+
+    const testTransport = new StdioClientTransport({
+      command: "node",
+      args: [MCP_BIN_PATH, "mcp"],
+      env: { ...process.env, XNO_MCP_MOCK_OWS: "true" }
+    });
+
+    // This is the core "it starts" check
+    await expect(testClient.connect(testTransport)).resolves.not.toThrow();
+    await testClient.close();
+  }, 10000); // 10s timeout for startup
+
   beforeAll(async () => {
     client = new Client(
       { name: "test-client", version: "1.0.0" },
@@ -210,6 +227,18 @@ describe('MCP Server Integration', () => {
     const sendTool = result.tools.find(t => t.name === 'wallet_send');
     expect(sendTool).toBeDefined();
     expect(sendTool!.description).toContain('XNO');
+  });
+
+  it('should return health status via ows_health_check tool', async () => {
+    const result = await client.callTool({
+      name: "ows_health_check",
+      arguments: {}
+    });
+
+    expect(result.isError).toBeFalsy();
+    const out = JSON.parse((result.content[0] as any).text);
+    expect(out.status).toBe("Ready");
+    expect(out.mode).toBe("Mock");
   });
 
   it('should generate a QR code for an address', async () => {
