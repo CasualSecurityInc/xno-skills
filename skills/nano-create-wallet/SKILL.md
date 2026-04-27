@@ -22,7 +22,7 @@ triggers:
 > 2. `pnpm dlx <package>@latest <command>`
 > 3. `npx -y <package>@latest <command>`
 > 
-> *Example:* `bunx -y ows@latest wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
+> *Example:* `bunx -p @open-wallet-standard/core ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -32,7 +32,7 @@ triggers:
 > - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `wallet_receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
 > - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
-> - **Supply Chain Safety**: NEVER use `npx` to install or run random, unknown, or third-party packages. Only use the approved tools provided in this project (`xno-skills@latest` and `ows@latest`). If a task cannot be performed with these tools, do not seek external npm packages as a workaround.
+> - **Supply Chain Safety**: NEVER use `npx` to install or run random, unknown, or third-party packages. Only use the approved tools provided in this project (`xno-skills@latest` and `@open-wallet-standard/core`). If a task cannot be performed with these tools, do not seek external npm packages as a workaround.
 
 Nano wallet management is delegated to the **Open Wallet Standard (OWS)**. This provides a unified, policy-gated vault for all agent keys.
 
@@ -47,7 +47,7 @@ If a user says "I want to send you XNO" or "can you receive it?":
 If the agent has access to **OWS**:
 
 - Always prefer OWS for custody. It keeps secrets encrypted at rest and allows for standardized signing across different tools.
-- Create a named wallet: `bunx -y ows wallet create --name "my-agent"`
+- Create a named wallet: `bunx -p @open-wallet-standard/core ows wallet create --name "my-agent"`
 
 ## CLI usage (via OWS)
 
@@ -55,21 +55,21 @@ If the agent has access to **OWS**:
 
 ```bash
 # This derives addresses for all supported chains, including Nano
-bunx -y ows wallet create --name "my-wallet"
+bunx -p @open-wallet-standard/core ows wallet create --name "my-wallet"
 ```
 
 ### Import an existing mnemonic into OWS
 
 ```bash
 # Follow the interactive prompt to enter the mnemonic securely
-bunx -y ows wallet import --name "imported-vault"
+bunx -p @open-wallet-standard/core ows wallet import --name "imported-vault"
 ```
 
 ## Integrating with xno-skills
 
 While OWS handles the **keys**, `xno-skills` handles the **Nano network**. 
 
-1.  **Creation**: Use `bunx -y ows wallet create`.
+1.  **Creation**: Use `bunx -p @open-wallet-standard/core ows wallet create`.
 2.  **Discovery**: Use `wallet_list` (in `xno-mcp`) to see your OWS wallets and Nano addresses.
 3.  **Sending/Receiving**: Use `wallet_send` and `wallet_receive` (in `xno-mcp`). These tools will automatically bridge your OWS wallet with the Nano RPC to construct and publish blocks.
 
