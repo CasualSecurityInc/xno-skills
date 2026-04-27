@@ -445,7 +445,14 @@ blockCmd
         console.error(`Auto-detected pending block: ${hash} (${xno} XNO)`);
       }
 
-      const info = await rpcAccountInfo(client, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      let info: AccountInfoResponse | NanoRpcErrorResponse;
+      try {
+        info = await rpcAccountInfo(client, options.account) as AccountInfoResponse | NanoRpcErrorResponse;
+      } catch (e: any) {
+        // If account_info fails for any reason, assume unopened if we have pending blocks
+        info = { error: 'Account not found' };
+      }
+      
       const isOpen = !isRpcError(info);
 
       const previous = isOpen ? info.frontier : ZERO_HASH;

@@ -49,8 +49,8 @@ export async function nanoRpcCall<T>(
     // If we're allowing RPC errors, and the error looks like a "not found" or similar
     // we should return it as an object if possible.
     if (options.allowRpcError) {
-      const msg = e.message || String(e);
-      if (msg.includes('Account not found') || msg.includes('404')) {
+      const msg = (e.message || String(e)).toLowerCase();
+      if (msg.includes('account not found') || msg.includes('404')) {
         return { error: 'Account not found' } as unknown as T;
       }
     }
@@ -67,11 +67,16 @@ export async function rpcAccountBalance(
   const v = validateAddress(address);
   if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
 
-  return nanoRpcCall<AccountBalanceResponse>(
+  const res = await nanoRpcCall<NanoRpcResponse<AccountBalanceResponse>>(
     client,
     { action: 'account_balance', account: address },
-    options
+    { ...options, allowRpcError: true }
   );
+  
+  if (typeof (res as any)?.error === 'string') {
+    return { balance: '0', pending: '0' };
+  }
+  return res as AccountBalanceResponse;
 }
 
 export interface AccountInfoResponse {
@@ -209,15 +214,23 @@ export async function rpcReceivable(
       { action: 'receivable', account: address, count: String(n), source: 'true' },
       { ...options, allowRpcError: true }
     );
-    if (typeof (res as any)?.error === 'string') throw new Error(String((res as any).error));
+    if (typeof (res as any)?.error === 'string') {
+      if ((res as any).error.toLowerCase().includes('account not found')) return [];
+      throw new Error(String((res as any).error));
+    }
     return normalizeReceivableBlocks((res as any).blocks);
-  } catch {
+  } catch (e: any) {
+    if (e.message?.toLowerCase().includes('account not found')) return [];
+
     const res = await nanoRpcCall<NanoRpcResponse<AccountsPendingResponse>>(
       client,
       { action: 'accounts_pending', accounts: [address], count: String(n), source: 'true' },
       { ...options, allowRpcError: true }
     );
-    if (typeof (res as any)?.error === 'string') throw new Error(String((res as any).error));
+    if (typeof (res as any)?.error === 'string') {
+      if ((res as any).error.toLowerCase().includes('account not found')) return [];
+      throw new Error(String((res as any).error));
+    }
     const blocksForAccount = (res as any)?.blocks?.[address];
     return normalizeReceivableBlocks(blocksForAccount);
   }

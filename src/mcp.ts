@@ -593,7 +593,13 @@ async function handleWalletReceive(args: any) {
   const acct = await getOwsAccount(walletName, index);
   const client = getNanoClient(explicitRpc);
 
-  const info = await rpcAccountInfo(client, acct.address);
+  let info: any;
+  try {
+    info = await rpcAccountInfo(client, acct.address);
+  } catch (e) {
+    info = { error: 'Account not found' };
+  }
+
   const opened = !(typeof (info as any).error === 'string');
   let previous = opened ? (info as any).frontier : ZERO_32_HEX;
   let balanceRaw = opened ? (info as any).balance : "0";
