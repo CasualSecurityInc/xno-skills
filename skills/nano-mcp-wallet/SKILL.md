@@ -67,6 +67,8 @@ triggers:
 
 > **CRITICAL: CALL `wallet_list` FIRST.** Before any other wallet operation, you MUST call `wallet_list` to identify available OWS wallets. Never assume a wallet name or existence without discovery.
 
+> **🛑 STOP-LOSS — Prevent Failure Spirals**: If you have made **5 tool calls** without completing the requested operation, **STOP** and report to the user: what you tried, what failed, and ask for guidance. Hard limits per operation: max **3 retries** of the same failing tool; max **2 RPC endpoint switches** via `config_set`; no custom scripts, no curl, no manual block construction.
+
 > **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (wallet_list, wallet_balance, wallet_send, wallet_receive, etc.) are YOUR tools that YOU call directly.
 
 The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send and receive Nano using these MCP tools securely.
@@ -87,7 +89,7 @@ When a user says "I sent funds" or you see "Pending" funds:
 7. **Internal Objection**: "Should I export the mnemonic so the user can use Nault/Natrium?"
 8. **Resolution**: "NO. NEVER export the mnemonic. That defeats the purpose of an agent wallet. Rely on the MCP tools."
 9. **Internal Objection**: "But how do I 'open' the account?"
-10. **Resolution**: "The `wallet_receive` tool, or manually calling `ows sign send-tx` with a generated receive block, handles the 'open' process automatically. It is a seamless part of receiving the first funds."
+10. **Resolution**: "The `wallet_receive` MCP tool handles the 'open' process automatically — PoW, signing, and broadcast are all included. Just call it."
 
 ## Built-in Zero-Config Defaults
 ...
@@ -104,9 +106,8 @@ If you prefer to use specific endpoints or your own node, you can override the b
 
 ```json
 {
-  "rpcUrl": "https://rpc.nano.org",
-  "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4",
-  "useWorkPeer": true
+  "rpcUrl": "https://rainstorm.city/api",
+  "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"
 }
 ```
 
@@ -131,23 +132,40 @@ A "new" or "unopened" account chain (which returns "Account not found" from RPC)
 - This state **does not block any actions** if the account belongs to one of your wallets. It only means you must produce the receive block and publish it.
 - **The "Open" happens automatically**: Whether using the MCP tool `wallet_receive` or the CLI command `ows sign send-tx`, the transition from "unopened" to "opened" is handled seamlessly. It is not a hallucination, it is by design.
 
-### Example CLI Workflow for Receiving Funds (Auto-Opens New Accounts)
-If MCP tools fail and you must fall back to the CLI, this is the exact, proven workflow to receive pending funds (which automatically opens a new account) using OWS:
+### ⚠️ CLI `block` Commands Are NOT Transaction Senders
 
-```bash
-# 1. Build the receive block (auto-detects the pending hash, sets previous to 0s for unopened accounts)
-R_TXN=$(bunx -y xno-skills block receive -a <your_nano_address> --url <rpc_url>)
+`xno-skills block receive` and `xno-skills block send` output **unsigned block hex with no Proof of Work and no broadcast**. A block without valid PoW is always rejected as "Block is invalid." They are raw construction tools only.
 
-# 2. Sign and broadcast using OWS (send-tx automatically publishes the receive/open block to the network)
-bunx -y ows sign send-tx --chain nano --wallet <wallet_name> --tx "$R_TXN"
-```
+| Capability | MCP `wallet_receive` / `wallet_send` | CLI `block receive` / `block send` |
+|---|---|---|
+| Builds block | ✅ | ✅ |
+| Signs via OWS | ✅ | ❌ |
+| Generates PoW | ✅ (automatic) | ❌ (outputs placeholder zeros) |
+| Broadcasts to network | ✅ | ❌ |
+
+**Never fall back to CLI `block` commands when `wallet_receive` or `wallet_send` fails.** They cannot complete the operation. Follow the Error Recovery Protocol below.
+
+## Error Recovery: "RPC request failed: All endpoints exhausted"
+
+This error is almost always **transient** (rate limiting, brief node restart). It does NOT mean the MCP server is broken. Required response — follow in strict order, stopping as soon as one works:
+
+| Step | Action |
+|------|--------|
+| 1 | Wait 5 seconds. Retry `wallet_receive` with **identical** arguments. |
+| 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, then retry. |
+| 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, then retry. |
+| 4 | Reset override: `config_set({ rpcUrl: "" })`. **STOP — report to user.** |
+
+> Note: `rpc.nano.to` is the built-in default. Setting `rpcUrl` to it explicitly does nothing.
+
+**Prohibited at every step:** writing scripts, using curl, CLI `block` commands, or manual PoW generation.
 
 ## Troubleshooting: "Account Not Found" (Receiving First Funds)
 On the Nano network, an account does not exist on the ledger until its first receive block (often called an "open" block) is published.
 - If you check a balance or attempt to build a block and receive an `"Account not found"` error, **this is normal for a brand new wallet**.
 - **Do not** write custom scripts to bypass this.
-- If a wallet has pending funds but no balance, use `wallet_receive` or `xno-skills block receive`. The tools are designed to automatically handle the transition from "unopened" to "opened" by setting the `previous` hash to all zeros (`00000...`).
-- If the tool still fails, the configured RPC node may be offline or misconfigured. Use `config_set` to switch to a reliable public node like `https://rpc.nano.org`.
+- If a wallet has pending funds but no balance, use `wallet_receive`. The tool is designed to automatically handle the transition from "unopened" to "opened" by setting the `previous` hash to all zeros (`00000...`).
+- If the tool still fails, follow the **Error Recovery Protocol** above — try `rainstorm.city/api`, then `nanoslo.0x.no/proxy`, then stop and report to the user.
 
 ## 2. Reading Balances (MCP Resources & Tools)
 ...
