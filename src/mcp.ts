@@ -619,7 +619,11 @@ async function handleWalletReceive(args: any) {
   let previous = opened ? (info as any).frontier : ZERO_32_HEX;
   let balanceRaw = opened ? (info as any).balance : "0";
   const rep = opened ? (info as any).representative : requireRepresentativeAddress(explicitRep);
+  if (!rep) throw new Error(`Representative address missing for account ${acct.address} — cannot build receive block`);
   const repVal = validateAddress(rep);
+  if (!repVal.valid || !repVal.publicKey) {
+    throw new Error(`Invalid representative address "${rep}" on account ${acct.address}: ${repVal.error}`);
+  }
 
   const receivable = await rpcReceivable(client, acct.address, count);
   const pending = onlyHash ? receivable.filter(r => r.hash === onlyHash) : receivable;
