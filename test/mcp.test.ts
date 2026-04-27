@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MCP_BIN_PATH = path.resolve(__dirname, '../bin/xno-mcp');
+const MCP_BIN_PATH = path.resolve(__dirname, '../bin/xno-skills');
 
 describe('MCP Server Integration', () => {
   let client: Client;
@@ -19,7 +19,7 @@ describe('MCP Server Integration', () => {
 
     transport = new StdioClientTransport({
       command: "node",
-      args: [MCP_BIN_PATH],
+      args: [MCP_BIN_PATH, "mcp"],
       env: { ...process.env, XNO_MCP_MOCK_OWS: "true" }
     });
 
