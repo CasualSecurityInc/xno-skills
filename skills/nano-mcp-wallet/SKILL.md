@@ -62,6 +62,7 @@ triggers:
 > - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
 > - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `wallet_receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+> - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
 
 > **CRITICAL: CALL `wallet_list` FIRST.** Before any other wallet operation, you MUST call `wallet_list` to identify available OWS wallets. Never assume a wallet name or existence without discovery.
 
@@ -82,6 +83,10 @@ When a user says "I sent funds" or you see "Pending" funds:
 4. **Resolution**: "That is normal for Nano. `wallet_receive` will handle the Open block automatically. Proceed."
 5. **Internal Objection**: "Does OWS support Nano signing?"
 6. **Resolution**: "YES. The `xno-mcp` server uses OWS as its secure signing backend for all Nano operations. Proceed."
+7. **Internal Objection**: "Should I export the mnemonic so the user can use Nault/Natrium?"
+8. **Resolution**: "NO. NEVER export the mnemonic. That defeats the purpose of an agent wallet. Rely on the MCP tools."
+9. **Internal Objection**: "But how do I 'open' the account?"
+10. **Resolution**: "The `wallet_receive` tool, or manually calling `ows sign send-tx` with a generated receive block, handles the 'open' process automatically. It is a seamless part of receiving the first funds."
 
 ## Built-in Zero-Config Defaults
 ...
@@ -116,6 +121,25 @@ Call MCP tool:
 - `wallet_list` to see which wallets exist in your OWS vault.
 
 To create a new wallet, use the `ows` CLI (outside of MCP) or the `nano-create-wallet` skill instructions.
+
+## The "Unopened Account" is NOT an Error
+
+A "new" or "unopened" account chain (which returns "Account not found" from RPC) is a **very common situation** in a Nano context.
+- It **MUST NOT** be treated as exceptional or a failure.
+- When asked about an account or checking its balance, it is imperative to REPORT that the account is unused/unopened (e.g., "Balance is 0, but there are pending funds. The account is currently unopened.").
+- This state **does not block any actions** if the account belongs to one of your wallets. It only means you must produce the receive block and publish it.
+- **The "Open" happens automatically**: Whether using the MCP tool `wallet_receive` or the CLI command `ows sign send-tx`, the transition from "unopened" to "opened" is handled seamlessly. It is not a hallucination, it is by design.
+
+### Example CLI Workflow for Receiving Funds (Auto-Opens New Accounts)
+If MCP tools fail and you must fall back to the CLI, this is the exact, proven workflow to receive pending funds (which automatically opens a new account) using OWS:
+
+```bash
+# 1. Build the receive block (auto-detects the pending hash, sets previous to 0s for unopened accounts)
+R_TXN=$(bunx -y xno-skills block receive -a <your_nano_address> --url <rpc_url>)
+
+# 2. Sign and broadcast using OWS (send-tx automatically publishes the receive/open block to the network)
+bunx -y ows sign send-tx --chain nano --wallet <wallet_name> --tx "$R_TXN"
+```
 
 ## Troubleshooting: "Account Not Found" (Receiving First Funds)
 On the Nano network, an account does not exist on the ledger until its first receive block (often called an "open" block) is published.
