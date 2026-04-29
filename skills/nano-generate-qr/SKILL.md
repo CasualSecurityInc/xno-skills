@@ -20,12 +20,14 @@ triggers:
 
 # Generate Nano QR Code
 
-> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
-> 1. `bunx -y <package>@latest <command>`
-> 2. `pnpm dlx <package>@latest <command>`
-> 3. `npx -y <package>@latest <command>`
-> 
-> *Example:* `xno-skills wallets` or `xno-skills rpc account-balance <address>`
+> **CLI Execution Priority**: Do not assume `xno-skills` is installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
+> 1. `bunx -y xno-skills@latest <command>`
+> 2. `pnpm dlx xno-skills@latest <command>`
+> 3. `npx -y xno-skills@latest <command>`
+>
+> For Nano actions, prefer MCP tools first, then `xno-skills` CLI verbs. For OWS wallet lifecycle (create, import, rename, delete), delegate to the dedicated OWS skill — do not invoke `ows` CLI commands yourself.
+>
+> *Example:* `bunx -y xno-skills@latest wallets` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -88,4 +90,4 @@ In interactive flows, ask for:
 - The receiving address (or confirm it).
 - Optional amount in XNO.
 
-If the user asks to send XNO “to the agent” or “to you”, initialize or import a wallet via the MCP server (`nano-mcp-wallet` skill) and generate a QR code for its active address. Remember that you must subsequently call `receive` from the `nano-mcp-wallet` skill to actually pocket the funds once they send them.
+If the user asks to send XNO "to the agent" or "to you", first ensure a wallet exists by delegating to the separate OWS skill (for creation/import), then use `wallets` via the `nano-mcp-wallet` skill to discover the Nano address and generate a QR code for it. Subsequently call `receive` from the `nano-mcp-wallet` skill to pocket the funds once they are sent.

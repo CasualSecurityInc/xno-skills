@@ -48,12 +48,14 @@ triggers:
 
 # xno-mcp Wallet Custody (via OWS)
 
-> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
-> 1. `bunx -y <package>@latest <command>`
-> 2. `pnpm dlx <package>@latest <command>`
-> 3. `npx -y <package>@latest <command>`
-> 
-> *Example:* `xno-skills wallets` or `xno-skills rpc account-balance <address>`
+> **CLI Execution Priority**: Do not assume `xno-skills` is installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
+> 1. `bunx -y xno-skills@latest <command>`
+> 2. `pnpm dlx xno-skills@latest <command>`
+> 3. `npx -y xno-skills@latest <command>`
+>
+> For Nano actions, prefer MCP tools first, then `xno-skills` CLI verbs. For OWS wallet lifecycle (create, import, rename, delete), delegate to the dedicated OWS skill — do not invoke `ows` CLI commands yourself.
+>
+> *Example:* `bunx -y xno-skills@latest wallets` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -122,7 +124,7 @@ By default, the wallet uses **automatic PoW selection** from `@openrai/nano-core
 Call MCP tool:
 - `wallets` to see which wallets exist in your OWS vault.
 
-To create a new wallet, use the separate OWS skill (outside of MCP) or the `nano-create-wallet` skill instructions.
+To create a new wallet, use the separate OWS skill (the `nano-create-wallet` skill). Do not invoke `ows` CLI commands directly.
 
 ## The "Unopened Account" is NOT an Error
 

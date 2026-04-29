@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-A TypeScript library, executable, and MCP server, for interacting with the Nano (XNO) cryptocurrency. Generate wallets, convert units, validate addresses, and more.
+A TypeScript library, CLI, and MCP server for Nano (XNO) actions. Pairs with Open Wallet Standard (OWS) for secure key custody — send, receive, change representatives, convert units, validate addresses, sign/verify messages, and more.
 
 ![xno-skills CLI preview](assets/xno-skills-cli.png)
 
@@ -16,7 +16,7 @@ This repository includes built-in skills for AI agents (Claude Code, Cursor, etc
 npx skills add CasualSecurityInc/xno-skills
 ```
 
-Available skills (v1.4.0+):
+Available skills (v2.0.0+):
 - `nano-check-balance`: Check balance/pending via Nano node RPC.
 - `nano-convert-units`: High-precision unit conversion reference.
 - `nano-create-wallet`: Wallet creation/import guidance (BIP39/Legacy support).
@@ -59,17 +59,24 @@ To use it, add the following to your MCP client configuration:
 ```
 
 Exposed tools:
-- `wallet_list`: List available wallets.
-- `wallet_balance`: Check balance/pending for a wallet account.
-- `wallet_receive` / `wallet_send`: Receive pending blocks or send funds.
+- `wallets`: List OWS wallets and their Nano addresses.
+- `address`: Get the Nano address for a wallet account index.
+- `balance`: Check confirmed balance and pending for a wallet account.
+- `pending`: List pending receivable blocks.
+- `receive`: Receive pending blocks (handles open/first-receive automatically).
+- `send`: Send XNO from a wallet account to a destination address.
+- `change`: Change the representative for a wallet account.
+- `submit_block`: Broadcast a pre-signed block hex (advanced/manual path).
+- `history`: Persistent transaction log.
 - `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list` / `payment_request_refund`: Full payment request lifecycle.
-- `wallet_history`: Persistent transaction log.
-- `config_get` / `config_set`: Manage server settings (RPC URL, representative, etc.).
+- `config_get` / `config_set`: Manage server settings (RPC URL, representative, spending cap, etc.).
 - `convert_units`: High-precision unit conversion.
 - `validate_address`: Offline address validation.
 - `rpc_account_balance`: Direct RPC balance check for any address.
 - `generate_qr`: Generate ASCII QR codes.
 - `sign_message` / `verify_message`: Sign and verify off-chain messages (NOMS).
+
+> **Compatibility aliases** (kept for one release): `wallet_list`, `wallet_balance`, `wallet_receive`, `wallet_send`, `wallet_history` map to the canonical tools above.
 
 ## Installation
 
@@ -163,26 +170,18 @@ npm install -g xno-skills
 npx xno-skills --help
 ```
 
-### Wallet Commands
+### Wallet Discovery
 
-Security note: avoid pasting mnemonics/seeds into chat logs. Prefer `--stdin` (or `--mnemonic-env`) for import/probing commands.
+Wallet lifecycle (create, import, rename, delete) is managed by [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core). Use the `nano-create-wallet` skill or the OWS skill for that.
 
-#### Create a new wallet
+Once you have an OWS wallet, use these commands to interact with it on Nano:
 
 ```bash
-# Default: BIP39 derivation
-xno-skills wallet create
+# List OWS wallets and their Nano addresses
+xno-skills wallets
 
-# Choose legacy derivation (24-word “seed phrase” style)
-xno-skills wallet create --format legacy
-
-# Control BIP39 word count / passphrase / index
-xno-skills wallet create --words 12
-xno-skills wallet create --passphrase "optional passphrase"
-xno-skills wallet create --index 0
-
-# JSON output
-xno-skills wallet create --json
+# Get the Nano address for a specific wallet and account index
+xno-skills address --wallet my-wallet --index 0
 ```
 
 #### Restore from mnemonic

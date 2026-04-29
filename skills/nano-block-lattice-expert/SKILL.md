@@ -7,12 +7,14 @@ complements:
 
 # Nano Block-Lattice Protocol Expert
 
-> **CLI Execution Priority**: Do not assume `xno-skills` or `ows` are installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
-> 1. `bunx -y <package>@latest <command>`
-> 2. `pnpm dlx <package>@latest <command>`
-> 3. `npx -y <package>@latest <command>`
-> 
-> *Example:* `xno-skills wallets` or `xno-skills rpc account-balance <address>`
+> **CLI Execution Priority**: Do not assume `xno-skills` is installed globally. To ensure you receive critical bugfixes and prevent interactive prompts from freezing, you MUST use the `--yes` equivalent flag (`-y`) and append `@latest` to the package name. Always use the following order of priority:
+> 1. `bunx -y xno-skills@latest <command>`
+> 2. `pnpm dlx xno-skills@latest <command>`
+> 3. `npx -y xno-skills@latest <command>`
+>
+> For Nano actions, prefer MCP tools first, then `xno-skills` CLI verbs. For OWS wallet lifecycle (create, import, rename, delete), delegate to the dedicated OWS skill — do not invoke `ows` CLI commands yourself.
+>
+> *Example:* `bunx -y xno-skills@latest wallets` or `bunx -y xno-skills@latest rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
@@ -54,9 +56,9 @@ If the query mentions any of the following, **immediately flag it as unrelated**
 This skill works **best** when the following complementary skill is also installed:
 
 - **ows** (Open Wallet Standard)  
-  → Secure, local-first multi-chain wallet management (mnemonic handling, HD derivation, signing, policies, etc.).  
-  → Install with: `npx skills add https://github.com/open-wallet-standard/core`  
-  → Or via the skills marketplace: `npx skills add ows`
+  → Secure, local-first wallet management (HD derivation, signing, policies). Handles wallet lifecycle: create, import, rename, delete.  
+  → Install with: `npx skills add ows`  
+  → Use the OWS skill for wallet lifecycle. Never invoke `ows` CLI commands directly from a Nano skill — delegate to the OWS skill instead.
 
 **Why they pair perfectly**:
 - `nano-block-lattice-expert` gives the agent deep **Nano protocol wisdom** (account-chain dance, universal state blocks, frontier/PoW rules, pending receives, raw units, disambiguation, etc.).
@@ -131,7 +133,7 @@ This is the single most important protocol concept. Apply it automatically.
 - You MUST proactively settle all pending funds by publishing a receive block (via `receive`) as soon as the send is confirmed.
 - Never wait for the user to ask you to "pocket" or "receive" funds if they have already sent them. Do it as the "next right thing" in your workflow.
 - **Persistence**: If `receive` fails with "Account not found", it means you are opening the account. Simply continue; the tool will handle it. **Never conclude that OWS cannot sign Nano blocks.** OWS is the primary signer for this project.
-- **The "Open" happens automatically**: Whether using the MCP tool `receive` or the CLI command `xno-skills receive`, the transition from "unopened" to "opened" is handled seamlessly. The `send-tx` action in OWS is specifically designed to publish these blocks to the network.
+- **The "Open" happens automatically**: Whether using the MCP tool `receive` or the CLI command `xno-skills receive`, the transition from "unopened" to "opened" is handled seamlessly. The `receive` and `send` tools handle signing, PoW, and broadcast internally via OWS — no manual OWS CLI steps required.
 
 ## Universal State Blocks (All Blocks Since 2018)
 ...
