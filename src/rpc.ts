@@ -204,6 +204,116 @@ function normalizeReceivableBlocks(blocks: any): ReceivableItem[] {
   return out;
 }
 
+export interface VersionResponse {
+  rpc_version: string;
+  store_version: string;
+  protocol_version: string;
+  node_vendor: string;
+  store_vendor?: string;
+  network?: string;
+  network_identifier?: string;
+  build_info?: string;
+}
+
+export interface BlockCountResponse {
+  count: string;
+  unchecked: string;
+  cemented?: string;
+}
+
+export type ProbeCapResult = {
+  ok: boolean;
+  latencyMs: number;
+  detail?: string;
+};
+
+export type RpcProbeResult = {
+  url: string;
+  reachable: boolean;
+  pingMs: number;
+  nodeVendor?: string;
+  network?: string;
+  protocolVersion?: string;
+  blockCount?: string;
+  cementedCount?: string;
+  caps: {
+    version: ProbeCapResult;
+    blockCount: ProbeCapResult;
+    workGenerate: ProbeCapResult;
+  };
+};
+
+export async function rpcProbeCaps(
+  client: NanoClient,
+  url: string,
+  options: RpcCallOptions = {}
+): Promise<RpcProbeResult> {
+  const result: RpcProbeResult = {
+    url,
+    reachable: false,
+    pingMs: 0,
+    caps: {
+      version: { ok: false, latencyMs: 0 },
+      blockCount: { ok: false, latencyMs: 0 },
+      workGenerate: { ok: false, latencyMs: 0 },
+    },
+  };
+
+  // 1. version — proves it is a Nano RPC and gives node info + ping
+  const vStart = Date.now();
+  try {
+    const v = await nanoRpcCall<VersionResponse>(client, { action: 'version' }, options);
+    const vMs = Date.now() - vStart;
+    result.caps.version = { ok: true, latencyMs: vMs };
+    result.pingMs = vMs;
+    result.reachable = true;
+    result.nodeVendor = v.node_vendor;
+    result.network = v.network;
+    result.protocolVersion = v.protocol_version;
+  } catch (e: any) {
+    result.caps.version = { ok: false, latencyMs: Date.now() - vStart, detail: e.message };
+    return result;
+  }
+
+  // 2. block_count — basic ledger-read capability
+  const bcStart = Date.now();
+  try {
+    const bc = await nanoRpcCall<BlockCountResponse>(client, { action: 'block_count' }, options);
+    const bcMs = Date.now() - bcStart;
+    result.caps.blockCount = { ok: true, latencyMs: bcMs };
+    result.blockCount = bc.count;
+    result.cementedCount = bc.cemented;
+  } catch (e: any) {
+    result.caps.blockCount = { ok: false, latencyMs: Date.now() - bcStart, detail: e.message };
+  }
+
+  // 3. work_generate — critical remote PoW capability
+  // Use a dummy 64-hex root that is guaranteed invalid so no real work is done / accepted.
+  // The node still proves it can accept the call; it may return an error like "Bad block type"
+  // for nodes that have work generation disabled vs. those that do support it.
+  const DUMMY_ROOT = 'A'.repeat(64);
+  const wStart = Date.now();
+  try {
+    await nanoRpcCall<WorkGenerateResponse>(
+      client,
+      { action: 'work_generate', hash: DUMMY_ROOT },
+      { ...options, allowRpcError: true }
+    );
+    const wMs = Date.now() - wStart;
+    // A successful response (even error JSON) that parses means the endpoint accepted the call.
+    // We distinguish "disabled" vs "succeeded" below.
+    result.caps.workGenerate = { ok: true, latencyMs: wMs };
+  } catch (e: any) {
+    const wMs = Date.now() - wStart;
+    const msg: string = (e.message || '').toLowerCase();
+    // "disabled" or "control required" means the endpoint exists but work generation is off.
+    const disabled = msg.includes('disabled') || msg.includes('enable_control') || msg.includes('not allowed');
+    result.caps.workGenerate = { ok: false, latencyMs: wMs, detail: disabled ? 'disabled' : e.message };
+  }
+
+  return result;
+}
+
 export async function rpcReceivable(
   client: NanoClient,
   address: string,

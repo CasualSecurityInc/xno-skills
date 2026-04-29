@@ -97,6 +97,7 @@ export type SubmitBlockResult = {
 export type ReceiveResult = {
   address: string;
   received: Array<{ hash: string; amountRaw: string }>;
+  balanceRaw: string;
   balanceXno: string;
 };
 
@@ -104,6 +105,7 @@ export type SendResult = {
   hash: string;
   from: string;
   to: string;
+  amountRaw: string;
   amountXno: string;
 };
 
@@ -271,7 +273,10 @@ export async function executeReceive(
   }
 
   const pending = options.onlyHash ? receivable.filter((item) => item.hash === options.onlyHash) : receivable;
-  if (!pending.length) return { address: account.address, received: [], balanceXno: opened ? rawToNano((info as AccountInfoResponse).balance) : '0' };
+  if (!pending.length) {
+    const bal = opened ? (info as AccountInfoResponse).balance : '0';
+    return { address: account.address, received: [], balanceRaw: bal, balanceXno: rawToNano(bal) };
+  }
 
   await report(ctx, 3, 5, `receive: building block for ${pending[0].hash}`);
   const previous = opened ? (info as AccountInfoResponse).frontier : ZERO_32_HEX;
@@ -314,6 +319,7 @@ export async function executeReceive(
   return {
     address: account.address,
     received: pending.map((item) => ({ hash: submitted.txHash, amountRaw: item.amount })),
+    balanceRaw: newBalance,
     balanceXno: rawToNano(newBalance),
   };
 }
@@ -389,7 +395,7 @@ export async function executeSend(
     timestamp: new Date().toISOString(),
   });
 
-  return { hash: submitted.txHash, from: account.address, to: destination, amountXno };
+  return { hash: submitted.txHash, from: account.address, to: destination, amountRaw, amountXno };
 }
 
 export async function executeChange(
@@ -494,12 +500,17 @@ export async function signWalletMessage(walletName: string, message: string, opt
   }
 }
 
-export function verifyNanoMessage(address: string, message: string, signature: string): VerifyMessageResult {
+export function verifyNanoMessage(address: string, _message: string, _signature: string): VerifyMessageResult {
   const validation = validateAddress(address);
   if (!validation.valid || !validation.publicKey) {
     throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, { details: { address } });
   }
-  return { valid: NOMS.verifyMessage(message, signature, validation.publicKey) };
+  throw new NanoActionError(
+    'MESSAGE_VERIFY_UNSUPPORTED',
+    'verify_message',
+    'Nano off-chain message verification is not supported: no canonical standard exists. Define an ecosystem convention before enabling this.',
+    { details: { address } },
+  );
 }
 
 export function toToolSuccess(result: unknown, structuredContent?: Record<string, unknown>) {

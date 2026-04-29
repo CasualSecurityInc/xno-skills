@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
-import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcProbeCaps, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -182,7 +182,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; hash?: string; count: number; json?: boolean }) => {
     try {
-      const result = await executeReceive(options.wallet, undefined, { config }, readersFor(), {
+      const result = await executeReceive(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), {
         index: 0,
         count: options.count,
         onlyHash: options.hash,
@@ -212,7 +212,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; to: string; amountXno: string; json?: boolean }) => {
     try {
-      const result = await executeSend(options.wallet, undefined, { config }, readersFor(), options.to, options.amountXno, { index: 0 });
+      const result = await executeSend(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.to, options.amountXno, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`From: ${result.from}`);
@@ -233,7 +233,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; representative: string; json?: boolean }) => {
     try {
-      const result = await executeChange(options.wallet, undefined, { config }, readersFor(), options.representative, { index: 0 });
+      const result = await executeChange(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.representative, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -254,7 +254,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; json?: boolean }) => {
     try {
-      const result = await submitPreparedBlock(options.wallet, undefined, { config }, options.txHex, options.subtype, { index: 0 });
+      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, options.txHex, options.subtype, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -331,10 +331,9 @@ program
   .command('convert')
   .description('Convert between XNO units')
   .argument('<amount>', 'Value to convert')
-  .argument('[from]', 'Source unit (xno, raw, mnano, knano)')
-  .option('-t, --to <unit>', 'Target unit (xno, raw, mnano, knano)')
+  .argument('<from>', 'Source unit: xno, raw, mnano, or knano')
   .option('-j, --json', 'Output in JSON format')
-  .action((amount: string, from: string | undefined, options: { to?: string; json?: boolean }) => {
+  .action((amount: string, from: string, options: { json?: boolean }) => {
     const normalizeUnit = (unit: string): string => {
       const value = unit.toLowerCase();
       if (value === 'xno' || value === 'nano') return 'xno';
@@ -344,8 +343,7 @@ program
       return value;
     };
 
-    const toUnit = normalizeUnit(options.to || from || 'xno');
-    const fromUnit = normalizeUnit(from || 'xno');
+    const fromUnit = normalizeUnit(from);
 
     let rawValue: string;
     switch (fromUnit) {
@@ -354,22 +352,16 @@ program
       case 'knano': rawValue = knanoToRaw(amount); break;
       case 'raw': rawValue = amount; break;
       default:
-        console.error(`Unknown source unit: ${fromUnit}`);
+        console.error(`Unknown source unit: ${fromUnit}. Use xno, raw, mnano, or knano.`);
         process.exit(1);
     }
 
-    let result: string;
-    switch (toUnit) {
-      case 'xno': result = rawToNano(rawValue); break;
-      case 'mnano': result = rawToNano(rawValue, 24); break;
-      case 'knano': result = rawToNano(rawValue, 27); break;
-      case 'raw': result = rawValue; break;
-      default:
-        console.error(`Unknown target unit: ${toUnit}`);
-        process.exit(1);
-    }
-
-    printJsonOrText({ from: amount, fromUnit, to: result, toUnit }, options, () => console.log(`${amount} ${fromUnit} = ${result} ${toUnit}`));
+    const xno = rawToNano(rawValue);
+    const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };
+    printJsonOrText(result, options, () => {
+      console.log(`raw: ${rawValue}`);
+      console.log(`xno: ${xno}`);
+    });
   });
 
 program
@@ -405,7 +397,8 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action((input: string, options: { json?: boolean }) => {
     const result = validateAddress(input);
-    printJsonOrText(result, options, () => {
+    const out = { address: input, ...result };
+    printJsonOrText(out, options, () => {
       if (result.valid) {
         console.log('Valid Nano address');
         if (result.publicKey) console.log(`Public Key: ${result.publicKey}`);
@@ -471,10 +464,15 @@ rpcCmd
     try {
       const client = getNanoClient({ url: options.url });
       const result = await rpcAccountBalance(client, address, { timeoutMs: options.timeoutMs });
-      const out: any = { address, balanceRaw: result.balance, pendingRaw: result.pending };
+      const out: any = {
+        address,
+        balanceRaw: result.balance,
+        pendingRaw: result.pending,
+        balanceXno: rawToNano(result.balance),
+        pendingXno: rawToNano(result.pending),
+      };
       if (options.xno) {
-        out.balanceXno = rawToNano(result.balance);
-        out.pendingXno = rawToNano(result.pending);
+        // xno fields already included; flag kept for backward compat
       }
       printJsonOrText(out, options, () => {
         console.log(`Balance (raw): ${result.balance}`);
@@ -534,15 +532,64 @@ rpcCmd
         opened: true,
         frontier: info.frontier,
         balanceRaw: info.balance,
+        balanceXno: rawToNano(info.balance),
         representative: info.representative,
       };
-      if (options.xno) out.balanceXno = rawToNano(info.balance);
+      if (options.xno) {
+        // balanceXno already included; flag kept for backward compat
+      }
       printJsonOrText(out, options, () => {
         console.log(`Frontier: ${info.frontier}`);
         console.log(`Balance (raw): ${info.balance}`);
         if (options.xno) console.log(`Balance (XNO): ${rawToNano(info.balance)}`);
         if (info.representative) console.log(`Representative: ${info.representative}`);
       });
+    } catch (error) {
+      exitWithError(error);
+    }
+  });
+
+rpcCmd
+  .command('probe-caps')
+  .description('Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)')
+  .argument('[url]', 'RPC URL to probe (defaults to configured/env URL)')
+  .option('--timeout-ms <ms>', 'Timeout per probe in milliseconds', (v) => parseInt(v, 10), 10000)
+  .option('-j, --json', 'Output raw JSON result')
+  .action(async (url: string | undefined, options: { timeoutMs: number; json?: boolean }) => {
+    try {
+      const target = url || config.rpcUrl || process.env.NANO_RPC_URL || 'https://rpc.nano.to';
+      const client = getNanoClient({ url: target });
+      const result = await rpcProbeCaps(client, target, { timeoutMs: options.timeoutMs });
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      const tick = (ok: boolean) => (ok ? '✓' : '✗');
+      const ms = (n: number) => `${n}ms`;
+
+      console.log(`\nProbing: ${result.url}`);
+      console.log(`─────────────────────────────────────────`);
+      console.log(`  Reachable       ${tick(result.reachable)}  (${ms(result.pingMs)})`);
+      if (result.reachable) {
+        console.log(`  Node vendor     ${result.nodeVendor || '(unknown)'}`);
+        console.log(`  Network         ${result.network || '(unknown)'}`);
+        console.log(`  Protocol        ${result.protocolVersion || '(unknown)'}`);
+      }
+      console.log(`─────────────────────────────────────────`);
+      console.log(`  version         ${tick(result.caps.version.ok)}  (${ms(result.caps.version.latencyMs)})`);
+      if (!result.caps.version.ok && result.caps.version.detail) {
+        console.log(`                  ${result.caps.version.detail}`);
+      }
+      console.log(`  block_count     ${tick(result.caps.blockCount.ok)}  (${ms(result.caps.blockCount.latencyMs)})${result.blockCount ? `  count=${result.blockCount} cemented=${result.cementedCount ?? '?'}` : ''}`);
+      if (!result.caps.blockCount.ok && result.caps.blockCount.detail) {
+        console.log(`                  ${result.caps.blockCount.detail}`);
+      }
+      console.log(`  work_generate   ${tick(result.caps.workGenerate.ok)}  (${ms(result.caps.workGenerate.latencyMs)})${result.caps.workGenerate.detail ? `  [${result.caps.workGenerate.detail}]` : ''}`);
+      console.log(`─────────────────────────────────────────\n`);
+
+      if (!result.reachable) process.exit(1);
     } catch (error) {
       exitWithError(error);
     }

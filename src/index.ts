@@ -9,6 +9,7 @@ export {
   rpcReceivable,
   rpcWorkGenerate,
   rpcProcess,
+  rpcProbeCaps,
 } from './rpc.js';
 export { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 export { hashNanoStateBlock } from './state-block.js';
