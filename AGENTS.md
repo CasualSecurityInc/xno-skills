@@ -6,9 +6,9 @@ This file contains non-discoverable landmines and workflow gotchas for the xno-s
 
 ### Open Wallet Standard (OWS) Requirement
 The project **delegates all key management** to [OWS](https://github.com/open-wallet-standard). 
-- **Landmine**: The `xno-mcp` server and `xno-skills block` commands will fail if the `ows` CLI is not available (natively or via `npx`).
-- **Custody**: Agents **never** handle seeds or mnemonics directly. Use `wallet_list` to discover existing OWS wallets.
-- **Signing**: Constructing blocks (CLI) or sending/receiving (MCP) triggers OWS to sign. The agent provides the `walletName` and `index`.
+- **Landmine**: Primary Nano actions now go through OWS via native TypeScript bindings, not the raw `ows` CLI. Do not reintroduce shell-based `ows` flows into `xno-skills` or its skills.
+- **Custody**: Agents **never** handle seeds or mnemonics directly. Use `wallets` / `address` to discover existing OWS-backed Nano accounts.
+- **Signing**: `send`, `receive`, `change`, and `submit-block` trigger OWS signing internally. `block ...` commands remain unsigned construction helpers only.
 
 ### ESM Import Requirement
 - **Landmine**: All relative imports **MUST** include the `.js` extension (e.g., `import { foo } from './foo.js';`). Failure to do so will break the ESM build.
@@ -18,7 +18,7 @@ The project **delegates all key management** to [OWS](https://github.com/open-wa
 ## MCP Server Landmines
 
 ### Spending Limit
-- Every `wallet_send` and `payment_request_refund` is gated by a **per-transaction cap** (`maxSendXno`).
+- Every `send` and `payment_request_refund` is gated by a **per-transaction cap** (`maxSendXno`).
 - Default: `1.0` XNO.
 - Modification: Use `config_set({ maxSendXno: "..." })` or the `XNO_MAX_SEND` environment variable.
 
@@ -26,7 +26,7 @@ The project **delegates all key management** to [OWS](https://github.com/open-wa
 State is stored in `${XNO_MCP_HOME}` (default: `~/.xno-mcp` or project root).
 - `config.json`: RPC URLs and app settings.
 - `requests.json`: Tracked payment requests.
-- `transactions.json`: Local transaction ledger for `wallet_history`.
+- `transactions.json`: Local transaction ledger for `history`.
 - **Note**: OWS wallets themselves are stored in `~/.ows`, separate from `xno-skills` state.
 
 ---

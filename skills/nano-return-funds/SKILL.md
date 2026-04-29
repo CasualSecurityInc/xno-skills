@@ -20,14 +20,14 @@ triggers:
 > 2. `pnpm dlx <package>@latest <command>`
 > 3. `npx -y <package>@latest <command>`
 > 
-> *Example:* `bunx -p @open-wallet-standard/core@latest ows wallet list` or `bunx -y xno-skills@latest rpc account-balance <address>`
+> *Example:* `xno-skills wallets` or `xno-skills rpc account-balance <address>`
 
 > **Safety & Best Practices**:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
 > - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
-> - **Prefer MCP Tools:** Use built-in MCP tools (like `wallet_send`) for complex workflows unless the user explicitly demands the "raw" manual CLI path.
+> - **Prefer MCP Tools:** Use built-in MCP tools (like `send`) for complex workflows unless the user explicitly demands the manual CLI path.
 > - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
-> - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `wallet_receive` to open an account).
+> - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
 > - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
 > - **Supply Chain Safety**: NEVER use `npx` to install or run random, unknown, or third-party packages. Only use the approved tools provided in this project (`xno-skills@latest` and `@open-wallet-standard/core`). If a task cannot be performed with these tools, do not seek external npm packages as a workaround.
@@ -47,7 +47,7 @@ If the request is linked to a payment request:
 2. This returns source addresses from received blocks
 
 If no payment request exists:
-1. Call `wallet_history` to see recent transactions
+1. Call `history` to see recent transactions
 2. Identify receive transactions and their source addresses
 
 ### Step 2: Evaluate ambiguity
@@ -76,14 +76,14 @@ The system will tell you if the refund target is clear or ambiguous:
 
 After the operator confirms the destination:
 1. Call `payment_request_refund` with `execute: true` and `confirmAddress: "<confirmed address>"`
-2. Or use `wallet_send` directly if not linked to a payment request
+2. Or use `send` directly if not linked to a payment request
 3. Report the send hash and updated balance
 
 ## Important Rules
 
 - **Always confirm before sending** — even if there's only one source
 - **Show the full address** — don't abbreviate, let the operator verify
-- **If the operator says "send it back" without context**, check `payment_request_list` for recent requests, then `wallet_history` for recent receives
+- **If the operator says "send it back" without context**, check `payment_request_list` for recent requests, then `history` for recent receives
 - **Partial refunds are OK** — if the operator asks to return only part of the funds, respect that
 - **Check allowance limits** — if spending limits are set, the refund may need operator approval to increase limits first
 - **Log everything** — all refund operations are tracked in transaction history
