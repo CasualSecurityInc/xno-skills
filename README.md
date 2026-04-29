@@ -174,7 +174,10 @@ npx xno-skills --help
 
 Wallet lifecycle (create, import, rename, delete) is managed by [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core). Use the `nano-create-wallet` skill or the OWS skill for that.
 
-> **Note:** `xno-skills` bundles OWS as an npm dependency — you do **not** need to install it separately. If you want to manage wallets directly from the terminal (outside of an agent), the [OWS quick-start guide](https://openwallet.sh/#quickstart) explains how.
+> **Note:** `xno-skills` bundles OWS as an npm dependency — you do **not** need to install it separately. If you want to manage wallets directly from the terminal (outside of an agent), the [OWS quick-start guide](https://openwallet.sh/#quickstart) explains how. To install OWS agent skills, run:
+> ```bash
+> npx skills add open-wallet-standard/core@ows
+> ```
 
 Once you have an OWS wallet, use these commands to interact with it on Nano:
 

@@ -16,7 +16,6 @@ import {
   executeChange,
   executeReceive,
   executeSend,
-  getNanoAddress,
   getNanoBalance,
   getNanoPending,
   listNanoWallets,
@@ -122,24 +121,9 @@ program
       const wallets = await listNanoWallets();
       printJsonOrText(wallets, options, () => {
         for (const wallet of wallets) {
-          console.log(`${wallet.name}${wallet.address ? `  ${wallet.address}` : ''}`);
+          console.log(`${wallet.name.padEnd(24)}\t${wallet.address ?? ''}`);
         }
       });
-    } catch (error) {
-      exitWithError(error);
-    }
-  });
-
-program
-  .command('address')
-  .description('Show the Nano address for an OWS wallet')
-  .requiredOption('--wallet <name>', 'OWS wallet name')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
-  .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; index: number; json?: boolean }) => {
-    try {
-      const result = await getNanoAddress(options.wallet, options.index);
-      printJsonOrText(result, options, () => console.log(result.address));
     } catch (error) {
       exitWithError(error);
     }
@@ -149,11 +133,11 @@ program
   .command('balance')
   .description('Show Nano balance and pending amount for an OWS wallet')
   .requiredOption('--wallet <name>', 'OWS wallet name')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; index: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; json?: boolean }) => {
     try {
-      const result = await getNanoBalance(options.wallet, readersFor(), { config }, options.index);
+      const result = await getNanoBalance(options.wallet, readersFor(), { config }, 0);
       printJsonOrText(result, options, () => {
         console.log(`Address: ${result.address}`);
         console.log(`Balance: ${result.balanceXno} XNO`);
@@ -168,12 +152,12 @@ program
   .command('pending')
   .description('List receivable Nano blocks for an OWS wallet')
   .requiredOption('--wallet <name>', 'OWS wallet name')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('--count <n>', 'Max receivable blocks to return', (value) => parseInt(value, 10), 10)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; index: number; count: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; count: number; json?: boolean }) => {
     try {
-      const result = await getNanoPending(options.wallet, readersFor(), { config }, { index: options.index, count: options.count });
+      const result = await getNanoPending(options.wallet, readersFor(), { config }, { index: 0, count: options.count });
       printJsonOrText(result, options, () => {
         if (result.blocks.length === 0) {
           console.log('No receivable blocks.');
@@ -192,14 +176,14 @@ program
   .command('receive')
   .description('Receive pending Nano blocks for an OWS wallet')
   .requiredOption('--wallet <name>', 'OWS wallet name')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('--hash <hash>', 'Receive only this send block hash')
   .option('--count <n>', 'Max receivable blocks to consider', (value) => parseInt(value, 10), 10)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; index: number; hash?: string; count: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; hash?: string; count: number; json?: boolean }) => {
     try {
       const result = await executeReceive(options.wallet, undefined, { config }, readersFor(), {
-        index: options.index,
+        index: 0,
         count: options.count,
         onlyHash: options.hash,
       });
@@ -224,11 +208,11 @@ program
   .requiredOption('--wallet <name>', 'OWS wallet name')
   .requiredOption('--to <address>', 'Destination Nano address')
   .requiredOption('--amount-xno <xno>', 'Amount to send in XNO')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; to: string; amountXno: string; index: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; to: string; amountXno: string; json?: boolean }) => {
     try {
-      const result = await executeSend(options.wallet, undefined, { config }, readersFor(), options.to, options.amountXno, { index: options.index });
+      const result = await executeSend(options.wallet, undefined, { config }, readersFor(), options.to, options.amountXno, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`From: ${result.from}`);
@@ -245,11 +229,11 @@ program
   .description('Submit a Nano change representative block')
   .requiredOption('--wallet <name>', 'OWS wallet name')
   .requiredOption('--representative <address>', 'New Nano representative address')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; representative: string; index: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; representative: string; json?: boolean }) => {
     try {
-      const result = await executeChange(options.wallet, undefined, { config }, readersFor(), options.representative, { index: options.index });
+      const result = await executeChange(options.wallet, undefined, { config }, readersFor(), options.representative, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -266,11 +250,11 @@ program
   .requiredOption('--wallet <name>', 'OWS wallet name')
   .requiredOption('--tx-hex <hex>', 'Prepared unsigned Nano block hex')
   .requiredOption('--subtype <type>', 'Block subtype: send, receive, open, or change')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; index: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; json?: boolean }) => {
     try {
-      const result = await submitPreparedBlock(options.wallet, undefined, { config }, options.txHex, options.subtype, { index: options.index });
+      const result = await submitPreparedBlock(options.wallet, undefined, { config }, options.txHex, options.subtype, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -285,13 +269,11 @@ program
   .command('history')
   .description('Show Nano transaction history tracked by xno-skills for an OWS wallet')
   .requiredOption('--wallet <name>', 'OWS wallet name')
-  .option('--index <n>', 'Nano account index')
+  // .option('--index <n>', 'Nano account index')
   .option('--limit <n>', 'Max entries to show', (value) => parseInt(value, 10), 20)
   .option('-j, --json', 'Output in JSON format')
-  .action((options: { wallet: string; index?: string; limit: number; json?: boolean }) => {
-    const index = options.index !== undefined ? parseInt(options.index, 10) : undefined;
+  .action((options: { wallet: string; limit: number; json?: boolean }) => {
     let history = transactions.filter((entry) => entry.owsWalletId === options.wallet);
-    if (index !== undefined) history = history.filter((entry) => entry.accountIndex === index);
     history = history.slice(0, options.limit);
     printJsonOrText(history, options, () => {
       if (history.length === 0) {
@@ -309,11 +291,11 @@ program
   .description('Sign a Nano off-chain message with an OWS wallet')
   .requiredOption('--wallet <name>', 'OWS wallet name')
   .requiredOption('--message <text>', 'Message text to sign')
-  .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
+  // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; message: string; index: number; json?: boolean }) => {
+  .action(async (options: { wallet: string; message: string; json?: boolean }) => {
     try {
-      const result = await signWalletMessage(options.wallet, options.message, { index: options.index });
+      const result = await signWalletMessage(options.wallet, options.message, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Address: ${result.address}`);
         console.log(`Signature: ${result.signature}`);
