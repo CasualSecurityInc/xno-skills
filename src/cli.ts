@@ -55,17 +55,17 @@ const greyFg = `\x1b[38;2;155;155;155m`;
 const blueFg = `\x1b[38;2;37;156;233m`;
 const marineBg = `\x1b[48;2;31;32;76m`;
 const reset = `\x1b[0m`;
-const logo = String.raw`MB[K
-   __W/\\/\\\\B____W/\\\\\\B_____W/\\/\\\\B_______W/\\\B____[K
-    _W\/\\G////W\\\B__W\G////////W\\\B___W\/\\G////W\\\B____W/\\\G///W\\\B__[K
-     _W\/\\\B__W\/G/W\\\B___W/\\\\\\\\B__W\/\\\B__W\/G/W\\\B__W/\\\B__W\/G/W\\B__[K
-      _W\/\\\B___W\/\\\B__W/\\\G/////W\\\B__W\/\\\B___W\/\\\B_W\/G/W\\\B__W/\\\B__[K
-       _W\/\\\B___W\/\\\B_W\//\\\\\\\/\B___W\/\\\B___W\/\\\B__W\/G//W\\\\/B____[K
-        _W\/G//B____W\/G//B___W\/G///////W\/G/B__W\/G//B____W\/G//B_____W\/G////B_____[K
-                                                  WMxno-skills v${version}[K
-[K[0m
+const logo = String.raw`MB[K
+   __W/\\/\\\\\\B____W/\\\\\\\\\B_____W/\\/\\\\\\B_______W/\\\\\B____[K
+    _W\/\\\G////W\\\B__W\G////////W\\\B___W\/\\\G////W\\\B____W/\\\G///W\\\B__[K
+     _W\/\\\B__W\/G/W\\\B___W/\\\\\\\\\\B__W\/\\\B__W\/G/W\\\B__W/\\\B__W\/G/W\\B__[K
+      _W\/\\\B___W\/\\\B__W/\\\G/////W\\\B__W\/\\\B___W\/\\\B_W\/G/W\\\B__W/\\\B__[K
+       _W\/\\\B___W\/\\\B_W\//\\\\\\\/\B___W\/\\\B___W\/\\\B__W\/G//W\\\\/B____[K
+        _W\/G//B____W\/G//B___W\/G///////W\/G/B__W\/G//B____W\/G//B_____W\/G////B_____[K
+                                                  WMxno-skills v${version}[K
+[K[0m
 
-Nano specialist companion for Open Wallet Standard`
+Interact with the Nano ($XNO / Ӿ) cryptocurrency`
   .replaceAll('W', whiteFg)
   .replaceAll('G', greyFg)
   .replaceAll('B', blueFg)
@@ -124,12 +124,13 @@ function exitWithError(error: unknown): never {
 
 program
   .name(programName)
-  .description('Nano specialist companion for Open Wallet Standard')
+  .description('Interact with the Nano ($XNO / Ӿ) cryptocurrency')
   .version(version)
   .option('-q, --quiet', 'Suppress non-essential output');
 
+program.addHelpText('beforeAll', getFullDescription() + '\n');
 program.on('--help', () => {
-  console.log('\n' + getFullDescription());
+  // kept for subcommand compat — banner already printed via addHelpText('beforeAll')
 });
 
 program.hook('preAction', (thisCommand) => {
