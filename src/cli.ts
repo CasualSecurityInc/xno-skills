@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { execSync } from 'node:child_process';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
@@ -10,7 +9,7 @@ import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
-import { pkg, version } from './version.js';
+import { version } from './version.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -27,28 +26,6 @@ import {
   verifyNanoMessage,
 } from './nano-actions.js';
 import { loadConfig, loadTransactions, type XnoConfig } from './state-store.js';
-
-const programName = pkg.name;
-
-function checkOwsCli(): { status: string; label: string; color: string } {
-  const disableNpx = process.env.XNO_SKILLS_DISABLE_NPX === 'true';
-
-  try {
-    execSync('ows --version', { stdio: 'ignore' });
-    return { status: 'Ready (Native)', label: '✓', color: '\x1b[1;32m' };
-  } catch {}
-
-  if (disableNpx) {
-    return { status: 'Disabled (npx off)', label: '✗', color: '\x1b[1;31m' };
-  }
-
-  try {
-    execSync('npx -y @open-wallet-standard/core@latest --version', { stdio: 'ignore' });
-    return { status: 'Ready (npx)', label: '✓', color: '\x1b[1;32m' };
-  } catch {
-    return { status: 'Missing (OWS CLI)', label: '!', color: '\x1b[1;33m' };
-  }
-}
 
 const whiteFg=`\x1b[38;2;255;255;255m`
 const greyFg=`\x1b[38;2;155;155;155m`
@@ -72,9 +49,7 @@ Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('M',marineBg)
 
 function getFullDescription(): string {
-  const info = checkOwsCli();
-  const statusLine = `${info.color}${info.label}${reset} \x1b[1mOWS Integration:\x1b[0m ${info.status}`;
-  return `${logo}\n\n${statusLine}`;
+  return logo;
 }
 
 const program = new Command();
