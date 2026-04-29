@@ -8,7 +8,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { generateAsciiQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable } from './rpc.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcWorkGenerate, rpcProcess } from './rpc.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { version } from './version.js';
@@ -95,10 +95,13 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
     `[xno-mcp] NanoClient init — rpc=[${rpc.join(',') || '(defaults)'}] work=[${work.join(',') || '(defaults)'}] workTimeoutMs=${workTimeoutMs}\n`,
   );
 
+  const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
+  const workUrls = work.length > 0 ? work : effectiveRpc;
+
   const client = NanoClient.initialize({
-    rpc: rpc.length > 0 ? rpc : DEFAULT_RPC_URLS,
+    rpc: effectiveRpc,
     workProvider: WorkProvider.auto({
-      ...(work.length > 0 ? { urls: work } : {}),
+      urls: workUrls,
       timeoutMs: workTimeoutMs,
     }),
   });
@@ -117,6 +120,9 @@ function readersFor(rpcUrl?: string): NanoReaders {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
+    workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
+    process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
+      rpcProcess(client, block, subtype, { timeoutMs }),
   };
 }
 
@@ -489,7 +495,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const subtype = String(args?.subtype) as 'send' | 'receive' | 'open' | 'change';
-        return toToolSuccess(await submitPreparedBlock(wallet, String(args?.rpcUrl ?? ''), ctx, String(args?.txHex), subtype, { index }));
+        return toToolSuccess(await submitPreparedBlock(wallet, String(args?.rpcUrl ?? ''), ctx, readersFor(String(args?.rpcUrl ?? '')), String(args?.txHex), subtype, { index }));
       }
 
       case 'history': {

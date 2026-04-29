@@ -97,3 +97,24 @@ export function buildNanoStateBlockHex(input: StateBlockHashInput): string {
   return bytesToHex(block);
 }
 
+/**
+ * Parse a 176-byte state block hex back into its constituent fields.
+ * Layout: [32 preamble][32 accountPublicKey][32 previous][32 representativePublicKey][16 balance][32 link]
+ */
+export function parseNanoStateBlockHex(hex: string): StateBlockHashInput & { balanceRaw: string } {
+  if (typeof hex !== 'string' || hex.length !== 352) {
+    throw new Error(`State block hex must be 352 hex characters (176 bytes), got ${hex?.length ?? 'undefined'}`);
+  }
+  const bytes = hexToBytes(hex);
+  // skip 32-byte preamble
+  const accountPublicKey = bytesToHex(bytes.slice(32, 64));
+  const previous = bytesToHex(bytes.slice(64, 96));
+  const representativePublicKey = bytesToHex(bytes.slice(96, 128));
+  const balanceBytes = bytes.slice(128, 144);
+  let balance = 0n;
+  for (const b of balanceBytes) balance = (balance << 8n) | BigInt(b);
+  const balanceRaw = balance.toString();
+  const link = bytesToHex(bytes.slice(144, 176));
+  return { accountPublicKey, previous, representativePublicKey, balanceRaw, link };
+}
+

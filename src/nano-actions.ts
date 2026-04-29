@@ -1,12 +1,13 @@
 import { NOMS } from '@openrai/nano-core';
 import { ProgressNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
-import { buildNanoStateBlockHex } from './state-block.js';
-import { decodeNanoAddress } from './nano-address.js';
+import { buildNanoStateBlockHex, hashNanoStateBlockHex, parseNanoStateBlockHex, type StateBlockHashInput } from './state-block.js';
+import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse } from './rpc.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
-import { getWalletProxy, listWalletsProxy, signAndSendProxy, signMessageProxy, type OwsWalletLike } from './ows.js';
+import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy, type OwsWalletLike } from './ows.js';
+import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from 'nano-pow-with-fallback';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
 export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
@@ -53,6 +54,8 @@ export type NanoReaders = {
   accountInfo: (address: string) => Promise<AccountInfoResponse | NanoRpcErrorResponse>;
   accountBalance: (address: string) => Promise<{ balance: string; pending: string }>;
   receivable: (address: string, count: number) => Promise<ReceivableItem[]>;
+  workGenerate?: (hash: string, difficulty: string) => Promise<string>;
+  process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
 };
 
 export type NanoWalletAccount = {
@@ -142,6 +145,80 @@ function wrapError(error: unknown, code: string, step: NanoActionStep, message: 
   if (error instanceof NanoActionError) throw error;
   const inner = error instanceof Error ? error.message : String(error);
   throw new NanoActionError(code, step, `${message}: ${inner}`, { retriable, details: { ...details, cause: inner } });
+}
+
+/**
+ * Sign a block with OWS, generate PoW via the configured WorkProvider (local-first),
+ * then broadcast via rpcProcess. This replaces the monolithic OWS signAndSend which
+ * uses a hardcoded rpc.nano.to endpoint for PoW regardless of config.
+ */
+async function signWorkAndProcess(
+  walletName: string,
+  chainId: string,
+  blockInput: StateBlockHashInput,
+  subtype: 'send' | 'receive' | 'open' | 'change',
+  index: number,
+  readers: NanoReaders,
+): Promise<{ txHash: string }> {
+  const blockHex = buildNanoStateBlockHex(blockInput);
+  const blockHash = hashNanoStateBlockHex(blockInput);
+
+  // 1. Sign with OWS (key custody only — no PoW, no broadcast)
+  let signResult: { signature: string };
+  try {
+    signResult = await signTransactionProxy(walletName, chainId, blockHex, undefined, index);
+  } catch (error) {
+    wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
+  }
+
+  // 2. Generate PoW via WorkProvider (local-first: WebGPU → WebGL → WASM → remote)
+  const difficulty = (subtype === 'open' || subtype === 'receive') ? THRESHOLD__OPEN_RECEIVE : THRESHOLD__SEND_CHANGE;
+  const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
+
+  let work: string;
+  if (readers.workGenerate) {
+    try {
+      work = await readers.workGenerate(workRoot, difficulty);
+    } catch (error) {
+      wrapError(error, 'POW_FAILED', 'submit_block', `PoW generation failed for ${subtype} block`, {}, true);
+    }
+  } else {
+    // Fallback: ask OWS to do it the old way (legacy path, no config control)
+    try {
+      const result = await signTransactionProxy(walletName, chainId, blockHex, undefined, index);
+      // We already signed above; this path signals misconfiguration — raise loudly
+      void result;
+    } catch (_) {}
+    throw new NanoActionError('POW_UNAVAILABLE', 'submit_block', 'workGenerate not provided in readers — cannot generate PoW independently of OWS', { details: { subtype } });
+  }
+
+  // 3. Broadcast via rpcProcess
+  if (!readers.process) {
+    throw new NanoActionError('PROCESS_UNAVAILABLE', 'submit_block', 'process not provided in readers — cannot broadcast block', { details: { subtype } });
+  }
+
+  const accountPublicKey = blockInput.accountPublicKey;
+  const account = publicKeyToNanoAddress(accountPublicKey);
+  const broadcastBlock: Record<string, unknown> = {
+    type: 'state',
+    account,
+    previous: blockInput.previous,
+    representative: publicKeyToNanoAddress(blockInput.representativePublicKey),
+    balance: blockInput.balanceRaw,
+    link: blockInput.link,
+    link_as_account: publicKeyToNanoAddress(blockInput.link),
+    signature: signResult.signature.toUpperCase(),
+    work: work.toUpperCase(),
+  };
+
+  let processed: { hash: string };
+  try {
+    processed = await readers.process(broadcastBlock, subtype);
+  } catch (error) {
+    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to broadcast ${subtype} block`, {}, true);
+  }
+
+  return { txHash: processed.hash };
 }
 
 function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): resp is NanoRpcErrorResponse {
@@ -283,23 +360,24 @@ export async function executeReceive(
   const currentBalance = opened ? BigInt((info as AccountInfoResponse).balance) : 0n;
   const amountRaw = pending.reduce((sum, item) => sum + BigInt(item.amount), 0n).toString();
   const newBalance = (currentBalance + BigInt(amountRaw)).toString();
-  const blockHex = buildNanoStateBlockHex({
+  const subtype = opened ? 'receive' : 'open';
+  const blockInput: StateBlockHashInput = {
     accountPublicKey: decodeNanoAddress(account.address).publicKey,
     previous,
     representativePublicKey: decodeNanoAddress(representative).publicKey,
     balanceRaw: newBalance,
     link: pending[0].hash,
-  });
+  };
 
-  await report(ctx, 4, 5, `receive: submitting ${opened ? 'receive' : 'open'} block for ${account.address}`);
+  await report(ctx, 4, 5, `receive: submitting ${subtype} block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signAndSendProxy(walletName, account.chainId, blockHex, undefined, index, rpcUrl);
+    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
   } catch (error) {
-    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${opened ? 'receive' : 'open'} block for ${account.address}`, {
+    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${subtype} block for ${account.address}`, {
       walletName,
       address: account.address,
-      subtype: opened ? 'receive' : 'open',
+      subtype,
     }, true);
   }
 
@@ -362,18 +440,18 @@ export async function executeSend(
   }
 
   await report(ctx, 2, 4, `send: building block for ${destination}`);
-  const blockHex = buildNanoStateBlockHex({
+  const sendBlockInput: StateBlockHashInput = {
     accountPublicKey: decodeNanoAddress(account.address).publicKey,
     previous: info.frontier,
     representativePublicKey: decodeNanoAddress(info.representative || DEFAULT_REPRESENTATIVE).publicKey,
     balanceRaw: (currentBalance - BigInt(amountRaw)).toString(),
     link: destinationValidation.publicKey,
-  });
+  };
 
   await report(ctx, 3, 4, `send: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signAndSendProxy(walletName, account.chainId, blockHex, undefined, index, rpcUrl);
+    submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers);
   } catch (error) {
     wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit send block for ${account.address}`, {
       walletName,
@@ -426,18 +504,18 @@ export async function executeChange(
   }
 
   await report(ctx, 2, 4, `change: building block for ${account.address}`);
-  const blockHex = buildNanoStateBlockHex({
+  const changeBlockInput: StateBlockHashInput = {
     accountPublicKey: decodeNanoAddress(account.address).publicKey,
     previous: info.frontier,
     representativePublicKey: repValidation.publicKey,
     balanceRaw: info.balance,
     link: ZERO_32_HEX,
-  });
+  };
 
   await report(ctx, 3, 4, `change: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signAndSendProxy(walletName, account.chainId, blockHex, undefined, index, rpcUrl);
+    submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers);
   } catch (error) {
     wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit change block for ${account.address}`, {
       walletName,
@@ -466,6 +544,7 @@ export async function submitPreparedBlock(
   walletName: string,
   rpcUrl: string | undefined,
   ctx: NanoActionContext,
+  readers: NanoReaders,
   txHex: string,
   subtype: 'send' | 'receive' | 'open' | 'change',
   options: { index?: number } = {},
@@ -474,9 +553,10 @@ export async function submitPreparedBlock(
   const account = await resolveNanoWalletAccount(walletName, index);
   await report(ctx, 1, 2, `submit-block: submitting ${subtype} block for ${account.address}`);
 
+  const blockInput = parseNanoStateBlockHex(txHex);
   let submitted;
   try {
-    submitted = await signAndSendProxy(walletName, account.chainId, txHex, undefined, index, rpcUrl);
+    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
   } catch (error) {
     wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit prepared ${subtype} block for ${account.address}`, {
       walletName,

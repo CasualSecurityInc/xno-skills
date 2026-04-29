@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
 import { generateAsciiQr, buildNanoUri } from './qr.js';
-import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcProbeCaps, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcProbeCaps, rpcWorkGenerate, rpcProcess, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -63,10 +63,13 @@ const DEFAULT_RPC_URLS = [
 function getNanoClient(options?: { url?: string }): NanoClient {
   const rpc = options?.url || config.rpcUrl || process.env.NANO_RPC_URL;
   const work = config.workPeerUrl || process.env.XNO_WORK_URL;
+  const workUrls = work
+    ? work.split(',').filter(Boolean)
+    : rpc ? [rpc] : DEFAULT_RPC_URLS;
   return NanoClient.initialize({
     rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
-      ...(work ? { urls: work.split(',').filter(Boolean) } : {}),
+      urls: workUrls,
       timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
     }),
   });
@@ -79,6 +82,9 @@ function readersFor(options?: { url?: string }) {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
+    workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
+    process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
+      rpcProcess(client, block, subtype, { timeoutMs }),
   };
 }
 
@@ -259,7 +265,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; json?: boolean }) => {
     try {
-      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, options.txHex, options.subtype, { index: 0 });
+      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.txHex, options.subtype, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
