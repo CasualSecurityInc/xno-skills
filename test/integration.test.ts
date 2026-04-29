@@ -10,9 +10,9 @@ describe('End-to-End Integration', () => {
   describe('CLI Operations', () => {
     it('should convert units with high precision via CLI', () => {
       const input = '1.000000000000000000000000000001';
-      const output = execSync(`node ${CLI_PATH} convert ${input} xno --to raw --json`).toString();
+      const output = execSync(`node ${CLI_PATH} convert ${input} xno --json`).toString();
       const result = JSON.parse(output);
-      expect(result.to).toBe('1000000000000000000000000000001');
+      expect(result.raw).toBe('1000000000000000000000000000001');
     });
 
     it('should fail with a proper error on invalid CLI input', () => {
