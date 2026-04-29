@@ -81,7 +81,7 @@ Exposed tools:
 ## Installation
 
 ```bash
-npm install xno-skills
+npm install -g xno-skills
 ```
 
 ## Releasing
@@ -186,25 +186,31 @@ Once you have an OWS wallet, use these commands to interact with it on Nano:
 xno-skills wallets
 
 # Get the Nano address for a specific wallet and account index
-xno-skills address --wallet my-wallet --index 0
+xno-skills wallets --show-addresses
 ```
 
-#### Restore from mnemonic
+### Sign and Verify Messages (NOMS)
+
+Sign off-chain messages with a private key, or verify signatures:
 
 ```bash
-# Safer import via stdin (recommended)
-echo "word1 word2 ... word24" | xno-skills wallet from-mnemonic --stdin --json
+# Sign a message with a private key
+xno-skills sign "Hello, Nano!" --private-key <hex>
 
-# JSON output
-xno-skills wallet from-mnemonic --stdin --json
+# Verify a signature against an address
+xno-skills verify nano_1abc123... "Hello, Nano!" <signature>
 ```
 
-#### Probe mnemonic ambiguity (24-word)
+### Build and Submit Blocks
 
-If you have a specific Nano RPC endpoint you want to use, you can set `NANO_RPC_URL`. Otherwise, it will automatically use public zero-config nodes:
+Build unsigned state blocks for manual workflows, or sign and submit pre-built blocks:
 
 ```bash
-echo "word1 word2 ... word24" | xno-skills wallet probe-mnemonic --stdin --json
+# Build an unsigned send block
+xno-skills block send --from <address> --to <destination> --amount 1.5
+
+# Sign and submit a prepared block hex
+xno-skills submit-block --wallet my-wallet --tx-hex <hex> --subtype send
 ```
 
 ### Convert Units

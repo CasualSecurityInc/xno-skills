@@ -13,6 +13,11 @@ The project **delegates all key management** to [OWS](https://github.com/open-wa
 ### ESM Import Requirement
 - **Landmine**: All relative imports **MUST** include the `.js` extension (e.g., `import { foo } from './foo.js';`). Failure to do so will break the ESM build.
 
+### Documentation Sync
+- **Rule**: After modifying `src/cli.ts`, **always** verify the README's CLI usage section against `npm run dev -- --help`.
+- **Checklist**: Ensure every subcommand listed in the README (1) exists in the CLI, (2) has correct flags/description, and (3) has no stale entries for removed commands.
+- **Trigger**: Any addition, removal, or flag change to CLI subcommands.
+
 ---
 
 ## MCP Server Landmines
