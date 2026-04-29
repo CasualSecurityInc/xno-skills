@@ -1,60 +1,16 @@
 # xno-skills
 
-A TypeScript library, CLI, and MCP server for Nano (XNO) cryptocurrency. Wallet custody, payment requests, unit conversion, address validation, and more.
+> A TypeScript library, CLI, and MCP server for Nano (XNO) cryptocurrency. Pairs with Open Wallet Standard (OWS) for secure key custody — send, receive, change representatives, convert units, validate addresses, sign/verify messages, and payment request workflows.
 
-## Key Information
-- **Purpose**: Wallet custody for AI agents, payment request workflows, offline key derivation (Legacy + BIP44), unit conversion, QR codes.
-- **Precision**: Uses BigInt for all amount calculations. Never use JS Number for raw units.
-- **Security**: Wallet secrets stay inside MCP custody. Seeds/mnemonics never returned by custodial wallet tools.
+All wallet custody delegates to OWS. Agents never handle seeds or mnemonics directly. All amounts use BigInt — never JS `Number` for raw units.
 
-## AI Skills
-To install AI-assisted workflows:
-`npx skills add CasualSecurityInc/xno-skills`
+## Essential
 
-Available skills: nano-create-wallet, nano-mcp-wallet, nano-request-payment, nano-return-funds, nano-check-balance, nano-convert-units, nano-generate-qr, nano-validate-address, nano-block-lattice-expert.
+- [README.md](README.md): Full documentation — installation, CLI usage, MCP server setup, API reference (seed/mnemonic derivation, BIP44, Legacy, unit conversion, QR codes, security notes)
+- [AGENTS.md](AGENTS.md): Non-discoverable agent conventions — OWS requirement, ESM `.js` imports, spending limits, persistence paths, MCP tooling patterns
 
-## MCP Server
-A built-in Model Context Protocol (MCP) server for AI agents.
-To start: `npx xno-mcp`
+## Source
 
-Wallet custody tools:
-- `wallet_create` / `wallet_list` / `wallet_addresses`: Named wallets (secrets stay in MCP).
-- `wallet_balance` / `wallet_probe_balances`: Balance and pending checks via RPC.
-- `wallet_receive` / `wallet_send`: Receive pending blocks and send funds.
-- `wallet_set_allowance` / `wallet_get_allowance`: Spending limits per wallet.
-- `wallet_history`: Persistent transaction log.
-
-Payment request tools:
-- `payment_request_create`: Structured funding request with tracking.
-- `payment_request_status`: Check funding progress.
-- `payment_request_receive`: Receive funds for a specific request.
-- `payment_request_refund`: Safe refund with source attribution.
-- `payment_request_list`: List all requests.
-
-Utility tools:
-- `config_get` / `config_set`: Session defaults (RPC URL, representative, timeouts, persistence).
-- `generate_wallet`: Generate wallet (returns secrets — use wallet_create for custody).
-- `derive_address`: Derive address from mnemonic/seed.
-- `probe_mnemonic`: Resolve 24-word derivation ambiguity via RPC.
-- `convert_units`: XNO/raw unit conversion.
-- `validate_address`: Address format and checksum check.
-- `generate_qr`: QR code for Nano address/payment URI.
-- `rpc_account_balance`: Direct RPC balance query.
-
-## Installation
-`npm install xno-skills`
-
-## CLI Usage
-Available via `npx xno-skills <command>` or global install.
-- `xno-skills wallet create [--json]`: Generate new wallet.
-- `xno-skills wallet from-mnemonic --stdin [--json]`: Restore wallet (secure stdin).
-- `xno-skills convert <amount> <from> --to <to>`: Convert between raw, XNO, knano, mnano.
-- `xno-skills qr <address> [--amount <val>]`: Generate ASCII QR code.
-- `xno-skills validate <address> [--json]`: Check address format and checksum.
-- `xno-skills rpc account-balance <address> [--json --xno]`: Check balance via RPC.
-
-## Entry Points
-- `src/index.ts`: Public API exports.
-- `src/cli.ts`: CLI implementation.
-- `src/mcp.ts`: MCP server (wallet custody, payment requests, allowances).
-- `test/mcp.test.ts`: MCP integration tests.
+- [src/index.ts](src/index.ts): Public API exports
+- [src/cli.ts](src/cli.ts): CLI implementation (wallets, balance, send, receive, change, submit-block, history, sign/verify, convert, qr, validate, rpc, block construction)
+- [src/mcp.ts](src/mcp.ts): MCP server — wallet custody, payment requests, allowances
