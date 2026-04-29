@@ -61,7 +61,7 @@ triggers:
 > - **State Verification:** Always verify an account's state (balance and frontier) via RPC before manually building a block. Do not hallucinate previous hashes.
 > - **Command Discovery:** Always use `--help` (e.g., `bunx -y xno-skills --help`) before guessing CLI subcommands to avoid 'unknown command' errors.
 > - **Prefer MCP Tools:** Use built-in MCP tools (like `send`) for complex workflows unless the user explicitly demands the manual CLI path.
-> - **PoW Validation:** Remember that a signed block without valid Proof of Work (PoW) cannot be broadcast. Ensure PoW is generated.
+> - **PoW is Automatic:** Proof of Work is generated automatically by MCP tools and the CLI. Never attempt to generate or supply PoW manually.
 > - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
 > - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
@@ -158,7 +158,7 @@ This error is almost always **transient** (rate limiting, brief node restart). I
 | 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, then retry. |
 | 4 | Reset override: `config_set({ rpcUrl: "" })`. **STOP — report to user.** |
 
-> Note: `rpc.nano.to` is the built-in default. Setting `rpcUrl` to it explicitly does nothing.
+> Note: The built-in defaults are `rainstorm.city/api` and `nanoslo.0x.no/proxy`. Setting `rpcUrl` to one of these explicitly just pins you to that node.
 
 **Prohibited at every step:** writing scripts, using curl, CLI `block` commands, or manual PoW generation.
 
