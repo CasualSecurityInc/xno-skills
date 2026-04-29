@@ -55,11 +55,16 @@ const program = new Command();
 const config: XnoConfig = loadConfig();
 const transactions = loadTransactions();
 
+const DEFAULT_RPC_URLS = [
+  'https://rainstorm.city/api',
+  'https://nanoslo.0x.no/proxy',
+];
+
 function getNanoClient(options?: { url?: string }): NanoClient {
   const rpc = options?.url || config.rpcUrl || process.env.NANO_RPC_URL;
   const work = config.workPeerUrl || process.env.XNO_WORK_URL;
   return NanoClient.initialize({
-    rpc: rpc ? [rpc] : undefined,
+    rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
       ...(work ? { urls: work.split(',').filter(Boolean) } : {}),
       timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
@@ -557,7 +562,7 @@ rpcCmd
   .option('-j, --json', 'Output raw JSON result')
   .action(async (url: string | undefined, options: { timeoutMs: number; json?: boolean }) => {
     try {
-      const target = url || config.rpcUrl || process.env.NANO_RPC_URL || 'https://rpc.nano.to';
+      const target = url || config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0];
       const client = getNanoClient({ url: target });
       const result = await rpcProbeCaps(client, target, { timeoutMs: options.timeoutMs });
 

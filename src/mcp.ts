@@ -77,6 +77,11 @@ const DEFAULT_MAX_SEND_XNO = (() => {
   return '1.0';
 })();
 
+const DEFAULT_RPC_URLS = [
+  'https://rainstorm.city/api',
+  'https://nanoslo.0x.no/proxy',
+];
+
 function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient {
   const rpc = (explicitRpc || state.config.rpcUrl || process.env.NANO_RPC_URL || '').split(',').filter(Boolean);
   const work = (explicitWork || state.config.workPeerUrl || process.env.XNO_WORK_URL || '').split(',').filter(Boolean);
@@ -91,7 +96,7 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
   );
 
   const client = NanoClient.initialize({
-    rpc: rpc.length > 0 ? rpc : undefined,
+    rpc: rpc.length > 0 ? rpc : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
       ...(work.length > 0 ? { urls: work } : {}),
       timeoutMs: workTimeoutMs,
