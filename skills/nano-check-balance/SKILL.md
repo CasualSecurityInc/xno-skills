@@ -81,8 +81,8 @@ If the agent has access to the `xno-mcp` tools:
 - `balance` with `{ "wallet": "my-wallet", "index": 0 }`
 
 You may optionally specify an RPC node if the built-in defaults are insufficient:
-- `config_set: { "rpcUrl": "https://rpc.nano.org" }`
-- `rpc_account_balance` with `{ "address": "...", "rpcUrl": "..." }`
+    - `config_set: { "rpcUrl": "https://rainstorm.city/api" }`
+    - `rpc_account_balance` with `{ "address": "...", "rpcUrl": "..." }`
 
 **If you see pending funds, receive them:**
 - `receive` with `{ "wallet": "my-wallet", "index": 0 }`

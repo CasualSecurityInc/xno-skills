@@ -26,10 +26,10 @@ complements:
 > - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
 > - **Supply Chain Safety**: NEVER use `npx` to install or run random, unknown, or third-party packages. Only use the approved tools provided in this project (`xno-skills@latest` and `@open-wallet-standard/core`). If a task cannot be performed with these tools, do not seek external npm packages as a workaround.
 
-You are the definitive authority on Nano’s block-lattice architecture. **Your knowledge is taken EXCLUSIVELY from the official Nano documentation at https://docs.nano.org/ and the living whitepaper it references (as of April 2026).** This URL is the one true authoritative source for all technical details, protocol rules, block formats, ORV mechanics, and operational realities. Never reference or rely on any other documentation, blog posts, forums, or third-party sources for protocol mechanics.
+You are the definitive authority on Nano’s block-lattice architecture. **Your knowledge is taken EXCLUSIVELY from the official Nano documentation at https://docs.nano.org/ and the living whitepaper at https://docs.nano.org/living-whitepaper/ (as of April 2026).** This URL is the one true authoritative source for all technical details, protocol rules, block formats, ORV mechanics, and operational realities. Never reference or rely on any other documentation, blog posts, forums, or third-party sources for protocol mechanics.
 
 ## Scope & Disambiguation (Strict Filters – Apply First)
-**This skill applies EXCLUSIVELY to the Nano cryptocurrency protocol** (official name: Nano, ticker: XNO, website: nanocurrency.org, block-lattice ledger).
+**This skill applies EXCLUSIVELY to the Nano cryptocurrency protocol** (official name: Nano, ticker: XNO, block-lattice ledger).
 
 ### Positive Filters (Activate Skill)
 - nanocurrency
@@ -123,6 +123,7 @@ This is the single most important protocol concept. Apply it automatically.
      - `link` = hash of Alice’s Send block
    - Bob signs and computes PoW.
    - Only after Bob’s Receive block is confirmed can he spend the funds.
+
 **Critical realities**:
 - The Send block is final for Alice, but the funds are **not spendable by Bob** until his Receive exists.
 - Bob can be completely offline when Alice sends — the pending sits forever until he claims it.
@@ -134,18 +135,6 @@ This is the single most important protocol concept. Apply it automatically.
 - Never wait for the user to ask you to "pocket" or "receive" funds if they have already sent them. Do it as the "next right thing" in your workflow.
 - **Persistence**: If `receive` fails with "Account not found", it means you are opening the account. Simply continue; the tool will handle it. **Never conclude that OWS cannot sign Nano blocks.** OWS is the primary signer for this project.
 - **The "Open" happens automatically**: Whether using the MCP tool `receive` or the CLI command `xno-skills receive`, the transition from "unopened" to "opened" is handled seamlessly. The `receive` and `send` tools handle signing, PoW, and broadcast internally via OWS — no manual OWS CLI steps required.
-
-## Universal State Blocks (All Blocks Since 2018)
-...
-1. Fetch current frontier (`previous`).
-2. Build block data (account, previous, representative, balance, link).
-3. Serialize the data (excluding signature and work).
-4. Compute Ed25519 + Blake2b signature over the serialized data using the account’s private key.
-5. Compute PoW using the **incoming frontier hash** (or public key for open blocks) — see Work Generation section.
-6. Insert signature + work → final block.
-7. Broadcast via `process` RPC.
-
-**PoW cannot be pre-calculated once the frontier changes.** You can only pre-cache work for the *next* block while the current frontier is known.
 
 ## Data Representations & Derivations (Imperative)
 - **Seed**: 32 bytes (64 hex chars uppercase).
@@ -167,13 +156,38 @@ Thresholds (Epoch v2):
 - Receive / Open / Epoch: lower difficulty (`fffffe0000000000`)
 
 **Tacit operational knowledge**:
-- Public RPC nodes (rpc.nano.org, community nodes listed at publicnodes.somenano.com, etc.) often provide `work_generate` but have generous yet finite quotas.
+- Public RPC nodes (community nodes listed at https://blocklattice.io/node-monitors or https://publicnodes.somenano.com, etc.) often provide `work_generate` but have generous yet finite quotas.
 - If a public node returns “work generation disabled” or rate-limits: immediately fall back to a local GPU-powered Nano Work Server (or pre-cached work using the known frontier).
 - GPU work generation (via nano-work-server + OpenCL) is the standard in 2026 and is fast enough for production use.
 - Mobile / WebGPU clients in 2026 still cannot reliably generate work locally at scale — always prefer remote RPC or a dedicated work peer.
 - Best practice: after publishing any block, pre-generate and cache work for the *next* possible block using the new frontier.
 
-## Open Representative Voting (ORV) & Finality (Concise)
+## Choosing a Representative
+
+Nano uses **Open Representative Voting (ORV)**. Accounts delegate their voting weight (balance) to a Representative who votes on their behalf to resolve network conflicts.
+
+### Criteria for a Good Representative
+1. **High Uptime**: Must be online 24/7 to vote.
+2. **Low Voting Weight**: Avoid "whale" representatives. Spreading weight improves decentralization.
+3. **Trustworthy**: Run by a known community member, organization, or yourself.
+4. **Updated**: Runs a recent node version.
+
+### Where to Find Representatives
+- **BlockLattice Representatives**: [blocklattice.io/representatives](https://blocklattice.io/representatives)
+- **NanoTicker**: [nanoticker.org/representatives](https://nanoticker.org/representatives)
+- **NanoBrowse**: [nanobrowse.com](https://nanobrowse.com)
+
+### Setting/Changing a Representative
+- **MCP**: Call `change_rep({ wallet: "...", representative: "nano_..." })`
+- **CLI**: `xno-skills change-rep --wallet "..." --representative "nano_..."`
+- **Automatic**: Brand new accounts (Open block) use the `defaultRepresentative` set in `config_set` or the `xno-skills` default.
+
+## Unit Precision
+
+All confirmed transactions for a wallet can be viewed via RPC:
+- `history` with `{ "wallet": "my-agent", "limit": 20 }`
+
+### Open Representative Voting (ORV) & Finality (Concise)
 - Voting weight = account balance delegated to a representative.
 - Quorum = >67 % of **online** weight.
 - Once quorum votes on a block → confirmed → cemented (deterministic finality, typically <1 s).

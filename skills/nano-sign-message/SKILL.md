@@ -49,7 +49,7 @@ To sign a message, call the `sign_message` tool:
 {
   "name": "sign_message",
   "arguments": {
-    "name": "my-wallet",
+    "wallet": "my-wallet",
     "index": 0,
     "message": "I am me."
   }

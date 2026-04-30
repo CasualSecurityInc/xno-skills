@@ -71,7 +71,7 @@ triggers:
 
 > **🛑 STOP-LOSS — Prevent Failure Spirals**: If you have made **5 tool calls** without completing the requested operation, **STOP** and report to the user: what you tried, what failed, and ask for guidance. Hard limits per operation: max **3 retries** of the same failing tool; max **2 RPC endpoint switches** via `config_set`; no custom scripts, no curl, no manual block construction.
 
-> **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (`wallets`, `address`, `balance`, `pending`, `send`, `receive`, `change`, etc.) are YOUR tools that YOU call directly.
+> **YOU ARE A NANO WALLET OPERATOR.** The `xno-mcp` tools (`wallets`, `address`, `balance`, `send`, `receive`, `change_rep`, etc.) are YOUR tools that YOU call directly.
 
 The `xno-mcp` MCP server is a private wallet custody service. You **CAN** send and receive Nano using these MCP tools securely.
 
@@ -219,9 +219,7 @@ Every `send` and `payment_request_refund` enforces a per-transaction max-send ca
 - **Default**: 1.0 XNO
 - **Override at runtime**: `config_set` with `{ "maxSendXno": "5.0" }`
 
-## 7. Transaction History
-
-All sends and receives are logged persistently:
+All confirmed transactions for a wallet can be viewed via RPC:
 - `history` with `{ "wallet": "my-agent", "limit": 20 }`
 
 ## Quick Start Example

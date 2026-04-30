@@ -52,13 +52,13 @@ bunx -y xno-skills qr nano_1abc123...
 ### QR with amount (in XNO, decimal)
 
 ```bash
-bunx -y xno-skills qr nano_1abc123... --amount 1.5
+bunx -y xno-skills qr nano_1abc123... --amount-xno 1.5
 ```
 
 ### JSON output (for scripts)
 
 ```bash
-bunx -y xno-skills qr nano_1abc123... --amount 1.5 --json
+bunx -y xno-skills qr nano_1abc123... --amount-xno 1.5 --json
 ```
 
 Returns:
@@ -76,14 +76,14 @@ Returns:
 ## Notes
 
 - The CLI validates the address before generating the QR.
-- The `--amount` value is interpreted as XNO (Nano), not raw.
+- The `--amount-xno` value is interpreted as XNO (Nano), not raw.
 
 ## Top-Up Requests
 
 Use this when the **user** needs to receive XNO (fund their own wallet):
 
 - If they want an easy “fund this address” QR, generate an address-only QR.
-- If the user wants a specific amount, generate a QR with `--amount`; the resulting `nano:` URI includes the raw amount parameter.
+- If the user wants a specific amount, generate a QR with `--amount-xno`; the resulting `nano:` URI includes the raw amount parameter.
 
 In interactive flows, ask for:
 
