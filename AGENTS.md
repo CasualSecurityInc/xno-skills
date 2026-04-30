@@ -8,7 +8,7 @@ This file contains non-discoverable landmines and workflow gotchas for the xno-s
 The project **delegates all key management** to [OWS](https://github.com/open-wallet-standard). 
 - **Landmine**: Primary Nano actions now go through OWS via native TypeScript bindings, not the raw `ows` CLI. Do not reintroduce shell-based `ows` flows into `xno-skills` or its skills.
 - **Custody**: Agents **never** handle seeds or mnemonics directly. Use `wallets` / `address` to discover existing OWS-backed Nano accounts.
-- **Signing**: `send`, `receive`, `change`, and `submit-block` trigger OWS signing internally. `block ...` commands remain unsigned construction helpers only.
+- **Signing**: `send`, `receive`, `change-rep`, and `submit-block` trigger OWS signing internally. `block ...` commands remain unsigned construction helpers only.
 
 ### ESM Import Requirement
 - **Landmine**: All relative imports **MUST** include the `.js` extension (e.g., `import { foo } from './foo.js';`). Failure to do so will break the ESM build.
@@ -31,7 +31,7 @@ The project **delegates all key management** to [OWS](https://github.com/open-wa
 State is stored in `${XNO_MCP_HOME}` (default: `~/.xno-mcp` or project root).
 - `config.json`: RPC URLs and app settings.
 - `requests.json`: Tracked payment requests.
-- `transactions.json`: Local transaction ledger for `history`.
+- `transactions.json`: Local transaction ledger.
 - **Note**: OWS wallets themselves are stored in `~/.ows`, separate from `xno-skills` state.
 
 ---

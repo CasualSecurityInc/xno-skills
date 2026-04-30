@@ -62,16 +62,16 @@ Exposed tools:
 - `wallets`: List OWS wallets and their Nano addresses.
 - `address`: Get the Nano address for a wallet account index.
 - `balance`: Check confirmed balance and pending for a wallet account.
-- `pending`: List pending receivable blocks.
 - `receive`: Receive pending blocks (handles open/first-receive automatically).
 - `send`: Send XNO from a wallet account to a destination address.
-- `change`: Change the representative for a wallet account.
+- `change_rep`: Change the representative for a wallet account.
 - `submit_block`: Broadcast a pre-signed block hex (advanced/manual path).
 - `history`: Persistent transaction log.
 - `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list` / `payment_request_refund`: Full payment request lifecycle.
 - `config_get` / `config_set`: Manage server settings (RPC URL, representative, spending cap, etc.).
 - `convert_units`: High-precision unit conversion.
 - `validate_address`: Offline address validation.
+- `info`: Discover the current state and representative of any Nano account.
 - `rpc_account_balance`: Direct RPC balance check for any address.
 - `generate_qr`: Generate ASCII QR codes.
 - `sign_message` / `verify_message`: Sign and verify off-chain messages (NOMS).
@@ -252,6 +252,21 @@ xno-skills qr nano_1abc123... --json
 
 ```bash
 xno-skills validate nano_1abc123...
+```
+
+### Account Info
+
+Inspect the current state and representative of any Nano account:
+
+```bash
+# Check an OWS wallet by name
+xno-skills info --wallet my-wallet
+
+# Check any address directly
+xno-skills info --address nano_1abc123...
+
+# JSON output
+xno-skills info --wallet my-wallet --json
 ```
 
 ### RPC (balance/pending)
