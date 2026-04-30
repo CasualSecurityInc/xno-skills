@@ -21,25 +21,13 @@ Available skills (v2.0.0+):
 - `nano-convert-units`: High-precision unit conversion reference.
 - `nano-create-wallet`: Wallet creation/import guidance (BIP39/Legacy support).
 - `nano-generate-qr`: Terminal-friendly Nano payment QR codes.
-- `nano-mcp-wallet`: Use `xno-mcp` as a private “wallet” custody blackbox.
+- `nano-mcp-wallet`: Use `xno-mcp` as a private "wallet" custody blackbox.
 - `nano-request-payment`: Request XNO from operator (payment request workflow).
 - `nano-return-funds`: Return XNO to sender safely.
 - `nano-sign-message`: Sign off-chain messages (NOMS/ORIS-001).
 - `nano-validate-address`: Address format and checksum verification.
 - `nano-verify-message`: Verify off-chain message signatures.
 - `nano-block-lattice-expert`: Deep protocol wisdom and 2026 operational facts.
-
-### Migration (from < v1.4.0)
-
-If you have old skills installed without the `nano-` prefix, you should remove them and re-add the repo to avoid name collisions and "ghost" skills:
-
-```bash
-# 1. Remove old generic names
-npx skills remove -g check-balance convert-units create-wallet generate-qr mcp-wallet request-payment return-funds sign-message validate-address verify-message
-
-# 2. Add the new prefixed skills
-npx skills add -g CasualSecurityInc/xno-skills
-```
 
 ## MCP Server
 
@@ -52,7 +40,7 @@ To use it, add the following to your MCP client configuration:
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
     }
   }
 }
@@ -66,15 +54,16 @@ Exposed tools:
 - `send`: Send XNO from a wallet account to a destination address.
 - `change_rep`: Change the representative for a wallet account.
 - `submit_block`: Broadcast a pre-signed block hex (advanced/manual path).
-- `history`: Persistent transaction log.
-- `payment_request_create` / `payment_request_status` / `payment_request_receive` / `payment_request_list` / `payment_request_refund`: Full payment request lifecycle.
+- `history`: View on-chain transaction history for a wallet.
+- `info`: Discover the current state and representative of any Nano account.
+- `payment_request_create` / `payment_request_list` / `payment_request_status` / `payment_request_receive` / `payment_request_refund`: Full payment request lifecycle.
 - `config_get` / `config_set`: Manage server settings (RPC URL, representative, spending cap, etc.).
 - `convert_units`: High-precision unit conversion.
 - `validate_address`: Offline address validation.
-- `info`: Discover the current state and representative of any Nano account.
 - `rpc_account_balance`: Direct RPC balance check for any address.
-- `generate_qr`: Generate ASCII QR codes.
+- `generate_qr`: Generate ASCII or SVG QR codes.
 - `sign_message` / `verify_message`: Sign and verify off-chain messages (NOMS).
+- `ows_health_check`: Verify the OWS wallet daemon is reachable.
 
 > **Compatibility aliases** (kept for one release): `wallet_list`, `wallet_balance`, `wallet_receive`, `wallet_send`, `wallet_history` map to the canonical tools above.
 
@@ -83,10 +72,6 @@ Exposed tools:
 ```bash
 npm install -g xno-skills
 ```
-
-## Releasing
-
-See `RELEASING.md`.
 
 ## MCP Client Setup (Codex, Claude, OpenCode, Gemini, VS Code)
 
@@ -160,15 +145,56 @@ Add via Claude Desktop: Settings -> Developer -> Edit Config.
 
 ## CLI Usage
 
-Install globally or use with `npx`:
-
 ```bash
-# Install globally
 npm install -g xno-skills
-
 # Or use with npx
 npx xno-skills --help
 ```
+
+### Subcommands
+
+**Wallet Operations**
+
+| Command | Description |
+|---|---|
+| `wallets` | List wallets that have Nano accounts |
+| `balance --wallet <name>` | Show balance and pending amount |
+| `receive --wallet <name>` | Receive pending blocks |
+| `send --wallet <name> --to <addr> --amount-xno <n>` | Send Nano |
+| `change-rep --wallet <name> --representative <addr>` | Submit a change representative block |
+| `submit-block --wallet <name> --tx-hex <hex> --subtype <type>` | Sign and submit a prepared block hex |
+| `history --wallet <name>` | Show transaction history |
+
+**Utilities**
+
+| Command | Description |
+|---|---|
+| `info --wallet <name>` or `info --address <addr>` | Discover the current state and representative of any Nano account |
+| `convert <amount> <from>` | Convert between XNO units (xno, raw, mnano, knano) |
+| `qr <address>` | Generate a QR code for a Nano address |
+| `validate <input>` | Validate a Nano address or block hash |
+
+**Cryptography & Signing**
+
+| Command | Description |
+|---|---|
+| `sign <message> --private-key <hex>` | Sign a NOMS message with a private key |
+| `verify <address> <message> <signature>` | Verify a NOMS message signature |
+
+**Advanced & RPC**
+
+| Command | Description |
+|---|---|
+| `rpc account-balance <address>` | Query a Nano node RPC |
+| `block send --from <addr> --to <addr> --amount <n>` | Build unsigned Nano state blocks |
+
+**System**
+
+| Command | Description |
+|---|---|
+| `mcp` | Start the MCP server or view configuration instructions |
+
+All commands support `-j` / `--json` for machine-readable output.
 
 ### Wallet Discovery
 
@@ -178,110 +204,6 @@ Wallet lifecycle (create, import, rename, delete) is managed by [Open Wallet Sta
 > ```bash
 > npx skills add open-wallet-standard/core@ows
 > ```
-
-Once you have an OWS wallet, use these commands to interact with it on Nano:
-
-```bash
-# List OWS wallets and their Nano addresses
-xno-skills wallets
-
-# Get the Nano address for a specific wallet and account index
-xno-skills wallets --show-addresses
-```
-
-### Sign and Verify Messages (NOMS)
-
-Sign off-chain messages with a private key, or verify signatures:
-
-```bash
-# Sign a message with a private key
-xno-skills sign "Hello, Nano!" --private-key <hex>
-
-# Verify a signature against an address
-xno-skills verify nano_1abc123... "Hello, Nano!" <signature>
-```
-
-### Build and Submit Blocks
-
-Build unsigned state blocks for manual workflows, or sign and submit pre-built blocks:
-
-```bash
-# Build an unsigned send block
-xno-skills block send --from <address> --to <destination> --amount 1.5
-
-# Sign and submit a prepared block hex
-xno-skills submit-block --wallet my-wallet --tx-hex <hex> --subtype send
-```
-
-### Convert Units
-
-```bash
-# Convert XNO to raw
-xno-skills convert 1.5 xno --to raw
-
-# Convert raw to XNO
-xno-skills convert 1500000000000000000000000000000 raw --to xno
-
-# Convert between units
-xno-skills convert 1 mnano --to knano
-
-# JSON output
-xno-skills convert 1 xno --to raw --json
-```
-
-Supported units:
-- `xno` or `nano` - Nano (10^30 raw)
-- `knano` - Kilo-nano (10^27 raw)
-- `mnano` - Mega-nano (10^24 raw)
-- `raw` - Base unit
-
-### Generate QR Codes
-
-```bash
-# QR code for address
-xno-skills qr nano_1abc123...
-
-# QR code with amount
-xno-skills qr nano_1abc123... --amount 1.5
-
-# JSON output
-xno-skills qr nano_1abc123... --json
-```
-
-### Validate Addresses
-
-```bash
-xno-skills validate nano_1abc123...
-```
-
-### Account Info
-
-Inspect the current state and representative of any Nano account:
-
-```bash
-# Check an OWS wallet by name
-xno-skills info --wallet my-wallet
-
-# Check any address directly
-xno-skills info --address nano_1abc123...
-
-# JSON output
-xno-skills info --wallet my-wallet --json
-```
-
-### RPC (balance/pending)
-
-Check balance using built-in public nodes:
-
-```bash
-xno-skills rpc account-balance nano_1abc123... --json --xno
-```
-
-Or override with a specific URL:
-
-```bash
-xno-skills rpc account-balance nano_1abc123... --url "http://127.0.0.1:7076" --json --xno
-```
 
 ## API Reference
 
@@ -323,7 +245,7 @@ const mnemonic = seedToMnemonic(seed);
 
 Convert a BIP39 mnemonic phrase back to its underlying entropy (hex).
 
-Note: this is **not** the BIP39 PBKDF2 “seed”; it’s the raw entropy the mnemonic encodes.
+Note: this is **not** the BIP39 PBKDF2 "seed"; it's the raw entropy the mnemonic encodes.
 
 ```typescript
 import { mnemonicToSeed } from 'xno-skills';
@@ -334,7 +256,7 @@ const seed = mnemonicToSeed(mnemonic);
 
 #### `mnemonicToBIP39Seed(mnemonic: string, passphrase?: string): string`
 
-Convert a BIP39 mnemonic (+ optional passphrase) to the PBKDF2 “seed” hex used for HD derivation.
+Convert a BIP39 mnemonic (+ optional passphrase) to the PBKDF2 "seed" hex used for HD derivation.
 
 #### `validateMnemonic(mnemonic: string): boolean`
 
@@ -647,17 +569,8 @@ npm install
 # Run unit tests
 npm test
 
-# Run integration tests
-npx vitest run test/integration.test.ts
-
 # Build
 npm run build
-
-# Build ESM
-npm run build:esm
-
-# Build CJS
-npm run build:cjs
 ```
 
 ## Releasing
