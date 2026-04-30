@@ -518,6 +518,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return toToolSuccess(await submitPreparedBlock(wallet, String(args?.rpcUrl ?? ''), ctx, readersFor(String(args?.rpcUrl ?? '')), String(args?.txHex), subtype, { index }));
       }
 
+      case 'history': {
+        const wallet = walletNameFromArgs(args);
+        const index = walletIndexFromArgs(args);
+        const limit = Number(args?.limit ?? 20);
+        const history = await getNanoHistory(wallet, readersFor(), ctx, { index, count: limit });
+        return toToolSuccess(history);
+      }
+
       case 'sign_message': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
@@ -592,6 +600,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         persistPaymentRequests();
         const qr = await generateAsciiQr(address.address, amountXno);
         return toToolSuccess({ id, address: address.address, amountXno, qr });
+      }
+
+      case 'payment_request_list': {
+        const walletFilter = args?.walletName ? String(args.walletName) : undefined;
+        const statusFilter = args?.status ? String(args.status) : undefined;
+        let list = Array.from(state.paymentRequests.values());
+        if (walletFilter) list = list.filter(r => r.owsWalletId === walletFilter);
+        if (statusFilter) list = list.filter(r => r.status === statusFilter);
+        return toToolSuccess(list);
       }
 
       case 'payment_request_status': {

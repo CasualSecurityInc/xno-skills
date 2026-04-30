@@ -788,6 +788,7 @@ program.configureHelp({ showGlobalOptions: true });
 // NanoClient's HTTP connection pool keeps the event loop alive after commands
 // complete. Force a clean exit for short-lived CLI commands; the MCP server
 // (a long-running process) handles its own lifecycle.
+const isMcp = process.argv.includes('mcp');
 program.parseAsync(process.argv).then(() => {
-  process.exit(0);
+  if (!isMcp) process.exit(0);
 });

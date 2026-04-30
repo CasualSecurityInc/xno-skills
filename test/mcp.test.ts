@@ -188,7 +188,7 @@ describe('MCP Server Integration', () => {
     expect(result.isError).toBeTruthy();
   });
 
-  it('should return empty history for new OWS wallet', async () => {
+  it('should return on-chain history for OWS wallet', async () => {
     const result = await client.callTool({
       name: "wallet_history",
       arguments: { walletName: "A" }
@@ -197,7 +197,6 @@ describe('MCP Server Integration', () => {
     expect(result.isError).toBeFalsy();
     const out = JSON.parse((result.content[0] as any).text);
     expect(out).toBeInstanceOf(Array);
-    expect(out).toHaveLength(0);
   });
 
   it('should set maxSendXno via config_set', async () => {

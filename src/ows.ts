@@ -28,7 +28,7 @@ const mockWallet: WalletLike = {
   name: 'A',
   createdAt: new Date().toISOString(),
   accounts: [{
-    address: 'nano_1link1111111111111111111111111111111111111111111111111111111',
+    address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
     chainId: 'nano',
     derivationPath: "m/44'/165'/0'/0/0",
   }],
