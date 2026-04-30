@@ -4,7 +4,7 @@ import { buildNanoStateBlockHex, hashNanoStateBlockHex, parseNanoStateBlockHex, 
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
-import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse } from './rpc.js';
+import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse, type AccountHistoryEntry } from './rpc.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy, type OwsWalletLike } from './ows.js';
 import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from 'nano-pow-with-fallback';
@@ -20,6 +20,8 @@ export type NanoActionStep =
   | 'fetch_account_info'
   | 'fetch_balance'
   | 'fetch_receivable'
+  | 'fetch_history'
+  | 'fetch_info'
   | 'build_block'
   | 'sign_with_ows'
   | 'submit_block'
@@ -54,6 +56,7 @@ export type NanoReaders = {
   accountInfo: (address: string) => Promise<AccountInfoResponse | NanoRpcErrorResponse>;
   accountBalance: (address: string) => Promise<{ balance: string; pending: string }>;
   receivable: (address: string, count: number) => Promise<ReceivableItem[]>;
+  accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
   workGenerate?: (hash: string, difficulty: string) => Promise<string>;
   process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
 };
@@ -71,11 +74,6 @@ export type NanoWalletSummary = {
   address?: string;
 };
 
-export type PendingSummary = {
-  address: string;
-  blocks: ReceivableItem[];
-};
-
 export type AddressSummary = {
   wallet: string;
   address: string;
@@ -87,9 +85,23 @@ export type BalanceSummary = {
   pendingRaw: string;
   balanceXno: string;
   pendingXno: string;
+  pendingBlocks: ReceivableItem[];
 };
 
-export type HistorySummary = TransactionRecord[];
+export type HistorySummary = AccountHistoryEntry[];
+
+export type AccountInfoSummary = {
+  address: string;
+  balanceRaw: string;
+  pendingRaw: string;
+  balanceXno: string;
+  pendingXno: string;
+  representative?: string;
+  frontier?: string;
+  blockCount?: string;
+  weightRaw?: string;
+  weightXno?: string;
+};
 
 export type SubmitBlockResult = {
   hash: string;
@@ -221,7 +233,7 @@ async function signWorkAndProcess(
   return { txHash: processed.hash };
 }
 
-function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): resp is NanoRpcErrorResponse {
+export function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): resp is NanoRpcErrorResponse {
   return typeof (resp as any)?.error === 'string';
 }
 
@@ -286,31 +298,83 @@ export async function getNanoAddress(walletName: string, index = 0): Promise<Add
   return { wallet: walletName, address: account.address };
 }
 
-export async function getNanoBalance(walletName: string, readers: NanoReaders, ctx: NanoActionContext, index = 0): Promise<BalanceSummary> {
+export async function getNanoBalance(walletName: string, readers: NanoReaders, ctx: NanoActionContext, index = 0, count = 10): Promise<BalanceSummary> {
   const account = await resolveNanoWalletAccount(walletName, index);
   try {
     const balance = await readers.accountBalance(account.address);
+    let pendingBlocks: ReceivableItem[] = [];
+    if (balance.pending && balance.pending !== '0') {
+      pendingBlocks = await readers.receivable(account.address, count);
+    }
     return {
       address: account.address,
       balanceRaw: balance.balance,
       pendingRaw: balance.pending,
       balanceXno: rawToNano(balance.balance),
       pendingXno: rawToNano(balance.pending),
+      pendingBlocks,
     };
   } catch (error) {
     wrapError(error, 'BALANCE_LOOKUP_FAILED', 'fetch_balance', `Failed to fetch balance for ${account.address}`, { walletName, address: account.address }, true);
   }
 }
 
-export async function getNanoPending(walletName: string, readers: NanoReaders, ctx: NanoActionContext, options: { index?: number; count?: number } = {}): Promise<PendingSummary> {
+export async function getNanoHistory(walletName: string, readers: NanoReaders, ctx: NanoActionContext, options: { index?: number; count?: number } = {}): Promise<HistorySummary> {
   const index = options.index ?? 0;
   const count = options.count ?? 10;
   const account = await resolveNanoWalletAccount(walletName, index);
   try {
-    const blocks = await readers.receivable(account.address, count);
-    return { address: account.address, blocks };
+    const history = await readers.accountHistory(account.address, count);
+    return history;
   } catch (error) {
-    wrapError(error, 'RECEIVABLE_LOOKUP_FAILED', 'fetch_receivable', `Failed to fetch pending blocks for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(error, 'HISTORY_LOOKUP_FAILED', 'fetch_history', `Failed to fetch history for ${account.address}`, { walletName, address: account.address }, true);
+  }
+}
+
+export async function getNanoAccountInfo(
+  options: { wallet?: string; address?: string; index?: number },
+  readers: NanoReaders,
+  ctx: NanoActionContext
+): Promise<AccountInfoSummary> {
+  let targetAddress = options.address;
+  if (!targetAddress) {
+    if (!options.wallet) throw new Error('Either wallet or address must be provided');
+    const account = await resolveNanoWalletAccount(options.wallet, options.index ?? 0);
+    targetAddress = account.address;
+  } else {
+    const v = validateAddress(targetAddress);
+    if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
+  }
+
+  try {
+    const info = await readers.accountInfo(targetAddress);
+    if ('error' in info) {
+      if (info.error === 'Account not found') {
+        return {
+          address: targetAddress,
+          balanceRaw: '0',
+          pendingRaw: '0',
+          balanceXno: '0',
+          pendingXno: '0',
+        };
+      }
+      throw new Error(info.error);
+    }
+
+    return {
+      address: targetAddress,
+      balanceRaw: info.balance,
+      pendingRaw: info.pending ?? '0',
+      balanceXno: rawToNano(info.balance),
+      pendingXno: rawToNano(info.pending ?? '0'),
+      representative: info.representative,
+      frontier: info.frontier,
+      blockCount: info.block_count,
+      weightRaw: info.weight,
+      weightXno: info.weight ? rawToNano(info.weight) : undefined,
+    };
+  } catch (error) {
+    wrapError(error, 'INFO_LOOKUP_FAILED', 'fetch_info', `Failed to fetch info for ${targetAddress}`, { address: targetAddress }, true);
   }
 }
 

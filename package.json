@@ -61,6 +61,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@types/qrcode-svg": "^1.1.5",
     "@types/qrcode-terminal": "^0.12.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
@@ -74,6 +75,7 @@
     "@openrai/nano-core": "^2.4.8",
     "commander": "^14.0.3",
     "nano-pow-with-fallback": "^1.1.2",
+    "qrcode-svg": "^1.1.0",
     "qrcode-terminal": "^0.12.0"
   }
 }

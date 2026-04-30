@@ -90,6 +90,9 @@ export interface AccountInfoResponse {
   frontier: string;
   representative?: string;
   balance: string;
+  pending?: string;
+  block_count?: string;
+  weight?: string;
 }
 
 export async function rpcAccountInfo(
@@ -102,7 +105,7 @@ export async function rpcAccountInfo(
 
   return nanoRpcCall<NanoRpcResponse<AccountInfoResponse>>(
     client,
-    { action: 'account_info', account: address, representative: 'true' },
+    { action: 'account_info', account: address, representative: 'true', pending: 'true', weight: 'true' },
     { ...options, allowRpcError: true }
   );
 }
@@ -202,6 +205,38 @@ function normalizeReceivableBlocks(blocks: any): ReceivableItem[] {
     }
   }
   return out;
+}
+
+export interface AccountHistoryEntry {
+  type: string;
+  account: string;
+  amount: string;
+  local_timestamp: string;
+  height: string;
+  hash: string;
+  confirmed: string;
+}
+
+export async function rpcAccountHistory(
+  client: NanoClient,
+  address: string,
+  count: number,
+  options: RpcCallOptions = {}
+): Promise<AccountHistoryEntry[]> {
+  const v = validateAddress(address);
+  if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
+  const n = Math.max(1, Math.min(1000, Math.floor(count || 10)));
+
+  const res = await nanoRpcCall<any>(
+    client,
+    { action: 'account_history', account: address, count: String(n) },
+    { ...options, allowRpcError: true }
+  );
+  if (typeof res?.error === 'string') {
+    if (res.error.toLowerCase().includes('account not found')) return [];
+    throw new Error(res.error);
+  }
+  return res.history || [];
 }
 
 export interface VersionResponse {

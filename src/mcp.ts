@@ -7,8 +7,8 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { generateAsciiQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcWorkGenerate, rpcProcess } from './rpc.js';
+import { generateAsciiQr, generateSvgQr } from './qr.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess } from './rpc.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { version } from './version.js';
@@ -21,7 +21,8 @@ import {
   executeSend,
   getNanoAddress,
   getNanoBalance,
-  getNanoPending,
+  getNanoHistory,
+  getNanoAccountInfo,
   listNanoWallets,
   resolveNanoWalletAccount,
   signWalletMessage,
@@ -120,6 +121,7 @@ function readersFor(rpcUrl?: string): NanoReaders {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
+    accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
     workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
     process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
       rpcProcess(client, block, subtype, { timeoutMs }),
@@ -182,14 +184,13 @@ function walletNameFromArgs(args: any): string {
 }
 
 function walletIndexFromArgs(args: any): number {
-  return Number(args?.index ?? args?.accountIndex ?? 0);
+  const index = Number(args?.index ?? args?.accountIndex ?? 0);
+  if (index !== 0) {
+    throw new Error(`OWS wallets only support account index 0. Requested index: ${index}`);
+  }
+  return index;
 }
 
-function historyFor(walletName: string, index?: number, limit = 20): TransactionRecord[] {
-  let txs = state.transactions.filter((entry) => entry.owsWalletId === walletName);
-  if (index !== undefined) txs = txs.filter((entry) => entry.accountIndex === index);
-  return txs.slice(0, limit);
-}
 
 async function checkOwsHealth() {
   try {
@@ -214,6 +215,18 @@ server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
       description: 'Specific details for an OWS Nano account',
       mimeType: 'application/json',
     },
+    {
+      uriTemplate: 'wallet://{name}/history',
+      name: 'OWS Wallet Transaction History',
+      description: 'Transaction history for an OWS wallet',
+      mimeType: 'application/json',
+    },
+    {
+      uriTemplate: 'payment-requests://list',
+      name: 'Payment Requests List',
+      description: 'List of all payment requests tracked by xno-skills',
+      mimeType: 'application/json',
+    },
   ],
 }));
 
@@ -233,17 +246,18 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const uri = request.params.uri;
   const walletMatch = /^wallet:\/\/([^/]+)$/.exec(uri);
   const accountMatch = /^wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
+  const historyMatch = /^wallet:\/\/([^/]+)\/history$/.exec(uri);
+  const paymentRequestsMatch = /^payment-requests:\/\/list$/.exec(uri);
 
   if (walletMatch) {
     const wallet = walletMatch[1];
     const address = await getNanoAddress(wallet);
     const balance = await getNanoBalance(wallet, readersFor(), { config: state.config }, 0);
-    const pending = await getNanoPending(wallet, readersFor(), { config: state.config }, { index: 0, count: 10 });
     return {
       contents: [{
         uri,
         mimeType: 'application/json',
-        text: JSON.stringify({ wallet, address, balance, pending }, null, 2),
+        text: JSON.stringify({ wallet, address, balance }, null, 2),
       }],
     };
   }
@@ -251,14 +265,39 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   if (accountMatch) {
     const wallet = accountMatch[1];
     const index = Number(accountMatch[2]);
+    if (index !== 0) {
+      throw new Error(`OWS wallets only support account index 0. Requested index: ${index}`);
+    }
     const address = await getNanoAddress(wallet, index);
     const balance = await getNanoBalance(wallet, readersFor(), { config: state.config }, index);
-    const pending = await getNanoPending(wallet, readersFor(), { config: state.config }, { index, count: 10 });
     return {
       contents: [{
         uri,
         mimeType: 'application/json',
-        text: JSON.stringify({ wallet, index, address, balance, pending }, null, 2),
+        text: JSON.stringify({ wallet, index, address, balance }, null, 2),
+      }],
+    };
+  }
+
+  if (historyMatch) {
+    const wallet = historyMatch[1];
+    const txs = await getNanoHistory(wallet, readersFor(), { config: state.config }, { count: 100 });
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(txs, null, 2),
+      }],
+    };
+  }
+
+  if (paymentRequestsMatch) {
+    const list = Array.from(state.paymentRequests.values());
+    return {
+      contents: [{
+        uri,
+        mimeType: 'application/json',
+        text: JSON.stringify(list, null, 2),
       }],
     };
   }
@@ -291,12 +330,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'balance',
-      description: 'Show Nano balance and pending amount for an OWS wallet.',
-      inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, index: { type: 'number', default: 0 } }, required: ['wallet'] },
-    },
-    {
-      name: 'pending',
-      description: 'List Nano receivable blocks for an OWS wallet.',
+      description: 'Show Nano balance and pending amount for an OWS wallet. Also lists pending receivable blocks.',
       inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, index: { type: 'number', default: 0 }, count: { type: 'number', default: 10 } }, required: ['wallet'] },
     },
     {
@@ -331,7 +365,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: 'change',
+      name: 'change_rep',
       description: 'Submit a Nano change block to update representative for an OWS wallet.',
       inputSchema: {
         type: 'object',
@@ -359,15 +393,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['wallet', 'txHex', 'subtype'],
       },
     },
-    {
-      name: 'history',
-      description: 'View Nano transaction history tracked by xno-skills for an OWS wallet.',
-      inputSchema: {
-        type: 'object',
-        properties: { wallet: { type: 'string' }, index: { type: 'number' }, limit: { type: 'number', default: 20 } },
-        required: ['wallet'],
-      },
-    },
+    /* TODO: Unhide once NOMS PR is merged into OWS core
     {
       name: 'sign_message',
       description: 'Sign a Nano off-chain message with an OWS wallet.',
@@ -386,22 +412,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['address', 'message', 'signature'],
       },
     },
+    */
     { name: 'convert_units', description: 'Convert between Nano units.', inputSchema: { type: 'object', properties: { amount: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' } }, required: ['amount', 'from', 'to'] } },
     { name: 'validate_address', description: 'Validate a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' } }, required: ['address'] } },
     { name: 'rpc_account_balance', description: 'Check any Nano account balance via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['address'] } },
-    { name: 'generate_qr', description: 'Generate ASCII QR for a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, amountXno: { type: 'string' } }, required: ['address'] } },
+    { name: 'generate_qr', description: 'Generate ASCII or SVG QR for a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, amountXno: { type: 'string' }, format: { type: 'string', enum: ['ascii', 'svg'], default: 'ascii' } }, required: ['address'] } },
+    { name: 'info', description: 'Discover the current state and representative of any Nano account.', inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, address: { type: 'string' } } } },
     { name: 'ows_health_check', description: 'Check if the OWS wallet daemon is reachable and responding correctly.', inputSchema: { type: 'object', properties: {} } },
     { name: 'payment_request_create', description: 'Create a tracked Nano payment request using an OWS wallet.', inputSchema: { type: 'object', properties: { walletName: { type: 'string' }, accountIndex: { type: 'number', default: 0 }, amountXno: { type: 'string' }, reason: { type: 'string' } }, required: ['walletName', 'amountXno', 'reason'] } },
     { name: 'payment_request_status', description: 'Check payment request status.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
     { name: 'payment_request_receive', description: 'Receive pending funds for a payment request.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-    { name: 'payment_request_list', description: 'List payment requests.', inputSchema: { type: 'object', properties: { status: { type: 'string' }, walletName: { type: 'string' } } } },
     { name: 'payment_request_refund', description: 'Refund a payment request.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, execute: { type: 'boolean', default: false }, confirmAddress: { type: 'string' } }, required: ['id'] } },
 
     { name: 'wallet_list', description: 'Deprecated alias for wallets.', inputSchema: { type: 'object', properties: {} } },
     { name: 'wallet_balance', description: 'Deprecated alias for balance.', inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 } }, required: ['name'] } },
     { name: 'wallet_receive', description: 'Deprecated alias for receive.', inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 }, count: { type: 'number', default: 10 }, onlyHash: { type: 'string' }, representative: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['name'] } },
     { name: 'wallet_send', description: `Deprecated alias for send. Max per transaction: ${state.config.maxSendXno || DEFAULT_MAX_SEND_XNO} XNO.`, inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 }, destination: { type: 'string' }, amountXno: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['name', 'destination', 'amountXno'] } },
-    { name: 'wallet_history', description: 'Deprecated alias for history.', inputSchema: { type: 'object', properties: { walletName: { type: 'string' }, accountIndex: { type: 'number' }, limit: { type: 'number', default: 20 } }, required: ['walletName'] } },
   ],
 }));
 
@@ -435,18 +461,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const index = walletIndexFromArgs(args);
         return toToolSuccess(await getNanoAddress(wallet, index));
       }
-
-      case 'balance': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        return toToolSuccess(await getNanoBalance(wallet, readersFor(String(args?.rpcUrl ?? '')), ctx, index));
-      }
-
-      case 'pending': {
+      case 'balance':
+      case 'wallet_balance': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const count = Number(args?.count ?? 10);
-        return toToolSuccess(await getNanoPending(wallet, readersFor(String(args?.rpcUrl ?? '')), ctx, { index, count }));
+        return toToolSuccess(await getNanoBalance(wallet, readersFor(String(args?.rpcUrl ?? '')), ctx, index, count));
       }
 
       case 'receive': {
@@ -477,7 +497,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return toToolSuccess(res);
       }
 
-      case 'change': {
+      case 'change_rep': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const res = await executeChange(
@@ -496,13 +516,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const index = walletIndexFromArgs(args);
         const subtype = String(args?.subtype) as 'send' | 'receive' | 'open' | 'change';
         return toToolSuccess(await submitPreparedBlock(wallet, String(args?.rpcUrl ?? ''), ctx, readersFor(String(args?.rpcUrl ?? '')), String(args?.txHex), subtype, { index }));
-      }
-
-      case 'history': {
-        const wallet = walletNameFromArgs(args);
-        const index = args?.index !== undefined || args?.accountIndex !== undefined ? walletIndexFromArgs(args) : undefined;
-        const limit = Number(args?.limit ?? 20);
-        return toToolSuccess(historyFor(wallet, index, limit));
       }
 
       case 'sign_message': {
@@ -531,8 +544,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return toToolSuccess(await rpcAccountBalance(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
       }
 
-      case 'generate_qr':
-        return { content: [{ type: 'text', text: await generateAsciiQr(String(args?.address), String(args?.amountXno ?? '')) }] };
+      case 'generate_qr': {
+        const format = String(args?.format ?? 'ascii');
+        const address = String(args?.address);
+        const amount = args?.amountXno ? String(args.amountXno) : undefined;
+        if (format === 'svg') {
+          return { content: [{ type: 'text', text: generateSvgQr(address, amount) }] };
+        }
+        return { content: [{ type: 'text', text: await generateAsciiQr(address, amount) }] };
+      }
+      case 'info': {
+        const wallet = args?.wallet ? String(args.wallet) : undefined;
+        const address = args?.address ? String(args.address) : undefined;
+        if (!wallet && !address) {
+          throw new Error("Either 'wallet' or 'address' must be provided");
+        }
+        if (wallet && address) {
+          throw new Error("Cannot specify both 'wallet' and 'address'");
+        }
+        const info = await getNanoAccountInfo({ wallet, address }, readersFor(), { config: state.config });
+        return toToolSuccess(info);
+      }
 
       case 'ows_health_check':
         return toToolSuccess(await checkOwsHealth());
@@ -575,13 +607,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           index: requestRecord.accountIndex,
           count: 10,
         }));
-      }
-
-      case 'payment_request_list': {
-        let list = Array.from(state.paymentRequests.values());
-        if (args?.status) list = list.filter((entry) => entry.status === String(args.status));
-        if (args?.walletName) list = list.filter((entry) => entry.owsWalletId === String(args.walletName));
-        return toToolSuccess(list);
       }
 
       case 'payment_request_refund': {
