@@ -1,6 +1,6 @@
 {
   "name": "xno-skills",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "XNO CLI - Interact with the Nano cryptocurrency",
   "type": "module",
   "main": "./dist/cjs/index.js",
