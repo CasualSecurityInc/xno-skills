@@ -21,8 +21,8 @@ Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('B',blueFg)
 .replaceAll('M',marineBg)
 
-function getFullDescription(): string {
+function getAsciiArtBanner(): string {
   return logo;
 }
 
-export { getFullDescription };
+export { getAsciiArtBanner };

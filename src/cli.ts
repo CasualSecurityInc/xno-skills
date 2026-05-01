@@ -28,7 +28,7 @@ import {
 } from './nano-actions.js';
 import { loadConfig, loadTransactions, type XnoConfig } from './state-store.js';
 
-import { getFullDescription } from './banner.js';
+import { getAsciiArtBanner } from './banner.js';
 
 const program = new Command();
 const config: XnoConfig = loadConfig();
@@ -85,13 +85,11 @@ function exitWithError(error: unknown): never {
 
 program
   .version(version)
+  .description(getAsciiArtBanner())
   .option('-q, --quiet', 'Suppress non-essential output');
 
-program.addHelpText('beforeAll', ({ command }) => {
-  return !command.parent ? getFullDescription() + '\n' : '';
-});
 program.on('--help', () => {
-  // kept for subcommand compat — banner already printed via addHelpText('beforeAll')
+  // kept for subcommand compat
 });
 
 program.hook('preAction', (thisCommand) => {
