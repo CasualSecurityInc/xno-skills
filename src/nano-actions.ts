@@ -69,6 +69,7 @@ export type NanoWalletAccount = {
 };
 
 export type NanoWalletSummary = {
+  id?: string;
   name: string;
   createdAt: string;
   address?: string;
@@ -262,6 +263,7 @@ async function report(ctx: NanoActionContext, progress: number, total: number, m
 export async function listNanoWallets(): Promise<NanoWalletSummary[]> {
   const wallets = await listWalletsProxy();
   return wallets.map((wallet) => ({
+    id: wallet.id,
     name: wallet.name,
     createdAt: wallet.createdAt,
     address: wallet.accounts.find((account) => account.address.startsWith('nano_'))?.address,

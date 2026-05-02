@@ -204,27 +204,27 @@ async function checkOwsHealth() {
 server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
   resourceTemplates: [
     {
-      uriTemplate: 'wallet://{name}',
-      name: 'OWS Wallet Status',
-      description: 'Status and balances for an OWS wallet',
+      uriTemplate: 'xno-wallet://{name}',
+      name: 'OWS Nano Wallet Status',
+      description: 'Status and balances for an OWS Nano wallet',
       mimeType: 'application/json',
     },
     {
-      uriTemplate: 'wallet://{name}/account/{index}',
-      name: 'OWS Account Details',
-      description: 'Specific details for an OWS Nano account',
+      uriTemplate: 'xno-wallet://{name}/account/{index}',
+      name: 'OWS Nano Account Details',
+      description: 'Details for an OWS Nano account',
       mimeType: 'application/json',
     },
     {
-      uriTemplate: 'wallet://{name}/history',
-      name: 'OWS Wallet Transaction History',
-      description: 'Transaction history for an OWS wallet',
+      uriTemplate: 'xno-wallet://{name}/history',
+      name: 'OWS Nano Wallet Transaction History',
+      description: 'Transaction history for an OWS Nano wallet',
       mimeType: 'application/json',
     },
     {
-      uriTemplate: 'payment-requests://list',
-      name: 'Payment Requests List',
-      description: 'List of all payment requests tracked by xno-skills',
+      uriTemplate: 'xno-payment-requests://list',
+      name: 'Nano Payment Requests List',
+      description: 'List of all Nano payment requests tracked by xno-skills',
       mimeType: 'application/json',
     },
   ],
@@ -234,8 +234,8 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   const wallets = await listNanoWallets();
   return {
     resources: wallets.map((wallet) => ({
-      uri: `wallet://${wallet.name}`,
-      name: `Wallet ${wallet.name}`,
+      uri: `xno-wallet://${wallet.name}`,
+      name: `Nano wallet ${wallet.name} (xno-wallet://${wallet.name}) OWS wallet ${wallet.id || 'unknown'}`,
       description: `Nano account summary for OWS wallet ${wallet.name}`,
       mimeType: 'application/json',
     })),
@@ -244,10 +244,10 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const uri = request.params.uri;
-  const walletMatch = /^wallet:\/\/([^/]+)$/.exec(uri);
-  const accountMatch = /^wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
-  const historyMatch = /^wallet:\/\/([^/]+)\/history$/.exec(uri);
-  const paymentRequestsMatch = /^payment-requests:\/\/list$/.exec(uri);
+  const walletMatch = /^xno-wallet:\/\/([^/]+)$/.exec(uri);
+  const accountMatch = /^xno-wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
+  const historyMatch = /^xno-wallet:\/\/([^/]+)\/history$/.exec(uri);
+  const paymentRequestsMatch = /^xno-payment-requests:\/\/list$/.exec(uri);
 
   if (walletMatch) {
     const wallet = walletMatch[1];
@@ -660,7 +660,7 @@ export async function runMcpServer() {
     process.stderr.write('[xno-mcp] Shutting down...\n');
     try {
       await server.close();
-    } catch {}
+    } catch { }
     process.exit(0);
   };
 
