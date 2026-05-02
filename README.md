@@ -40,46 +40,42 @@ xno-skills --help
 
 | Command | Description |
 |---|---|
-| `wallets` | List wallets that have Nano accounts |
-| `balance --wallet <name>` | Show balance and pending amount |
-| `receive --wallet <name>` | Receive pending blocks |
-| `send --wallet <name> --to <addr> --amount-xno <n>` | Send Nano |
-| `change-rep --wallet <name> --representative <addr>` | Change representative |
-| `submit-block --wallet <name> --tx-hex <hex> --subtype <type>` | Sign and submit a prepared block hex |
-| `history --wallet <name>` | Show transaction history |
+| `wallets [options]` | List wallets that have Nano accounts |
+| `balance [options]` | Show balance and pending amount |
+| `receive [options]` | Receive pending blocks |
+| `send [options]` | Send Nano |
+| `change-rep [options]` | Submit a change representative block |
+| `submit-block [options]` | Sign and submit a prepared block hex |
+| `history [options]` | Show transaction history |
 
 ### Utilities
 
 | Command | Description |
 |---|---|
-| `info --wallet <name>` or `--address <addr>` | Account state, representative, weight |
-| `convert <amount> <from>` | Convert units (xno, raw, mnano, knano) |
-| `qr <address>` | Generate QR code (ASCII or `--format svg`) |
-| `validate <input>` | Validate a Nano address |
+| `info [options]` | Discover the current state and representative of any Nano account |
+| `convert [options] <amount> <from>` | Convert between XNO units |
+| `qr [options] <address>` | Generate a QR code for a Nano address |
+| `validate [options] <input>` | Validate a Nano address or block hash |
 
 ### Cryptography & Signing
 
 | Command | Description |
 |---|---|
-| `sign <message> --key <hex>` | Sign a NOMS message with a private key |
-| `verify <address> <message> <signature>` | Verify a NOMS message signature |
+| `sign [options] <message>` | Sign a NOMS message with a private key |
+| `verify [options] <address> <message> <signature>` | Verify a NOMS message signature |
 
 ### Advanced & RPC
 
 | Command | Description |
 |---|---|
-| `rpc account-balance <address>` | Fetch balance from a Nano node |
-| `rpc receivable <address>` | List receivable blocks |
-| `rpc account-info <address>` | Fetch account info |
-| `rpc probe-caps [url]` | Probe node capabilities |
-| `block send -a <addr> -t <addr> --amount-xno <n>` | Build unsigned send block |
-| `block receive`, `block change` | Build unsigned receive/change blocks |
+| `rpc` | Query a Nano node RPC |
+| `block` | Build unsigned Nano state blocks for manual/expert workflows |
 
 ### System
 
 | Command | Description |
 |---|---|
-| `mcp` | Start the MCP server |
+| `mcp` | Start the MCP server or view configuration instructions |
 
 All commands support `-j` / `--json` for machine-readable output.
 
@@ -100,33 +96,6 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 }
 ```
 
-### Tools
-
-| Tool | Description |
-|---|---|
-| `wallets` | List OWS wallets and their Nano addresses |
-| `address` | Get the Nano address for a wallet account index |
-| `balance` | Check confirmed balance and pending |
-| `receive` | Receive pending blocks (handles open automatically) |
-| `send` | Send XNO (max per tx configurable via `config_set`) |
-| `change_rep` | Change the representative for a wallet |
-| `submit_block` | Broadcast a pre-signed block hex |
-| `history` | View on-chain transaction history |
-| `info` | Account state and representative for any address |
-| `convert_units` | High-precision unit conversion |
-| `validate_address` | Offline address validation |
-| `rpc_account_balance` | Direct RPC balance check for any address |
-| `generate_qr` | Generate ASCII or SVG QR codes |
-| `sign_message` / `verify_message` | Off-chain message signing (NOMS) |
-| `ows_health_check` | Verify OWS wallet daemon is reachable |
-| `payment_request_create` | Create a tracked payment request |
-| `payment_request_list` | List payment requests |
-| `payment_request_status` | Check payment request status |
-| `payment_request_receive` | Receive funds for a payment request |
-| `payment_request_refund` | Refund a payment request |
-| `config_get` / `config_set` | Manage RPC URL, representative, spending cap |
-
-> **Compatibility aliases**: `wallet_list`, `wallet_balance`, `wallet_receive`, `wallet_send`, `wallet_history` map to the canonical tools above.
 
 ### Client Setup Examples
 
