@@ -8,13 +8,16 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess } from './rpc.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess, rpcProbeCaps } from './rpc.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
+import { decodeNanoAddress } from './nano-address.js';
+import { buildNanoStateBlockHex } from './state-block.js';
 import { version } from './version.js';
 import { NOMS, NanoClient, WorkProvider } from '@openrai/nano-core';
 import {
   DEFAULT_TIMEOUT_MS,
+  DEFAULT_REPRESENTATIVE,
   createProgressReporter,
   executeChange,
   executeReceive,
@@ -23,6 +26,7 @@ import {
   getNanoBalance,
   getNanoHistory,
   getNanoAccountInfo,
+  isRpcError,
   listNanoWallets,
   resolveNanoWalletAccount,
   signWalletMessage,
@@ -415,7 +419,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     */
     { name: 'convert_units', description: 'Convert between Nano units.', inputSchema: { type: 'object', properties: { amount: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' } }, required: ['amount', 'from', 'to'] } },
     { name: 'validate_address', description: 'Validate a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' } }, required: ['address'] } },
+    { name: 'probe_caps', description: 'Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW).', inputSchema: { type: 'object', properties: { rpcUrl: { type: 'string' } } } },
     { name: 'rpc_account_balance', description: 'Check any Nano account balance via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['address'] } },
+    { name: 'rpc_account_info', description: 'Fetch account info including frontier and balance via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['address'] } },
+    { name: 'rpc_receivable', description: 'List receivable blocks for an account via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, count: { type: 'number', default: 10 }, rpcUrl: { type: 'string' } }, required: ['address'] } },
+    { name: 'block_build_send', description: 'Build an unsigned send block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, to: { type: 'string' }, amountXno: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account', 'to', 'amountXno'] } },
+    { name: 'block_build_receive', description: 'Build an unsigned receive block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, hash: { type: 'string' }, amountRaw: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account'] } },
+    { name: 'block_build_change', description: 'Build an unsigned change block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, representative: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account', 'representative'] } },
     { name: 'generate_qr', description: 'Generate ASCII or SVG QR for a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, amountXno: { type: 'string' }, format: { type: 'string', enum: ['ascii', 'svg'], default: 'ascii' } }, required: ['address'] } },
     { name: 'info', description: 'Discover the current state and representative of any Nano account.', inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, address: { type: 'string' } } } },
     { name: 'ows_health_check', description: 'Check if the OWS wallet daemon is reachable and responding correctly.', inputSchema: { type: 'object', properties: {} } },
@@ -552,6 +562,90 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'rpc_account_balance': {
         const client = getNanoClient(String(args?.rpcUrl ?? ''));
         return toToolSuccess(await rpcAccountBalance(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+      }
+
+      case 'rpc_account_info': {
+        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        return toToolSuccess(await rpcAccountInfo(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+      }
+
+      case 'rpc_receivable': {
+        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const count = Number(args?.count ?? 10);
+        return toToolSuccess(await rpcReceivable(client, String(args?.address), count, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+      }
+
+      case 'block_build_send': {
+        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const account = String(args?.account);
+        const to = String(args?.to);
+        const amountXno = String(args?.amountXno);
+        const senderPk = decodeNanoAddress(account).publicKey;
+        const recipientPk = decodeNanoAddress(to).publicKey;
+        const info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+        if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
+        const currentBalance = BigInt(info.balance);
+        const sendRaw = BigInt(nanoToRaw(amountXno));
+        if (sendRaw <= 0n) throw new Error('Amount must be positive');
+        if (sendRaw > currentBalance) throw new Error('Insufficient balance');
+        const blockHex = buildNanoStateBlockHex({
+          accountPublicKey: senderPk,
+          previous: info.frontier,
+          representativePublicKey: decodeNanoAddress(info.representative || DEFAULT_REPRESENTATIVE).publicKey,
+          balanceRaw: (currentBalance - sendRaw).toString(),
+          link: recipientPk,
+        });
+        return toToolSuccess({ blockHex, account, to, amountRaw: sendRaw.toString(), previous: info.frontier });
+      }
+
+      case 'block_build_receive': {
+        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const account = String(args?.account);
+        let hash = args?.hash ? String(args.hash) : undefined;
+        let amountRaw = args?.amountRaw ? String(args.amountRaw) : undefined;
+        if (!hash) {
+          const pending = await rpcReceivable(client, account, 1, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+          if (pending.length === 0) throw new Error('No receivable blocks found');
+          hash = pending[0].hash;
+          amountRaw = pending[0].amount;
+        }
+        if (!amountRaw) throw new Error('amountRaw is required if hash is provided');
+        
+        let info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }).catch(() => ({ error: 'Account not found' } as any));
+        const opened = !isRpcError(info);
+        const previous = opened ? info.frontier : '0'.repeat(64);
+        const currentBalance = opened ? BigInt(info.balance) : 0n;
+        const blockHex = buildNanoStateBlockHex({
+          accountPublicKey: decodeNanoAddress(account).publicKey,
+          previous,
+          representativePublicKey: decodeNanoAddress(opened ? info.representative || DEFAULT_REPRESENTATIVE : DEFAULT_REPRESENTATIVE).publicKey,
+          balanceRaw: (currentBalance + BigInt(amountRaw)).toString(),
+          link: hash,
+        });
+        return toToolSuccess({ blockHex, account, sendBlockHash: hash, amountRaw, previous, subtype: opened ? 'receive' : 'open' });
+      }
+
+      case 'block_build_change': {
+        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const account = String(args?.account);
+        const rep = validateAddress(String(args?.representative));
+        if (!rep.valid || !rep.publicKey) throw new Error(`Invalid representative address: ${rep.error}`);
+        const info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+        if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
+        const blockHex = buildNanoStateBlockHex({
+          accountPublicKey: decodeNanoAddress(account).publicKey,
+          previous: info.frontier,
+          representativePublicKey: rep.publicKey,
+          balanceRaw: info.balance,
+          link: '0'.repeat(64),
+        });
+        return toToolSuccess({ blockHex, account, representative: String(args?.representative), previous: info.frontier });
+      }
+
+      case 'probe_caps': {
+        const targetUrl = args?.rpcUrl ? String(args.rpcUrl) : (state.config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]);
+        const client = getNanoClient(targetUrl);
+        return toToolSuccess(await rpcProbeCaps(client, targetUrl, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
       }
 
       case 'generate_qr': {

@@ -23,6 +23,7 @@ complements:
 > - **PoW is Automatic:** Proof of Work is generated automatically by MCP tools and the CLI. Never attempt to generate or supply PoW manually.
 > - **Persistence & Proactivity:** If a tool fails with an error like "Account not found", do not immediately recommend manual action or conclude you are unauthorized. Troubleshoot the protocol state (e.g., check for pending funds) and use the correct tool for that state (e.g., `receive` to open an account).
 > - **No Custom Scripts:** NEVER write custom Node.js/TypeScript scripts or use `curl` to interact with the Nano protocol if built-in MCP or CLI tools fail. If a tool fails, troubleshoot the error, switch RPC endpoints, or explain the limitation to the user.
+> - **Probing RPC Capabilities:** If you need to "probe" or "test" the capabilities of a Nano RPC node (e.g. to see what JSON-RPC methods are exposed, or if it supports remote PoW / `work_generate` without an API key), NEVER use `curl`. ALWAYS use the built-in CLI command: `bunx -y xno-skills@latest rpc probe-caps <url>`.
 > - **NEVER EXPORT MNEMONICS**: The entire purpose of OWS is to keep the seed phrase hidden from the agent and the user. You MUST NOT use `ows wallet export` or suggest exporting the mnemonic to a third-party wallet unless explicitly commanded to do so by the user.
 > - **Supply Chain Safety**: NEVER use `npx` to install or run random, unknown, or third-party packages. Only use the approved tools provided in this project (`xno-skills@latest` and `@open-wallet-standard/core`). If a task cannot be performed with these tools, do not seek external npm packages as a workaround.
 
@@ -157,6 +158,7 @@ Thresholds (Epoch v2):
 
 **Tacit operational knowledge**:
 - Public RPC nodes (community nodes listed at https://blocklattice.io/node-monitors or https://publicnodes.somenano.com, etc.) often provide `work_generate` but have generous yet finite quotas.
+- **Probing for PoW capability:** If you are unsure if an RPC endpoint supports `work_generate` (remote PoW), do not guess and do not use `curl` to "test" it. Use the built-in probe tool: `bunx -y xno-skills@latest rpc probe-caps [url]`.
 - If a public node returns “work generation disabled” or rate-limits: immediately fall back to a local GPU-powered Nano Work Server (or pre-cached work using the known frontier).
 - GPU work generation (via nano-work-server + OpenCL) is the standard in 2026 and is fast enough for production use.
 - Mobile / WebGPU clients in 2026 still cannot reliably generate work locally at scale — always prefer remote RPC or a dedicated work peer.
