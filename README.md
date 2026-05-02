@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-A CLI, MCP server, and AI skills for Nano (XNO). Pairs with [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core) for secure key custody.
+A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on top of [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core) for secure key custody.
 
 ![xno-skills CLI preview](assets/xno-skills-cli.png)
 
