@@ -88,7 +88,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 ```json
 {
   "mcpServers": {
-    "xno": {
+    "nano": {
       "command": "npx",
       "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
     }
@@ -103,7 +103,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 <summary>Codex</summary>
 
 ```bash
-codex mcp add xno \
+codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
   -- npx -y -p xno-skills@latest xno-mcp
@@ -116,7 +116,7 @@ codex mcp add xno \
 ```json
 {
   "mcpServers": {
-    "xno": {
+    "nano": {
       "command": "npx",
       "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
     }
@@ -126,13 +126,13 @@ codex mcp add xno \
 </details>
 
 <details>
-<summary>OpenCode (<code>opencode.jsonc</code>)</summary>
+<summary>OpenCode (<code>~/.config/opencode/opencode.json</code>)</summary>
 
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "xno": {
+    "nano": {
       "type": "local",
       "command": ["npx", "-y", "-p", "xno-skills@latest", "xno-mcp"],
       "enabled": true
@@ -143,12 +143,27 @@ codex mcp add xno \
 </details>
 
 <details>
-<summary>Gemini CLI (<code>settings.json</code>)</summary>
+<summary>Gemini CLI (<code>~/.gemini/settings.json</code>)</summary>
 
 ```json
 {
   "mcpServers": {
-    "xno": {
+    "nano": {
+      "command": "npx",
+      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>Antigravity (<code>~/.gemini/antigravity/mcp_config.json</code>)</summary>
+
+```json
+{
+  "mcpServers": {
+    "nano": {
       "command": "npx",
       "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
     }
@@ -163,7 +178,7 @@ codex mcp add xno \
 ```json
 {
   "servers": {
-    "xno": {
+    "nano": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
