@@ -36,6 +36,11 @@ State lives in `${XNO_MCP_HOME}` (default: `<install-dir>/.xno-mcp`).
 - Wrap responses: `{ content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }`.
 - In tests, access response text via: `(result.content[0] as any).text`.
 
+### MCP Resource Patterns
+- `name` must be a **short logical identifier** (e.g. wallet name `"A"`), never a URI or concatenated fields. `title` is for human-readable display. Embedding `xno-wallet://` URIs in `name` causes hosts to crash when LLMs propagate them as fetchable links.
+- Resource templates use the same `name`/`title` split: `name` is a slug like `"wallet-status"`, `title` is display text.
+- No resource tests exist yet — `listResources()`, `listResourceTemplates()`, and `readResource()` are untested.
+
 ### Hidden / WIP Tools
 - `sign_message` and `verify_message` MCP tools are commented out (waiting on NOMS PR merge into OWS core).
 - `verify_message` CLI is `{ hidden: true }` and always throws — no canonical standard exists yet.
