@@ -156,9 +156,10 @@ This error is almost always **transient** (rate limiting, brief node restart). I
 | 1 | Wait 5 seconds. Retry `receive` with **identical** arguments. |
 | 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, then retry. |
 | 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, then retry. |
-| 4 | Reset override: `config_set({ rpcUrl: "" })`. **STOP — report to user.** |
+| 4 | `config_set({ rpcUrl: "https://some-other-node/rpc" })` — try any other public node, then retry. |
+| 5 | Reset override: `config_set({ rpcUrl: "" })`. **STOP — report to user.** |
 
-> Note: The built-in defaults are `rainstorm.city/api` and `nanoslo.0x.no/proxy`. Setting `rpcUrl` to one of these explicitly just pins you to that node.
+> **Why this works:** The MCP server is long-lived. When default endpoints get rate-limited, `@openrai/nano-core` puts them on exponential backoff cooldown. Calling `config_set` with a new `rpcUrl` creates a fresh `NanoClient` with only that URL, bypassing the cooldown state on the defaults. OWS has its own persisted RPC config for `nano:mainnet` (accessible via `ows config show`) but xno-skills deliberately bypasses it — it uses its own RPC config via `config_set` / `state.config.rpcUrl`.
 
 **Prohibited at every step:** writing scripts, using curl, CLI `block` commands, or manual PoW generation.
 

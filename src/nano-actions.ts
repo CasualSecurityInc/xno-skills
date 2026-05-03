@@ -59,6 +59,7 @@ export type NanoReaders = {
   accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
   workGenerate?: (hash: string, difficulty: string) => Promise<string>;
   process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
+  powTimeoutMs?: number;
 };
 
 export type NanoWalletAccount = {
@@ -160,6 +161,16 @@ function wrapError(error: unknown, code: string, step: NanoActionStep, message: 
   throw new NanoActionError(code, step, `${message}: ${inner}`, { retriable, details: { ...details, cause: inner } });
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    promise.finally(() => clearTimeout(timer)),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    }),
+  ]);
+}
+
 /**
  * Sign a block with OWS, generate PoW via the configured WorkProvider (local-first),
  * then broadcast via rpcProcess. This replaces the monolithic OWS signAndSend which
@@ -190,8 +201,13 @@ async function signWorkAndProcess(
 
   let work: string;
   if (readers.workGenerate) {
+    const powTimeoutMs = Math.max(readers.powTimeoutMs ?? 60_000, 30_000);
     try {
-      work = await readers.workGenerate(workRoot, difficulty);
+      work = await withTimeout(
+        readers.workGenerate(workRoot, difficulty),
+        powTimeoutMs,
+        `PoW generation timed out after ${powTimeoutMs}ms`,
+      );
     } catch (error) {
       wrapError(error, 'POW_FAILED', 'submit_block', `PoW generation failed for ${subtype} block`, {}, true);
     }
@@ -421,50 +437,62 @@ export async function executeReceive(
     return { address: account.address, received: [], balanceRaw: bal, balanceXno: rawToNano(bal) };
   }
 
-  await report(ctx, 3, 5, `receive: building block for ${pending[0].hash}`);
-  const previous = opened ? (info as AccountInfoResponse).frontier : ZERO_32_HEX;
-  const currentBalance = opened ? BigInt((info as AccountInfoResponse).balance) : 0n;
-  const amountRaw = pending.reduce((sum, item) => sum + BigInt(item.amount), 0n).toString();
-  const newBalance = (currentBalance + BigInt(amountRaw)).toString();
-  const subtype = opened ? 'receive' : 'open';
-  const blockInput: StateBlockHashInput = {
-    accountPublicKey: decodeNanoAddress(account.address).publicKey,
-    previous,
-    representativePublicKey: decodeNanoAddress(representative).publicKey,
-    balanceRaw: newBalance,
-    link: pending[0].hash,
-  };
+  const received: Array<{ hash: string; amountRaw: string }> = [];
+  let currentFrontier = opened ? (info as AccountInfoResponse).frontier : ZERO_32_HEX;
+  let currentBalance = opened ? BigInt((info as AccountInfoResponse).balance) : 0n;
+  let isOpened = opened;
 
-  await report(ctx, 4, 5, `receive: submitting ${subtype} block for ${account.address}`);
-  let submitted;
-  try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
-  } catch (error) {
-    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${subtype} block for ${account.address}`, {
-      walletName,
+  for (let i = 0; i < pending.length; i++) {
+    const item = pending[i];
+    const subtype = isOpened ? 'receive' : 'open';
+    const newBalance = (currentBalance + BigInt(item.amount)).toString();
+
+    await report(ctx, 3, 5, `receive: building ${subtype} block ${i + 1}/${pending.length} for ${item.hash}`);
+    const blockInput: StateBlockHashInput = {
+      accountPublicKey: decodeNanoAddress(account.address).publicKey,
+      previous: currentFrontier,
+      representativePublicKey: decodeNanoAddress(representative).publicKey,
+      balanceRaw: newBalance,
+      link: item.hash,
+    };
+
+    await report(ctx, 4, 5, `receive: submitting ${subtype} block ${i + 1}/${pending.length} for ${account.address}`);
+    let submitted;
+    try {
+      submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
+    } catch (error) {
+      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${subtype} block for ${account.address}`, {
+        walletName,
+        address: account.address,
+        subtype,
+      }, true);
+    }
+
+    received.push({ hash: submitted.txHash, amountRaw: item.amount });
+    currentFrontier = submitted.txHash;
+    currentBalance = BigInt(newBalance);
+    isOpened = true;
+
+    ctx.appendTransaction?.({
+      id: generateId(),
+      owsWalletId: walletName,
+      accountIndex: index,
       address: account.address,
-      subtype,
-    }, true);
+      type: 'receive',
+      amountRaw: item.amount,
+      counterparty: item.source ?? '',
+      hash: submitted.txHash,
+      timestamp: new Date().toISOString(),
+    });
   }
 
-  await report(ctx, 5, 5, `receive: persisted ${submitted.txHash}`);
-  ctx.appendTransaction?.({
-    id: generateId(),
-    owsWalletId: walletName,
-    accountIndex: index,
-    address: account.address,
-    type: 'receive',
-    amountRaw,
-    counterparty: pending[0].source ?? '',
-    hash: submitted.txHash,
-    timestamp: new Date().toISOString(),
-  });
+  await report(ctx, 5, 5, `receive: persisted ${received.length} block(s)`);
 
   return {
     address: account.address,
-    received: pending.map((item) => ({ hash: submitted.txHash, amountRaw: item.amount })),
-    balanceRaw: newBalance,
-    balanceXno: rawToNano(newBalance),
+    received,
+    balanceRaw: currentBalance.toString(),
+    balanceXno: rawToNano(currentBalance.toString()),
   };
 }
 

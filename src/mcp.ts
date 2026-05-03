@@ -118,8 +118,9 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
   return client;
 }
 
-function readersFor(rpcUrl?: string): NanoReaders {
-  const client = getNanoClient(rpcUrl);
+function readersFor(explicitRpcUrl?: string): NanoReaders {
+  const effectiveRpc = explicitRpcUrl || state.config.rpcUrl || undefined;
+  const client = getNanoClient(effectiveRpc);
   const timeoutMs = state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
   return {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
@@ -129,6 +130,7 @@ function readersFor(rpcUrl?: string): NanoReaders {
     workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
     process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
       rpcProcess(client, block, subtype, { timeoutMs }),
+    powTimeoutMs: state.config.timeoutMs ? state.config.timeoutMs * 4 : 60_000,
   };
 }
 
@@ -478,14 +480,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const count = Number(args?.count ?? 10);
-        return toToolSuccess(await getNanoBalance(wallet, readersFor(String(args?.rpcUrl ?? '')), ctx, index, count));
+        return toToolSuccess(await getNanoBalance(wallet, readersFor(args?.rpcUrl ? String(args.rpcUrl) : undefined), ctx, index, count));
       }
 
       case 'receive': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const count = Number(args?.count ?? 10);
-        const res = await executeReceive(wallet, String(args?.rpcUrl ?? ''), ctx, readersFor(String(args?.rpcUrl ?? '')), {
+        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
+        const res = await executeReceive(wallet, rpcUrl, ctx, readersFor(rpcUrl), {
           index,
           count,
           onlyHash: args?.onlyHash ? String(args.onlyHash) : undefined,
@@ -497,11 +500,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'send': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
+        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
         const res = await executeSend(
           wallet,
-          String(args?.rpcUrl ?? ''),
+          rpcUrl,
           ctx,
-          readersFor(String(args?.rpcUrl ?? '')),
+          readersFor(rpcUrl),
           String(args?.destination),
           String(args?.amountXno),
           { index },
@@ -512,11 +516,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'change_rep': {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
+        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
         const res = await executeChange(
           wallet,
-          String(args?.rpcUrl ?? ''),
+          rpcUrl,
           ctx,
-          readersFor(String(args?.rpcUrl ?? '')),
+          readersFor(rpcUrl),
           String(args?.representative),
           { index },
         );
@@ -527,7 +532,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const wallet = walletNameFromArgs(args);
         const index = walletIndexFromArgs(args);
         const subtype = String(args?.subtype) as 'send' | 'receive' | 'open' | 'change';
-        return toToolSuccess(await submitPreparedBlock(wallet, String(args?.rpcUrl ?? ''), ctx, readersFor(String(args?.rpcUrl ?? '')), String(args?.txHex), subtype, { index }));
+        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
+        return toToolSuccess(await submitPreparedBlock(wallet, rpcUrl, ctx, readersFor(rpcUrl), String(args?.txHex), subtype, { index }));
       }
 
       case 'history': {
@@ -560,23 +566,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return toToolSuccess(validateAddress(String(args?.address)));
 
       case 'rpc_account_balance': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         return toToolSuccess(await rpcAccountBalance(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
       }
 
       case 'rpc_account_info': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         return toToolSuccess(await rpcAccountInfo(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
       }
 
       case 'rpc_receivable': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         const count = Number(args?.count ?? 10);
         return toToolSuccess(await rpcReceivable(client, String(args?.address), count, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
       }
 
       case 'block_build_send': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         const account = String(args?.account);
         const to = String(args?.to);
         const amountXno = String(args?.amountXno);
@@ -599,7 +605,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'block_build_receive': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         const account = String(args?.account);
         let hash = args?.hash ? String(args.hash) : undefined;
         let amountRaw = args?.amountRaw ? String(args.amountRaw) : undefined;
@@ -626,7 +632,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'block_build_change': {
-        const client = getNanoClient(String(args?.rpcUrl ?? ''));
+        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
         const account = String(args?.account);
         const rep = validateAddress(String(args?.representative));
         if (!rep.valid || !rep.publicKey) throw new Error(`Invalid representative address: ${rep.error}`);
