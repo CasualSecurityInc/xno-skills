@@ -13,7 +13,9 @@ A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on t
 Built-in skills for AI agents (Claude Code, Cursor, etc.):
 
 ```bash
-npx skills add CasualSecurityInc/xno-skills
+npx skills add -g CasualSecurityInc/xno-skills
+# non-interactively: 
+# npx skills add --all -g CasualSecurityInc/xno-skills
 ```
 
 Available skills:
@@ -32,7 +34,7 @@ Available skills:
 ## CLI
 
 ```bash
-npm install -g xno-skills
+npm install -g xno-skills@latest
 xno-skills --help
 ```
 
