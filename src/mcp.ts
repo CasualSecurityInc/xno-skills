@@ -211,25 +211,29 @@ server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
   resourceTemplates: [
     {
       uriTemplate: 'xno-wallet://{name}',
-      name: 'OWS Nano Wallet Status',
+      name: 'wallet-status',
+      title: 'OWS Nano Wallet Status',
       description: 'Status and balances for an OWS Nano wallet',
       mimeType: 'application/json',
     },
     {
       uriTemplate: 'xno-wallet://{name}/account/{index}',
-      name: 'OWS Nano Account Details',
+      name: 'wallet-account',
+      title: 'OWS Nano Account Details',
       description: 'Details for an OWS Nano account',
       mimeType: 'application/json',
     },
     {
       uriTemplate: 'xno-wallet://{name}/history',
-      name: 'OWS Nano Wallet Transaction History',
+      name: 'wallet-history',
+      title: 'OWS Nano Wallet Transaction History',
       description: 'Transaction history for an OWS Nano wallet',
       mimeType: 'application/json',
     },
     {
       uriTemplate: 'xno-payment-requests://list',
-      name: 'Nano Payment Requests List',
+      name: 'payment-requests',
+      title: 'Nano Payment Requests List',
       description: 'List of all Nano payment requests tracked by xno-skills',
       mimeType: 'application/json',
     },
@@ -241,8 +245,9 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
     resources: wallets.map((wallet) => ({
       uri: `xno-wallet://${wallet.name}`,
-      name: `Nano wallet ${wallet.name} (xno-wallet://${wallet.name}) OWS wallet ${wallet.id || 'unknown'}`,
-      description: `Nano account summary for OWS wallet ${wallet.name}`,
+      name: wallet.name,
+      title: `Nano wallet ${wallet.name}`,
+      description: `Nano account summary for OWS wallet ${wallet.name}${wallet.id ? ` (${wallet.id})` : ''}`,
       mimeType: 'application/json',
     })),
   };
