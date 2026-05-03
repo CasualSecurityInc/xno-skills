@@ -1,6 +1,6 @@
 ---
 name: nano-check-balance
-description: "Check a Nano account's balance and pending amount. You can check YOUR OWS-backed Nano wallet balance (via `balance`) or any address (via `rpc_account_balance`)."
+description: "Check a Nano (XNO) account's balance and pending amount on-chain. Use this skill whenever the user asks how much XNO they have, whether a payment arrived, if funds are pending, or wants to verify their Nano wallet holdings — even if they just say 'did I get it?' or 'how much do I have?' You can check your own OWS-backed Nano wallet balance (via `balance`) or any Nano address (via `rpc_account_balance`)."
 triggers:
   - check balance
   - account balance

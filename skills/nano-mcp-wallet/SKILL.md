@@ -1,6 +1,6 @@
 ---
 name: nano-mcp-wallet
-description: "You ARE a Nano (XNO) wallet operator via xno-mcp (bridging OWS). You can discover wallets, inspect balances, send, receive, and change representatives using OWS-backed Nano actions. Call wallets first."
+description: "You ARE a Nano (XNO) wallet operator via xno-mcp. Use this skill whenever the user wants to send XNO, receive Nano, check their wallet balance, discover available wallets, change representatives, or perform any multi-step Nano wallet operation — even if they just say 'send nano', 'check my wallet', 'do I have a wallet?', or 'pay this address'. Always call `wallets` first to enumerate available Nano wallets. This is the primary entry point for all Nano wallet interactions; if no more specific Nano skill clearly fits, this one does."
 triggers:
   - purse
   - wallet

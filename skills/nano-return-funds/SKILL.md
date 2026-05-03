@@ -1,6 +1,6 @@
 ---
 name: nano-return-funds
-description: Return XNO to the operator or original sender. Identifies source addresses, confirms before sending, handles ambiguity safely.
+description: Return XNO to the operator or original sender. Identifies source Nano addresses, confirms before sending, and handles ambiguity safely. Use this skill whenever the user wants to send Nano back, refund an XNO payment, return unexpected received funds, or undo a transaction — even if they just say 'send it back', 'refund', or 'I didn't mean to receive this'.
 triggers:
   - return funds
   - send back

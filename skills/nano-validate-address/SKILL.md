@@ -1,6 +1,6 @@
 ---
 name: nano-validate-address
-description: Validate Nano (XNO) addresses offline (format, checksum); no network.
+description: Validate Nano (XNO) addresses offline (format, checksum) — no network required. Use this skill whenever the user provides a Nano address and wants to verify it's well-formed, before sending XNO to an untrusted address, or asks 'is this address real?' — even if they just paste a nano_ address and ask 'is this right?' Always validate before any XNO send operation.
 triggers:
   - validate address
   - check address

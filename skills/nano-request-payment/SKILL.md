@@ -1,6 +1,6 @@
 ---
 name: nano-request-payment
-description: Request XNO from the operator. Creates a payment request, presents address/QR, watches for funds, receives them, and reports back.
+description: Request XNO from the operator. Creates a tracked Nano payment request, presents address/QR, watches for incoming funds, receives them, and reports back. Use this skill whenever the agent needs to receive XNO from the operator — for testing, for a task that requires funds, because the operator offered to send Nano, or when setting up a payment link or invoice — even if they just say 'I need some XNO' or 'can you invoice me?'
 triggers:
   - request payment
   - request funds

@@ -1,6 +1,6 @@
 ---
 name: nano-convert-units
-description: Convert between XNO units (raw/xno/knano/mnano) with exact BigInt precision.
+description: Convert between Nano (XNO) units (raw, xno, knano, mnano) with exact BigInt precision. Use this skill whenever the user mentions raw, knano, mnano, or needs to translate between XNO denominations — even if they just throw a number with a unit suffix, ask 'how much is this in XNO?', or need to do math with Nano amounts. Floating-point is unsafe for XNO's 30 decimal places, so always reach for this skill instead of calculating manually.
 triggers:
   - convert units
   - unit conversion

@@ -1,6 +1,6 @@
 ---
 name: nano-create-wallet
-description: "Create or restore a Nano (XNO) wallet via Open Wallet Standard (OWS). For secure custody, rely on the unified OWS framework."
+description: "Create or restore a Nano (XNO) wallet via Open Wallet Standard (OWS). Use this skill whenever the user wants to set up a new XNO wallet, restore from a seed or mnemonic, import an existing Nano wallet, or asks 'how do I get started with Nano?' — even if they just say 'I need a wallet' or 'generate a seed'. For secure Nano key custody, always rely on the OWS framework."
 triggers:
   - create wallet
   - generate wallet

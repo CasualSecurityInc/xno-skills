@@ -1,6 +1,6 @@
 ---
 name: nano-sign-message
-description: Sign an off-chain message (plain text) using a custodial wallet managed by xno-mcp. Following NOMS (Nano Off-chain Message Signature) / ORIS-001.
+description: Sign an off-chain message (plain text) using a Nano (XNO) custodial wallet managed by xno-mcp, following the NOMS / ORIS-001 standard. Use this skill whenever the user wants to prove ownership of a Nano address, authenticate themselves cryptographically, sign a statement with their XNO key, or create an off-chain proof — even if they just say 'prove I own this wallet' or 'sign this for me'.
 triggers:
   - sign message
   - off-chain signature

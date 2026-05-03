@@ -1,6 +1,6 @@
 ---
 name: nano-generate-qr
-description: Generate an ASCII QR code for a Nano address (optionally with an amount).
+description: Generate an ASCII QR code for a Nano (XNO) address, optionally with an amount. Use this skill whenever the user wants to share a Nano address visually, create a donation or tip-jar link, make an XNO payment scannable, or needs a QR for any Nano-related purpose — even if they just say 'make a QR' or 'how do I accept a tip in Nano?'
 triggers:
   - qr code
   - generate qr

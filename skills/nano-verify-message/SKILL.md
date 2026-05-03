@@ -1,6 +1,6 @@
 ---
 name: nano-verify-message
-description: Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano address or public key.
+description: Verify an off-chain message signature (NOMS / ORIS-001 standard) against a Nano (XNO) address or public key. Use this skill whenever the user presents a signed message and wants to verify its authenticity, needs to confirm someone owns a Nano address, or asks 'is this signature valid?' — even if they just say 'check this proof' or 'did they really sign this?'
 triggers:
   - verify message
   - check signature
