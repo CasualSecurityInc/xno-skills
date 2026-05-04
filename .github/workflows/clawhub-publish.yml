@@ -1,0 +1,70 @@
+name: Publish Skill (ClawHub)
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clawhub-publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Compute ClawHub version
+        id: version
+        run: |
+          DESC=$(git describe --tags --always --match 'v*' --dirty)
+          VERSION=$(node -e 'const desc=process.argv[1]; const base=require("./package.json").version; const stripped=desc.replace(/^v+/, ""); process.stdout.write(stripped === desc ? `${base}-0-${stripped}` : stripped);' "$DESC")
+
+          case "$VERSION" in
+            v*)
+              echo "Computed ClawHub version must not start with v: $VERSION"
+              exit 1
+              ;;
+          esac
+
+          echo "desc=$DESC" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Nano skill to ClawHub
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
+          if [ -z "$CLAWHUB_TOKEN" ]; then
+            echo "CLAWHUB_TOKEN is required to publish to ClawHub"
+            exit 1
+          fi
+
+          npx -y clawhub login --token "$CLAWHUB_TOKEN"
+          npx -y clawhub skill publish ./skills/nano \
+            --slug nano \
+            --name "Nano (XNO) Skills" \
+            --version "${{ steps.version.outputs.version }}" \
+            --changelog "Automated publish from ${GITHUB_SHA} (${{ steps.version.outputs.desc }})" \
+            --tags latest
