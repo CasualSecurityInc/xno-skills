@@ -82,7 +82,7 @@ Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://gi
 
 ## MCP Server
 
-Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Codex, etc.).
+Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Codex, etc.). MCP resources (`xno-wallet://` URIs) are served but require client-side `resources/read` support — not yet available in OpenCode ([#15535](https://github.com/anomalyco/opencode/issues/15535)).
 
 ```json
 {
