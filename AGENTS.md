@@ -42,8 +42,9 @@ State lives in `${XNO_MCP_HOME}` (default: `<install-dir>/.xno-mcp`).
 - No resource tests exist yet — `listResources()`, `listResourceTemplates()`, and `readResource()` are untested.
 
 ### Hidden / WIP Tools
-- `sign_message` and `verify_message` MCP tools are commented out (waiting on NOMS PR merge into OWS core).
-- `verify_message` CLI is `{ hidden: true }` and always throws — no canonical standard exists yet.
+- `sign_message` and `verify_message` MCP tools are commented out (waiting on NOMS PR merge into OWS core: https://github.com/open-wallet-standard/core/pull/217).
+- `sign-message` and `verify-message` CLI subcommands are `{ hidden: true }` and pending the same upstream PR — do not expose or document them.
+- The public `sign` and `verify` CLI subcommands (raw private-key path) are visible and fully functional — distinct from the hidden OWS-backed variants above.
 - `wallet_list`, `wallet_balance`, `wallet_receive`, `wallet_send` are deprecated aliases in the MCP server.
 
 ## Environment Variables
@@ -73,6 +74,8 @@ State lives in `${XNO_MCP_HOME}` (default: `<install-dir>/.xno-mcp`).
 ## Documentation Sync
 
 After modifying CLI subcommands in `src/cli.ts`, verify the README CLI table against `npm run dev -- --help`. Every subcommand listed in the README must exist, have correct flags, and have no stale entries for removed commands.
+
+The agent skill lives in `skills/nano/SKILL.md` — one unified skill covering all Nano capabilities. Do not re-fragment it into per-capability files.
 
 ## Releasing
 

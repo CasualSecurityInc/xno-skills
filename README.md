@@ -18,18 +18,15 @@ npx skills add -g CasualSecurityInc/xno-skills
 # npx skills add --all -g CasualSecurityInc/xno-skills
 ```
 
+> [!IMPORTANT]
+> If you installed skills from this repository before May 4, 2026, you have 11 individual `nano-*` skills that have been consolidated into a single `nano` skill. Remove the old ones first:
+> ```bash
+> npx skills remove -g -y nano-block-lattice-expert nano-check-balance nano-convert-units nano-create-wallet nano-generate-qr nano-mcp-wallet nano-request-payment nano-return-funds nano-sign-message nano-validate-address nano-verify-message
+> ```
+> Then reinstall as above.
+
 Available skills:
-- `nano-check-balance`: Check balance/pending via Nano node RPC.
-- `nano-convert-units`: High-precision unit conversion reference.
-- `nano-create-wallet`: Wallet creation/import guidance (BIP39/Legacy support).
-- `nano-generate-qr`: Terminal-friendly Nano payment QR codes.
-- `nano-mcp-wallet`: Use `xno-mcp` as a private "wallet" custody blackbox.
-- `nano-request-payment`: Request XNO from operator (payment request workflow).
-- `nano-return-funds`: Return XNO to sender safely.
-- `nano-sign-message`: Sign off-chain messages (NOMS/ORIS-001).
-- `nano-validate-address`: Address format and checksum verification.
-- `nano-verify-message`: Verify off-chain message signatures.
-- `nano-block-lattice-expert`: Deep protocol wisdom and 2026 operational facts.
+- `nano`: Wallet ops, balance, send/receive, QR codes, address validation, unit conversion, payment requests, refunds, block-lattice protocol expertise, and more — all in one skill. Uses `xno-mcp` MCP tools first, falls back to `xno-skills` CLI.
 
 ## CLI
 
