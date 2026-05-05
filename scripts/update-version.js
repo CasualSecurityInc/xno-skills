@@ -15,3 +15,11 @@ const existing = readFileSync(targetPath, 'utf8');
 if (existing !== content) {
   writeFileSync(targetPath, content, 'utf8');
 }
+
+// Also pin SKILL.md: replace xno-skills@latest or xno-skills@x.y.z with current version
+const skillPath = resolve(__dirname, '../skills/nano/SKILL.md');
+const skill = readFileSync(skillPath, 'utf8');
+const pinnedSkill = skill.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
+if (skill !== pinnedSkill) {
+  writeFileSync(skillPath, pinnedSkill, 'utf8');
+}

@@ -75,16 +75,16 @@ When the environment provides `xno-mcp` tools (`wallets`, `send`, `receive`, `ba
 If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage, fall back to the `xno-skills` CLI in this priority order:
 
 ```
-1. bunx -y xno-skills@latest <command>
-2. pnpm dlx xno-skills@latest <command>
-3. npx -y xno-skills@latest <command>
+1. bunx -y xno-skills@2.8.2 <command>
+2. pnpm dlx xno-skills@2.8.2 <command>
+3. npx -y xno-skills@2.8.2 <command>
 ```
 
 Do **not** assume `xno-skills` is installed globally. Always use one of the above forms with `@latest` to get critical bugfixes and to prevent interactive prompts from freezing.
 
 Before guessing a subcommand, run `--help`:
 ```bash
-bunx -y xno-skills@latest --help
+bunx -y xno-skills@2.8.2 --help
 ```
 
 ### 3. Wallet lifecycle → `ows` skill only
@@ -108,7 +108,7 @@ For wallet **create, import, rename, or delete**: delegate to the `ows` skill. D
 - **Proactivity on pending funds**: If you see pending funds during any balance check, call `receive` immediately. Do not wait for the user to ask.
 - **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `receive` will build the open block automatically. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
 - **No mnemonic exports**: Never call `ows wallet export` or suggest exporting to a third-party wallet unless the user explicitly commands it.
-- **Supply chain**: Only use `xno-skills@latest` and `@open-wallet-standard/core`. No other npm packages.
+- **Supply chain**: Only use `xno-skills@2.8.2` and `@open-wallet-standard/core`. No other npm packages.
 - **Stop-loss**: If you have made 5 tool calls without completing the operation, stop and report what you tried, what failed, and ask for guidance. Hard limits: max 3 retries of the same failing tool; max 2 `config_set` RPC endpoint switches.
 
 ---
@@ -139,8 +139,8 @@ To **create** a new wallet, delegate to the `ows` skill. Then return here for al
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@latest balance --wallet "my-wallet"
-bunx -y xno-skills@latest rpc account-balance <address> --json
+bunx -y xno-skills@2.8.2 balance --wallet "my-wallet"
+bunx -y xno-skills@2.8.2 rpc account-balance <address> --json
 ```
 
 **Public zero-config RPC nodes** (used automatically by xno-skills defaults):
@@ -168,7 +168,7 @@ A Nano transfer shows as **pending** until the recipient publishes a receive blo
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@latest receive --wallet "my-wallet"
+bunx -y xno-skills@2.8.2 receive --wallet "my-wallet"
 ```
 
 **Unopened account — explicit representative:**
@@ -198,7 +198,7 @@ The account must be opened (have a receive block) and have sufficient balance.
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@latest send --wallet "my-wallet" --destination "nano_..." --amount-xno 0.01
+bunx -y xno-skills@2.8.2 send --wallet "my-wallet" --destination "nano_..." --amount-xno 0.01
 ```
 
 **Validate the destination address first** (see Address Validation section).
@@ -305,13 +305,13 @@ Generates a terminal-friendly ASCII QR code for a Nano address, optionally with 
 **Via CLI:**
 ```bash
 # Address only
-bunx -y xno-skills@latest qr nano_1abc...
+bunx -y xno-skills@2.8.2 qr nano_1abc...
 
 # With amount
-bunx -y xno-skills@latest qr nano_1abc... --amount-xno 1.5
+bunx -y xno-skills@2.8.2 qr nano_1abc... --amount-xno 1.5
 
 # JSON output (recommended for agents — avoids stdout truncation)
-bunx -y xno-skills@latest qr nano_1abc... --amount-xno 1.5 --json
+bunx -y xno-skills@2.8.2 qr nano_1abc... --amount-xno 1.5 --json
 ```
 
 > **CRITICAL — stdout truncation**: Agents often have stdout truncated (e.g. `<truncated 14 lines>`). To display a full QR code:
@@ -342,7 +342,7 @@ All validation is **offline** — no network required.
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@latest validate nano_1abc...
+bunx -y xno-skills@2.8.2 validate nano_1abc...
 ```
 
 **Always validate before sending XNO to an untrusted address.**
@@ -367,10 +367,10 @@ XNO uses **30 decimal places**. Floating-point arithmetic is unsafe. Always use 
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@latest convert 1 xno       # all units
-bunx -y xno-skills@latest convert 1 knano
-bunx -y xno-skills@latest convert 1000000000000000000000000000000 raw
-bunx -y xno-skills@latest convert 1 xno --json
+bunx -y xno-skills@2.8.2 convert 1 xno       # all units
+bunx -y xno-skills@2.8.2 convert 1 knano
+bunx -y xno-skills@2.8.2 convert 1000000000000000000000000000000 raw
+bunx -y xno-skills@2.8.2 convert 1 xno --json
 ```
 
 ---
@@ -390,16 +390,16 @@ If the user provides a **hex private key**, signing and verification work via CL
 
 ```bash
 # Sign
-bunx -y xno-skills@latest sign "<message>" --key <private-key-hex>
+bunx -y xno-skills@2.8.2 sign "<message>" --key <private-key-hex>
 
 # Sign with JSON output
-bunx -y xno-skills@latest sign "<message>" --key <private-key-hex> --json
+bunx -y xno-skills@2.8.2 sign "<message>" --key <private-key-hex> --json
 
 # Verify
-bunx -y xno-skills@latest verify <nano_address> "<message>" <signature-hex>
+bunx -y xno-skills@2.8.2 verify <nano_address> "<message>" <signature-hex>
 
 # Verify with JSON output
-bunx -y xno-skills@latest verify <nano_address> "<message>" <signature-hex> --json
+bunx -y xno-skills@2.8.2 verify <nano_address> "<message>" <signature-hex> --json
 ```
 
 **NOMS standard (ORIS-001)**: Signatures are computed over a binary payload with a magic header, ensuring a valid signature cannot be misinterpreted as a Nano transaction block.
@@ -460,7 +460,7 @@ PoW input:
 
 To probe whether an RPC endpoint supports remote `work_generate`:
 ```bash
-bunx -y xno-skills@latest rpc probe-caps <url>
+bunx -y xno-skills@2.8.2 rpc probe-caps <url>
 ```
 Never use `curl` to probe this.
 
@@ -476,7 +476,7 @@ Never use `curl` to probe this.
 { "name": "change_rep", "arguments": { "wallet": "my-wallet", "representative": "nano_..." } }
 ```
 ```bash
-bunx -y xno-skills@latest change-rep --wallet "my-wallet" --representative "nano_..."
+bunx -y xno-skills@2.8.2 change-rep --wallet "my-wallet" --representative "nano_..."
 ```
 
 ### Data Representations
