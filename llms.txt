@@ -1,6 +1,6 @@
 # xno-skills
 
-> A TypeScript library, CLI, and MCP server for Nano (XNO). Pairs with Open Wallet Standard (OWS) for secure key custody — send, receive, change representatives, convert units, validate addresses, sign/verify messages, and payment request workflows.
+> A TypeScript library, CLI, and MCP server for Nano (XNO) cryptocurrency. Pairs with Open Wallet Standard (OWS) for secure key custody — send, receive, change representatives, convert units, validate addresses, sign/verify messages, and payment request workflows.
 
 All wallet custody delegates to OWS. Agents never handle seeds or mnemonics directly. All amounts use BigInt — never JS `Number` for raw units.
 
