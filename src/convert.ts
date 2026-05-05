@@ -1,5 +1,5 @@
 /**
- * Precise unit conversions for Nano (XNO) using BigInt.
+ * Precise unit conversions for XNO (Nano) cryptocurrency using BigInt.
  * 
  * Units:
  * - raw: base unit (10^0)

@@ -15,7 +15,7 @@ const logo=String.raw`MB[K
                                                   WMxno-skills v${version}[K
 [K[0m
 
-Interact with Nano (XNO / Ӿ)`
+Interact with the Nano ($XNO / Ӿ) cryptocurrency`
 .replaceAll('W',whiteFg)
 .replaceAll('G',greyFg)
 .replaceAll('B',blueFg)
