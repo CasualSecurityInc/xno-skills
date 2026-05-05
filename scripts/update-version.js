@@ -16,10 +16,12 @@ if (existing !== content) {
   writeFileSync(targetPath, content, 'utf8');
 }
 
-// Also pin SKILL.md: replace xno-skills@latest or xno-skills@x.y.z with current version
-const skillPath = resolve(__dirname, '../skills/nano/SKILL.md');
-const skill = readFileSync(skillPath, 'utf8');
-const pinnedSkill = skill.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
-if (skill !== pinnedSkill) {
-  writeFileSync(skillPath, pinnedSkill, 'utf8');
+// Pin xno-skills@latest / xno-skills@x.y.z to current version in SKILL.md and README.md
+const versionPin = (src) => src.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
+
+for (const rel of ['skills/nano/SKILL.md', 'README.md']) {
+  const filePath = resolve(__dirname, '..', rel);
+  const src = readFileSync(filePath, 'utf8');
+  const pinned = versionPin(src);
+  if (src !== pinned) writeFileSync(filePath, pinned, 'utf8');
 }

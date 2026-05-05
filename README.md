@@ -31,7 +31,7 @@ Available skills:
 ## CLI
 
 ```bash
-npm install -g xno-skills@latest
+npm install -g xno-skills@2.8.4
 xno-skills --help
 ```
 
@@ -89,7 +89,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@2.8.4", "xno-mcp"]
     }
   }
 }
@@ -105,7 +105,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
-  -- npx -y -p xno-skills@latest xno-mcp
+  -- npx -y -p xno-skills@2.8.4 xno-mcp
 ```
 </details>
 
@@ -117,7 +117,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@2.8.4", "xno-mcp"]
     }
   }
 }
@@ -133,7 +133,7 @@ codex mcp add nano \
   "mcp": {
     "nano": {
       "type": "local",
-      "command": ["npx", "-y", "-p", "xno-skills@latest", "xno-mcp"],
+      "command": ["npx", "-y", "-p", "xno-skills@2.8.4", "xno-mcp"],
       "enabled": true
     }
   }
@@ -149,7 +149,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@2.8.4", "xno-mcp"]
     }
   }
 }
@@ -164,7 +164,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@2.8.4", "xno-mcp"]
     }
   }
 }
@@ -180,7 +180,7 @@ codex mcp add nano \
     "nano": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@latest", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@2.8.4", "xno-mcp"]
     }
   }
 }

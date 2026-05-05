@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "preversion": "npm test",
-    "version": "node scripts/update-version.js && git add src/version.ts skills/nano/SKILL.md",
+    "version": "node scripts/update-version.js && git add src/version.ts skills/nano/SKILL.md README.md",
     "postversion": "node -e \"const v=require('./package.json').version; console.log('Created tag v'+v+'. Next: git push --follow-tags (GitHub Actions will publish to npm + create the GitHub Release).');\"",
     "prebuild": "node scripts/update-version.js",
     "prebuild:esm": "node scripts/update-version.js",
