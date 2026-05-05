@@ -19,7 +19,7 @@
 ## Context
 
 ### Original Request
-Create a comprehensive Nano cryptocurrency package called 'xno' for NPM. The package should:
+Create a comprehensive Nano (XNO) package called 'xno' for NPM. The package should:
 - Enable "fully Nano-capable" agents/chats with wallet management, unit conversions, and RPC access
 - Prioritize security (hex seeds/mnemonics out of chat logs, use platform keychains)
 - Handle precision correctly (BigInt internally, strings for I/O, never JS Number)

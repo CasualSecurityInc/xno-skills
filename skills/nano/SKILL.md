@@ -52,7 +52,7 @@ complements:
 
 ## Scope & Disambiguation
 
-This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: XNO, block-lattice ledger, docs.nano.org).
+This skill applies **exclusively to the Nano (XNO) protocol** (ticker: XNO, block-lattice ledger, docs.nano.org).
 
 **Activate for**: nanocurrency, XNO, `nano_` addresses, block-lattice, ORV, xno-skills, xno-mcp.
 
