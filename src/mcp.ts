@@ -1,12 +1,6 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
 import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess, rpcProbeCaps } from './rpc.js';
 import { nanoToRaw, rawToNano } from './convert.js';
@@ -18,7 +12,6 @@ import { NOMS, NanoClient, WorkProvider } from '@openrai/nano-core';
 import {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_REPRESENTATIVE,
-  createProgressReporter,
   executeChange,
   executeReceive,
   executeSend,
@@ -50,18 +43,18 @@ import {
 } from './state-store.js';
 import { listWalletsProxy } from './ows.js';
 
-const server = new Server(
-  {
-    name: 'xno-mcp',
-    version,
-  },
-  {
-    capabilities: {
-      tools: {},
-      resources: {},
-    },
-  },
+// ---------------------------------------------------------------------------
+// Server instance
+// ---------------------------------------------------------------------------
+
+const mcpServer = new McpServer(
+  { name: 'xno-mcp', version },
+  { capabilities: { tools: {}, resources: {} } },
 );
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
 type McpState = {
   config: XnoConfig;
@@ -86,6 +79,10 @@ const DEFAULT_RPC_URLS = [
   'https://rainstorm.city/api',
   'https://nanoslo.0x.no/proxy',
 ];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient {
   const rpc = (explicitRpc || state.config.rpcUrl || process.env.NANO_RPC_URL || '').split(',').filter(Boolean);
@@ -134,55 +131,22 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
   };
 }
 
-function persistConfig(): void {
-  saveConfig(state.config);
-}
-
-function persistPaymentRequests(): void {
-  savePaymentRequests(state.paymentRequests.values());
-}
-
-function persistTransactions(): void {
-  saveTransactions(state.transactions);
-}
+function persistConfig(): void { saveConfig(state.config); }
+function persistPaymentRequests(): void { savePaymentRequests(state.paymentRequests.values()); }
+function persistTransactions(): void { saveTransactions(state.transactions); }
 
 function appendTransaction(record: TransactionRecord): void {
   state.transactions.push(record);
   persistTransactions();
 }
 
-function ctxWithProgress(progressToken?: string | number) {
-  return {
-    config: state.config,
-    appendTransaction,
-    reportProgress: progressToken !== undefined ? (progress: number, total: number, message: string) =>
-      server.notification({
-        method: 'notifications/progress',
-        params: {
-          progressToken,
-          progress,
-          total,
-          message,
-        },
-      }) : undefined,
-  };
-}
-
-function parseToolName(name: string): string {
-  switch (name) {
-    case 'wallet_list':
-      return 'wallets';
-    case 'wallet_balance':
-      return 'balance';
-    case 'wallet_receive':
-      return 'receive';
-    case 'wallet_send':
-      return 'send';
-    case 'wallet_history':
-      return 'history';
-    default:
-      return name;
-  }
+function makeProgressReporter(sendNotification: (n: any) => Promise<void>, progressToken?: string | number) {
+  if (progressToken === undefined) return undefined;
+  return (progress: number, total: number, message: string) =>
+    sendNotification({
+      method: 'notifications/progress',
+      params: { progressToken, progress, total, message },
+    });
 }
 
 function walletNameFromArgs(args: any): string {
@@ -197,7 +161,6 @@ function walletIndexFromArgs(args: any): number {
   return index;
 }
 
-
 async function checkOwsHealth() {
   try {
     const wallets = await listWalletsProxy();
@@ -207,554 +170,522 @@ async function checkOwsHealth() {
   }
 }
 
-server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
-  resourceTemplates: [
-    {
-      uriTemplate: 'xno-wallet://{name}',
-      name: 'wallet-status',
-      title: 'OWS Nano Wallet Status',
-      description: 'Status and balances for an OWS Nano wallet',
-      mimeType: 'application/json',
-    },
-    {
-      uriTemplate: 'xno-wallet://{name}/account/{index}',
-      name: 'wallet-account',
-      title: 'OWS Nano Account Details',
-      description: 'Details for an OWS Nano account',
-      mimeType: 'application/json',
-    },
-    {
-      uriTemplate: 'xno-wallet://{name}/history',
-      name: 'wallet-history',
-      title: 'OWS Nano Wallet Transaction History',
-      description: 'Transaction history for an OWS Nano wallet',
-      mimeType: 'application/json',
-    },
-    {
-      uriTemplate: 'xno-payment-requests://list',
-      name: 'payment-requests',
-      title: 'Nano Payment Requests List',
-      description: 'List of all Nano payment requests tracked by xno-skills',
-      mimeType: 'application/json',
-    },
-  ],
-}));
+// ---------------------------------------------------------------------------
+// Resources
+// ---------------------------------------------------------------------------
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  const wallets = await listNanoWallets();
-  return {
-    resources: wallets.map((wallet) => ({
-      uri: `xno-wallet://${wallet.name}`,
-      name: wallet.name,
-      title: `Nano wallet ${wallet.name}`,
-      description: `Nano account summary for OWS wallet ${wallet.name}${wallet.id ? ` (${wallet.id})` : ''}`,
+mcpServer.registerResource(
+  'payment-requests',
+  'xno-payment-requests://list',
+  {
+    title: 'Nano Payment Requests List',
+    description: 'List of all Nano payment requests tracked by xno-skills',
+    mimeType: 'application/json',
+  },
+  async (uri) => ({
+    contents: [{
+      uri: uri.toString(),
       mimeType: 'application/json',
-    })),
-  };
-});
+      text: JSON.stringify(Array.from(state.paymentRequests.values()), null, 2),
+    }],
+  }),
+);
 
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const uri = request.params.uri;
-  const walletMatch = /^xno-wallet:\/\/([^/]+)$/.exec(uri);
-  const accountMatch = /^xno-wallet:\/\/([^/]+)\/account\/(\d+)$/.exec(uri);
-  const historyMatch = /^xno-wallet:\/\/([^/]+)\/history$/.exec(uri);
-  const paymentRequestsMatch = /^xno-payment-requests:\/\/list$/.exec(uri);
-
-  if (walletMatch) {
-    const wallet = walletMatch[1];
+mcpServer.registerResource(
+  'wallet-status',
+  new ResourceTemplate('xno-wallet://{name}', {
+    list: async () => {
+      const wallets = await listNanoWallets();
+      return {
+        resources: wallets.map((wallet) => ({
+          uri: `xno-wallet://${wallet.name}`,
+          name: wallet.name,
+          title: `Nano wallet ${wallet.name}`,
+          description: `Nano account summary for OWS wallet ${wallet.name}${wallet.id ? ` (${wallet.id})` : ''}`,
+          mimeType: 'application/json',
+        })),
+      };
+    },
+  }),
+  {
+    title: 'OWS Nano Wallet Status',
+    description: 'Status and balances for an OWS Nano wallet',
+    mimeType: 'application/json',
+  },
+  async (uri, { name }) => {
+    const wallet = String(name);
     const address = await getNanoAddress(wallet);
     const balance = await getNanoBalance(wallet, readersFor(), { config: state.config }, 0);
     return {
       contents: [{
-        uri,
+        uri: uri.toString(),
         mimeType: 'application/json',
         text: JSON.stringify({ wallet, address, balance }, null, 2),
       }],
     };
-  }
+  },
+);
 
-  if (accountMatch) {
-    const wallet = accountMatch[1];
-    const index = Number(accountMatch[2]);
-    if (index !== 0) {
-      throw new Error(`OWS wallets only support account index 0. Requested index: ${index}`);
-    }
+mcpServer.registerResource(
+  'wallet-account',
+  new ResourceTemplate('xno-wallet://{name}/account/{index}', { list: undefined }),
+  {
+    title: 'OWS Nano Account Details',
+    description: 'Details for an OWS Nano account',
+    mimeType: 'application/json',
+  },
+  async (uri, { name, index: indexVar }) => {
+    const wallet = String(name);
+    const index = Number(indexVar);
+    if (index !== 0) throw new Error(`OWS wallets only support account index 0. Requested index: ${index}`);
     const address = await getNanoAddress(wallet, index);
     const balance = await getNanoBalance(wallet, readersFor(), { config: state.config }, index);
     return {
       contents: [{
-        uri,
+        uri: uri.toString(),
         mimeType: 'application/json',
         text: JSON.stringify({ wallet, index, address, balance }, null, 2),
       }],
     };
-  }
+  },
+);
 
-  if (historyMatch) {
-    const wallet = historyMatch[1];
+mcpServer.registerResource(
+  'wallet-history',
+  new ResourceTemplate('xno-wallet://{name}/history', { list: undefined }),
+  {
+    title: 'OWS Nano Wallet Transaction History',
+    description: 'Transaction history for an OWS Nano wallet',
+    mimeType: 'application/json',
+  },
+  async (uri, { name }) => {
+    const wallet = String(name);
     const txs = await getNanoHistory(wallet, readersFor(), { config: state.config }, { count: 100 });
     return {
       contents: [{
-        uri,
+        uri: uri.toString(),
         mimeType: 'application/json',
         text: JSON.stringify(txs, null, 2),
       }],
     };
-  }
+  },
+);
 
-  if (paymentRequestsMatch) {
-    const list = Array.from(state.paymentRequests.values());
-    return {
-      contents: [{
-        uri,
-        mimeType: 'application/json',
-        text: JSON.stringify(list, null, 2),
-      }],
-    };
-  }
+// ---------------------------------------------------------------------------
+// Tools
+// ---------------------------------------------------------------------------
 
-  throw new Error(`Unsupported resource URI: ${uri}`);
+mcpServer.registerTool('config_get', {
+  description: 'Read current xno-mcp configuration (advanced).',
+  inputSchema: {},
+}, async () => toToolSuccess(state.config));
+
+mcpServer.registerTool('config_set', {
+  description: 'Update xno-mcp configuration (advanced).',
+  inputSchema: {
+    rpcUrl: z.string().optional(),
+    workPeerUrl: z.string().optional(),
+    timeoutMs: z.number().optional(),
+    defaultRepresentative: z.string().optional(),
+    maxSendXno: z.string().optional(),
+  },
+}, async (args) => {
+  if (args.rpcUrl !== undefined) state.config.rpcUrl = args.rpcUrl;
+  if (args.workPeerUrl !== undefined) state.config.workPeerUrl = args.workPeerUrl;
+  if (args.timeoutMs !== undefined) state.config.timeoutMs = args.timeoutMs;
+  if (args.defaultRepresentative !== undefined) state.config.defaultRepresentative = args.defaultRepresentative;
+  if (args.maxSendXno !== undefined) state.config.maxSendXno = args.maxSendXno;
+  state.nanoClient = undefined;
+  persistConfig();
+  return toToolSuccess(state.config);
 });
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    { name: 'config_get', description: 'Read current xno-mcp configuration (advanced).', inputSchema: { type: 'object', properties: {} } },
-    {
-      name: 'config_set',
-      description: 'Update xno-mcp configuration (advanced).',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          rpcUrl: { type: 'string' },
-          workPeerUrl: { type: 'string' },
-          timeoutMs: { type: 'number' },
-          defaultRepresentative: { type: 'string' },
-          maxSendXno: { type: 'string' },
-        },
-      },
-    },
-    { name: 'wallets', description: 'List OWS wallets that have Nano accounts.', inputSchema: { type: 'object', properties: {} } },
-    {
-      name: 'address',
-      description: 'Show the Nano address for an OWS wallet.',
-      inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, index: { type: 'number', default: 0 } }, required: ['wallet'] },
-    },
-    {
-      name: 'balance',
-      description: 'Show Nano balance and pending amount for an OWS wallet. Also lists pending receivable blocks.',
-      inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, index: { type: 'number', default: 0 }, count: { type: 'number', default: 10 } }, required: ['wallet'] },
-    },
-    {
-      name: 'receive',
-      description: 'Receive pending Nano blocks for an OWS wallet. Automatically handles open vs receive.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          wallet: { type: 'string' },
-          index: { type: 'number', default: 0 },
-          count: { type: 'number', default: 10 },
-          onlyHash: { type: 'string' },
-          representative: { type: 'string' },
-          rpcUrl: { type: 'string' },
-        },
-        required: ['wallet'],
-      },
-    },
-    {
-      name: 'send',
-      description: `Send Nano from an OWS wallet. Max per transaction: ${state.config.maxSendXno || DEFAULT_MAX_SEND_XNO} XNO.`,
-      inputSchema: {
-        type: 'object',
-        properties: {
-          wallet: { type: 'string' },
-          index: { type: 'number', default: 0 },
-          destination: { type: 'string' },
-          amountXno: { type: 'string' },
-          rpcUrl: { type: 'string' },
-        },
-        required: ['wallet', 'destination', 'amountXno'],
-      },
-    },
-    {
-      name: 'change_rep',
-      description: 'Submit a Nano change block to update representative for an OWS wallet.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          wallet: { type: 'string' },
-          index: { type: 'number', default: 0 },
-          representative: { type: 'string' },
-          rpcUrl: { type: 'string' },
-        },
-        required: ['wallet', 'representative'],
-      },
-    },
-    {
-      name: 'submit_block',
-      description: 'Sign and submit a prepared Nano block hex using an OWS wallet.',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          wallet: { type: 'string' },
-          index: { type: 'number', default: 0 },
-          txHex: { type: 'string' },
-          subtype: { type: 'string', enum: ['send', 'receive', 'open', 'change'] },
-          rpcUrl: { type: 'string' },
-        },
-        required: ['wallet', 'txHex', 'subtype'],
-      },
-    },
-    /* TODO: Unhide once NOMS PR is merged into OWS core
-    {
-      name: 'sign_message',
-      description: 'Sign a Nano off-chain message with an OWS wallet.',
-      inputSchema: {
-        type: 'object',
-        properties: { wallet: { type: 'string' }, index: { type: 'number', default: 0 }, message: { type: 'string' } },
-        required: ['wallet', 'message'],
-      },
-    },
-    {
-      name: 'verify_message',
-      description: 'Verify a Nano off-chain message signature.',
-      inputSchema: {
-        type: 'object',
-        properties: { address: { type: 'string' }, message: { type: 'string' }, signature: { type: 'string' } },
-        required: ['address', 'message', 'signature'],
-      },
-    },
-    */
-    { name: 'convert_units', description: 'Convert between Nano units.', inputSchema: { type: 'object', properties: { amount: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' } }, required: ['amount', 'from', 'to'] } },
-    { name: 'validate_address', description: 'Validate a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' } }, required: ['address'] } },
-    { name: 'probe_caps', description: 'Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW).', inputSchema: { type: 'object', properties: { rpcUrl: { type: 'string' } } } },
-    { name: 'rpc_account_balance', description: 'Check any Nano account balance via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['address'] } },
-    { name: 'rpc_account_info', description: 'Fetch account info including frontier and balance via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['address'] } },
-    { name: 'rpc_receivable', description: 'List receivable blocks for an account via RPC.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, count: { type: 'number', default: 10 }, rpcUrl: { type: 'string' } }, required: ['address'] } },
-    { name: 'block_build_send', description: 'Build an unsigned send block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, to: { type: 'string' }, amountXno: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account', 'to', 'amountXno'] } },
-    { name: 'block_build_receive', description: 'Build an unsigned receive block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, hash: { type: 'string' }, amountRaw: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account'] } },
-    { name: 'block_build_change', description: 'Build an unsigned change block hex.', inputSchema: { type: 'object', properties: { account: { type: 'string' }, representative: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['account', 'representative'] } },
-    { name: 'generate_qr', description: 'Generate ASCII or SVG QR for a Nano address.', inputSchema: { type: 'object', properties: { address: { type: 'string' }, amountXno: { type: 'string' }, format: { type: 'string', enum: ['ascii', 'svg'], default: 'ascii' } }, required: ['address'] } },
-    { name: 'info', description: 'Discover the current state and representative of any Nano account.', inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, address: { type: 'string' } } } },
-    { name: 'ows_health_check', description: 'Check if the OWS wallet daemon is reachable and responding correctly.', inputSchema: { type: 'object', properties: {} } },
-    { name: 'history', description: 'View Nano transaction history tracked by xno-skills for an OWS wallet.', inputSchema: { type: 'object', properties: { wallet: { type: 'string' }, index: { type: 'number' }, limit: { type: 'number', default: 20 } }, required: ['wallet'] } },
-    { name: 'payment_request_create', description: 'Create a tracked Nano payment request using an OWS wallet.', inputSchema: { type: 'object', properties: { walletName: { type: 'string' }, accountIndex: { type: 'number', default: 0 }, amountXno: { type: 'string' }, reason: { type: 'string' } }, required: ['walletName', 'amountXno', 'reason'] } },
-    { name: 'payment_request_list', description: 'List payment requests.', inputSchema: { type: 'object', properties: { walletName: { type: 'string' }, status: { type: 'string' } } } },
-    { name: 'payment_request_status', description: 'Check payment request status.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-    { name: 'payment_request_receive', description: 'Receive pending funds for a payment request.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
-    { name: 'payment_request_refund', description: 'Refund a payment request.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, execute: { type: 'boolean', default: false }, confirmAddress: { type: 'string' } }, required: ['id'] } },
+mcpServer.registerTool('wallets', {
+  description: 'List OWS wallets that have Nano accounts.',
+  inputSchema: {},
+}, async () => toToolSuccess(await listNanoWallets()));
 
-    { name: 'wallet_list', description: 'Deprecated alias for wallets.', inputSchema: { type: 'object', properties: {} } },
-    { name: 'wallet_balance', description: 'Deprecated alias for balance.', inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 } }, required: ['name'] } },
-    { name: 'wallet_receive', description: 'Deprecated alias for receive.', inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 }, count: { type: 'number', default: 10 }, onlyHash: { type: 'string' }, representative: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['name'] } },
-    { name: 'wallet_send', description: `Deprecated alias for send. Max per transaction: ${state.config.maxSendXno || DEFAULT_MAX_SEND_XNO} XNO.`, inputSchema: { type: 'object', properties: { name: { type: 'string' }, index: { type: 'number', default: 0 }, destination: { type: 'string' }, amountXno: { type: 'string' }, rpcUrl: { type: 'string' } }, required: ['name', 'destination', 'amountXno'] } },
-  ],
-}));
+mcpServer.registerTool('address', {
+  description: 'Show the Nano address for an OWS wallet.',
+  inputSchema: { wallet: z.string(), index: z.number().default(0) },
+}, async (args) => toToolSuccess(await getNanoAddress(args.wallet, args.index)));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const args = request.params.arguments as any;
-  const name = parseToolName(request.params.name);
-  const progressToken = request.params._meta?.progressToken;
-  const ctx = ctxWithProgress(progressToken);
-
+mcpServer.registerTool('balance', {
+  description: 'Show Nano balance and pending amount for an OWS wallet. Also lists pending receivable blocks.',
+  inputSchema: { wallet: z.string(), index: z.number().default(0), count: z.number().default(10), rpcUrl: z.string().optional() },
+}, async (args, extra) => {
   try {
-    switch (name) {
-      case 'config_get':
-        return toToolSuccess(state.config);
-
-      case 'config_set': {
-        if (args?.rpcUrl !== undefined) state.config.rpcUrl = String(args.rpcUrl);
-        if (args?.workPeerUrl !== undefined) state.config.workPeerUrl = String(args.workPeerUrl);
-        if (args?.timeoutMs !== undefined) state.config.timeoutMs = Number(args.timeoutMs);
-        if (args?.defaultRepresentative !== undefined) state.config.defaultRepresentative = String(args.defaultRepresentative);
-        if (args?.maxSendXno !== undefined) state.config.maxSendXno = String(args.maxSendXno);
-        state.nanoClient = undefined;
-        persistConfig();
-        return toToolSuccess(state.config);
-      }
-
-      case 'wallets':
-        return toToolSuccess(await listNanoWallets());
-
-      case 'address': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        return toToolSuccess(await getNanoAddress(wallet, index));
-      }
-      case 'balance':
-      case 'wallet_balance': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const count = Number(args?.count ?? 10);
-        return toToolSuccess(await getNanoBalance(wallet, readersFor(args?.rpcUrl ? String(args.rpcUrl) : undefined), ctx, index, count));
-      }
-
-      case 'receive': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const count = Number(args?.count ?? 10);
-        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
-        const res = await executeReceive(wallet, rpcUrl, ctx, readersFor(rpcUrl), {
-          index,
-          count,
-          onlyHash: args?.onlyHash ? String(args.onlyHash) : undefined,
-          representative: args?.representative ? String(args.representative) : undefined,
-        });
-        return toToolSuccess(res);
-      }
-
-      case 'send': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
-        const res = await executeSend(
-          wallet,
-          rpcUrl,
-          ctx,
-          readersFor(rpcUrl),
-          String(args?.destination),
-          String(args?.amountXno),
-          { index },
-        );
-        return toToolSuccess(res);
-      }
-
-      case 'change_rep': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
-        const res = await executeChange(
-          wallet,
-          rpcUrl,
-          ctx,
-          readersFor(rpcUrl),
-          String(args?.representative),
-          { index },
-        );
-        return toToolSuccess(res);
-      }
-
-      case 'submit_block': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const subtype = String(args?.subtype) as 'send' | 'receive' | 'open' | 'change';
-        const rpcUrl = args?.rpcUrl ? String(args.rpcUrl) : undefined;
-        return toToolSuccess(await submitPreparedBlock(wallet, rpcUrl, ctx, readersFor(rpcUrl), String(args?.txHex), subtype, { index }));
-      }
-
-      case 'history': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        const limit = Number(args?.limit ?? 20);
-        const history = await getNanoHistory(wallet, readersFor(), ctx, { index, count: limit });
-        return toToolSuccess(history);
-      }
-
-      case 'sign_message': {
-        const wallet = walletNameFromArgs(args);
-        const index = walletIndexFromArgs(args);
-        return toToolSuccess(await signWalletMessage(wallet, String(args?.message), { index }));
-      }
-
-      case 'verify_message':
-        return toToolSuccess(verifyNanoMessage(String(args?.address), String(args?.message), String(args?.signature)));
-
-      case 'convert_units': {
-        const amount = String(args?.amount);
-        const from = String(args?.from).toLowerCase();
-        const to = String(args?.to).toLowerCase();
-        const raw = from === 'xno' ? nanoToRaw(amount) : amount;
-        const result = to === 'xno' ? rawToNano(raw) : raw;
-        return { content: [{ type: 'text', text: result }] };
-      }
-
-      case 'validate_address':
-        return toToolSuccess(validateAddress(String(args?.address)));
-
-      case 'rpc_account_balance': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        return toToolSuccess(await rpcAccountBalance(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
-      }
-
-      case 'rpc_account_info': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        return toToolSuccess(await rpcAccountInfo(client, String(args?.address), { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
-      }
-
-      case 'rpc_receivable': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        const count = Number(args?.count ?? 10);
-        return toToolSuccess(await rpcReceivable(client, String(args?.address), count, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
-      }
-
-      case 'block_build_send': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        const account = String(args?.account);
-        const to = String(args?.to);
-        const amountXno = String(args?.amountXno);
-        const senderPk = decodeNanoAddress(account).publicKey;
-        const recipientPk = decodeNanoAddress(to).publicKey;
-        const info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
-        if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
-        const currentBalance = BigInt(info.balance);
-        const sendRaw = BigInt(nanoToRaw(amountXno));
-        if (sendRaw <= 0n) throw new Error('Amount must be positive');
-        if (sendRaw > currentBalance) throw new Error('Insufficient balance');
-        const blockHex = buildNanoStateBlockHex({
-          accountPublicKey: senderPk,
-          previous: info.frontier,
-          representativePublicKey: decodeNanoAddress(info.representative || DEFAULT_REPRESENTATIVE).publicKey,
-          balanceRaw: (currentBalance - sendRaw).toString(),
-          link: recipientPk,
-        });
-        return toToolSuccess({ blockHex, account, to, amountRaw: sendRaw.toString(), previous: info.frontier });
-      }
-
-      case 'block_build_receive': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        const account = String(args?.account);
-        let hash = args?.hash ? String(args.hash) : undefined;
-        let amountRaw = args?.amountRaw ? String(args.amountRaw) : undefined;
-        if (!hash) {
-          const pending = await rpcReceivable(client, account, 1, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
-          if (pending.length === 0) throw new Error('No receivable blocks found');
-          hash = pending[0].hash;
-          amountRaw = pending[0].amount;
-        }
-        if (!amountRaw) throw new Error('amountRaw is required if hash is provided');
-        
-        let info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }).catch(() => ({ error: 'Account not found' } as any));
-        const opened = !isRpcError(info);
-        const previous = opened ? info.frontier : '0'.repeat(64);
-        const currentBalance = opened ? BigInt(info.balance) : 0n;
-        const blockHex = buildNanoStateBlockHex({
-          accountPublicKey: decodeNanoAddress(account).publicKey,
-          previous,
-          representativePublicKey: decodeNanoAddress(opened ? info.representative || DEFAULT_REPRESENTATIVE : DEFAULT_REPRESENTATIVE).publicKey,
-          balanceRaw: (currentBalance + BigInt(amountRaw)).toString(),
-          link: hash,
-        });
-        return toToolSuccess({ blockHex, account, sendBlockHash: hash, amountRaw, previous, subtype: opened ? 'receive' : 'open' });
-      }
-
-      case 'block_build_change': {
-        const client = getNanoClient(args?.rpcUrl ? String(args.rpcUrl) : undefined);
-        const account = String(args?.account);
-        const rep = validateAddress(String(args?.representative));
-        if (!rep.valid || !rep.publicKey) throw new Error(`Invalid representative address: ${rep.error}`);
-        const info = await rpcAccountInfo(client, account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
-        if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
-        const blockHex = buildNanoStateBlockHex({
-          accountPublicKey: decodeNanoAddress(account).publicKey,
-          previous: info.frontier,
-          representativePublicKey: rep.publicKey,
-          balanceRaw: info.balance,
-          link: '0'.repeat(64),
-        });
-        return toToolSuccess({ blockHex, account, representative: String(args?.representative), previous: info.frontier });
-      }
-
-      case 'probe_caps': {
-        const targetUrl = args?.rpcUrl ? String(args.rpcUrl) : (state.config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]);
-        const client = getNanoClient(targetUrl);
-        return toToolSuccess(await rpcProbeCaps(client, targetUrl, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
-      }
-
-      case 'generate_qr': {
-        const format = String(args?.format ?? 'ascii');
-        const address = String(args?.address);
-        const amount = args?.amountXno ? String(args.amountXno) : undefined;
-        if (format === 'svg') {
-          return { content: [{ type: 'text', text: generateSvgQr(address, amount) }] };
-        }
-        return { content: [{ type: 'text', text: await generateAsciiQr(address, amount) }] };
-      }
-      case 'info': {
-        const wallet = args?.wallet ? String(args.wallet) : undefined;
-        const address = args?.address ? String(args.address) : undefined;
-        if (!wallet && !address) {
-          throw new Error("Either 'wallet' or 'address' must be provided");
-        }
-        if (wallet && address) {
-          throw new Error("Cannot specify both 'wallet' and 'address'");
-        }
-        const info = await getNanoAccountInfo({ wallet, address }, readersFor(), { config: state.config });
-        return toToolSuccess(info);
-      }
-
-      case 'ows_health_check':
-        return toToolSuccess(await checkOwsHealth());
-
-      case 'payment_request_create': {
-        const walletName = String(args?.walletName);
-        const accountIndex = Number(args?.accountIndex ?? 0);
-        const amountXno = String(args?.amountXno);
-        const reason = String(args?.reason);
-        const address = await getNanoAddress(walletName, accountIndex);
-        const id = generateId();
-        const requestRecord: PaymentRequest = {
-          id,
-          owsWalletId: walletName,
-          accountIndex,
-          address: address.address,
-          amountRaw: nanoToRaw(amountXno),
-          reason,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          receivedBlocks: [],
-        };
-        state.paymentRequests.set(id, requestRecord);
-        persistPaymentRequests();
-        const qr = await generateAsciiQr(address.address, amountXno);
-        return toToolSuccess({ id, address: address.address, amountXno, qr });
-      }
-
-      case 'payment_request_list': {
-        const walletFilter = args?.walletName ? String(args.walletName) : undefined;
-        const statusFilter = args?.status ? String(args.status) : undefined;
-        let list = Array.from(state.paymentRequests.values());
-        if (walletFilter) list = list.filter(r => r.owsWalletId === walletFilter);
-        if (statusFilter) list = list.filter(r => r.status === statusFilter);
-        return toToolSuccess(list);
-      }
-
-      case 'payment_request_status': {
-        const requestRecord = state.paymentRequests.get(String(args?.id));
-        if (!requestRecord) throw new Error('Not found');
-        return toToolSuccess(requestRecord);
-      }
-
-      case 'payment_request_receive': {
-        const requestRecord = state.paymentRequests.get(String(args?.id));
-        if (!requestRecord) throw new Error('Not found');
-        return toToolSuccess(await executeReceive(requestRecord.owsWalletId, undefined, ctx, readersFor(), {
-          index: requestRecord.accountIndex,
-          count: 10,
-        }));
-      }
-
-      case 'payment_request_refund': {
-        const requestRecord = state.paymentRequests.get(String(args?.id));
-        if (!requestRecord) throw new Error('Not found');
-        if (!Boolean(args?.execute)) return { content: [{ type: 'text', text: 'Set execute: true to refund.' }] };
-        return toToolSuccess(await executeSend(
-          requestRecord.owsWalletId,
-          undefined,
-          ctx,
-          readersFor(),
-          String(args?.confirmAddress),
-          rawToNano(requestRecord.amountRaw),
-          { index: requestRecord.accountIndex },
-        ));
-      }
-
-      default:
-        throw new Error(`Unknown tool: ${request.params.name}`);
-    }
-  } catch (error) {
-    return toToolError(error);
-  }
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await getNanoBalance(args.wallet, readersFor(args.rpcUrl), ctx, args.index, args.count));
+  } catch (error) { return toToolError(error); }
 });
+
+mcpServer.registerTool('receive', {
+  description: 'Receive pending Nano blocks for an OWS wallet. Automatically handles open vs receive.',
+  inputSchema: {
+    wallet: z.string(),
+    index: z.number().default(0),
+    count: z.number().default(10),
+    onlyHash: z.string().optional(),
+    representative: z.string().optional(),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeReceive(args.wallet, args.rpcUrl, ctx, readersFor(args.rpcUrl), {
+      index: args.index,
+      count: args.count,
+      onlyHash: args.onlyHash,
+      representative: args.representative,
+    }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('send', {
+  description: `Send Nano from an OWS wallet. Max per transaction: ${state.config.maxSendXno || DEFAULT_MAX_SEND_XNO} XNO.`,
+  inputSchema: {
+    wallet: z.string(),
+    index: z.number().default(0),
+    destination: z.string(),
+    amountXno: z.string(),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeSend(args.wallet, args.rpcUrl, ctx, readersFor(args.rpcUrl), args.destination, args.amountXno, { index: args.index }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('change_rep', {
+  description: 'Submit a Nano change block to update representative for an OWS wallet.',
+  inputSchema: {
+    wallet: z.string(),
+    index: z.number().default(0),
+    representative: z.string(),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeChange(args.wallet, args.rpcUrl, ctx, readersFor(args.rpcUrl), args.representative, { index: args.index }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('submit_block', {
+  description: 'Sign and submit a prepared Nano block hex using an OWS wallet.',
+  inputSchema: {
+    wallet: z.string(),
+    index: z.number().default(0),
+    txHex: z.string(),
+    subtype: z.enum(['send', 'receive', 'open', 'change']),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await submitPreparedBlock(args.wallet, args.rpcUrl, ctx, readersFor(args.rpcUrl), args.txHex, args.subtype, { index: args.index }));
+  } catch (error) { return toToolError(error); }
+});
+
+/* TODO: Unhide once NOMS PR is merged into OWS core
+mcpServer.registerTool('sign_message', { ... }, async (args) => { ... });
+mcpServer.registerTool('verify_message', { ... }, async (args) => { ... });
+*/
+
+mcpServer.registerTool('convert_units', {
+  description: 'Convert between Nano units.',
+  inputSchema: { amount: z.string(), from: z.string(), to: z.string() },
+}, async (args) => {
+  const raw = args.from.toLowerCase() === 'xno' ? nanoToRaw(args.amount) : args.amount;
+  const result = args.to.toLowerCase() === 'xno' ? rawToNano(raw) : raw;
+  return { content: [{ type: 'text' as const, text: result }] };
+});
+
+mcpServer.registerTool('validate_address', {
+  description: 'Validate a Nano address.',
+  inputSchema: { address: z.string() },
+}, async (args) => toToolSuccess(validateAddress(args.address)));
+
+mcpServer.registerTool('probe_caps', {
+  description: 'Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW).',
+  inputSchema: { rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const targetUrl = args.rpcUrl ?? (state.config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]);
+    const client = getNanoClient(targetUrl);
+    return toToolSuccess(await rpcProbeCaps(client, targetUrl, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('rpc_account_balance', {
+  description: 'Check any Nano account balance via RPC.',
+  inputSchema: { address: z.string(), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    return toToolSuccess(await rpcAccountBalance(client, args.address, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('rpc_account_info', {
+  description: 'Fetch account info including frontier and balance via RPC.',
+  inputSchema: { address: z.string(), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    return toToolSuccess(await rpcAccountInfo(client, args.address, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('rpc_receivable', {
+  description: 'List receivable blocks for an account via RPC.',
+  inputSchema: { address: z.string(), count: z.number().default(10), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    return toToolSuccess(await rpcReceivable(client, args.address, args.count, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('block_build_send', {
+  description: 'Build an unsigned send block hex.',
+  inputSchema: { account: z.string(), to: z.string(), amountXno: z.string(), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    const senderPk = decodeNanoAddress(args.account).publicKey;
+    const recipientPk = decodeNanoAddress(args.to).publicKey;
+    const info = await rpcAccountInfo(client, args.account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+    if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
+    const currentBalance = BigInt(info.balance);
+    const sendRaw = BigInt(nanoToRaw(args.amountXno));
+    if (sendRaw <= 0n) throw new Error('Amount must be positive');
+    if (sendRaw > currentBalance) throw new Error('Insufficient balance');
+    const blockHex = buildNanoStateBlockHex({
+      accountPublicKey: senderPk,
+      previous: info.frontier,
+      representativePublicKey: decodeNanoAddress(info.representative || DEFAULT_REPRESENTATIVE).publicKey,
+      balanceRaw: (currentBalance - sendRaw).toString(),
+      link: recipientPk,
+    });
+    return toToolSuccess({ blockHex, account: args.account, to: args.to, amountRaw: sendRaw.toString(), previous: info.frontier });
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('block_build_receive', {
+  description: 'Build an unsigned receive block hex.',
+  inputSchema: { account: z.string(), hash: z.string().optional(), amountRaw: z.string().optional(), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    let hash = args.hash;
+    let amountRaw = args.amountRaw;
+    if (!hash) {
+      const pending = await rpcReceivable(client, args.account, 1, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+      if (pending.length === 0) throw new Error('No receivable blocks found');
+      hash = pending[0].hash;
+      amountRaw = pending[0].amount;
+    }
+    if (!amountRaw) throw new Error('amountRaw is required if hash is provided');
+    const info = await rpcAccountInfo(client, args.account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS }).catch(() => ({ error: 'Account not found' } as any));
+    const opened = !isRpcError(info);
+    const previous = opened ? info.frontier : '0'.repeat(64);
+    const currentBalance = opened ? BigInt(info.balance) : 0n;
+    const blockHex = buildNanoStateBlockHex({
+      accountPublicKey: decodeNanoAddress(args.account).publicKey,
+      previous,
+      representativePublicKey: decodeNanoAddress(opened ? info.representative || DEFAULT_REPRESENTATIVE : DEFAULT_REPRESENTATIVE).publicKey,
+      balanceRaw: (currentBalance + BigInt(amountRaw)).toString(),
+      link: hash,
+    });
+    return toToolSuccess({ blockHex, account: args.account, sendBlockHash: hash, amountRaw, previous, subtype: opened ? 'receive' : 'open' });
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('block_build_change', {
+  description: 'Build an unsigned change block hex.',
+  inputSchema: { account: z.string(), representative: z.string(), rpcUrl: z.string().optional() },
+}, async (args) => {
+  try {
+    const client = getNanoClient(args.rpcUrl);
+    const rep = validateAddress(args.representative);
+    if (!rep.valid || !rep.publicKey) throw new Error(`Invalid representative address: ${rep.error}`);
+    const info = await rpcAccountInfo(client, args.account, { timeoutMs: state.config.timeoutMs || DEFAULT_TIMEOUT_MS });
+    if (isRpcError(info)) throw new Error(`Account not opened: ${info.error}`);
+    const blockHex = buildNanoStateBlockHex({
+      accountPublicKey: decodeNanoAddress(args.account).publicKey,
+      previous: info.frontier,
+      representativePublicKey: rep.publicKey,
+      balanceRaw: info.balance,
+      link: '0'.repeat(64),
+    });
+    return toToolSuccess({ blockHex, account: args.account, representative: args.representative, previous: info.frontier });
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('generate_qr', {
+  description: 'Generate ASCII or SVG QR for a Nano address.',
+  inputSchema: { address: z.string(), amountXno: z.string().optional(), format: z.enum(['ascii', 'svg']).default('ascii') },
+}, async (args) => {
+  if (args.format === 'svg') return { content: [{ type: 'text' as const, text: generateSvgQr(args.address, args.amountXno) }] };
+  return { content: [{ type: 'text' as const, text: await generateAsciiQr(args.address, args.amountXno) }] };
+});
+
+mcpServer.registerTool('info', {
+  description: 'Discover the current state and representative of any Nano account.',
+  inputSchema: { wallet: z.string().optional(), address: z.string().optional() },
+}, async (args) => {
+  try {
+    if (!args.wallet && !args.address) throw new Error("Either 'wallet' or 'address' must be provided");
+    if (args.wallet && args.address) throw new Error("Cannot specify both 'wallet' and 'address'");
+    return toToolSuccess(await getNanoAccountInfo({ wallet: args.wallet, address: args.address }, readersFor(), { config: state.config }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('ows_health_check', {
+  description: 'Check if the OWS wallet daemon is reachable and responding correctly.',
+  inputSchema: {},
+}, async () => toToolSuccess(await checkOwsHealth()));
+
+mcpServer.registerTool('history', {
+  description: 'View Nano transaction history tracked by xno-skills for an OWS wallet.',
+  inputSchema: { wallet: z.string(), index: z.number().optional(), limit: z.number().default(20) },
+}, async (args) => {
+  try {
+    const ctx = { config: state.config, appendTransaction };
+    return toToolSuccess(await getNanoHistory(args.wallet, readersFor(), ctx, { index: args.index ?? 0, count: args.limit }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('payment_request_create', {
+  description: 'Create a tracked Nano payment request using an OWS wallet.',
+  inputSchema: { walletName: z.string(), accountIndex: z.number().default(0), amountXno: z.string(), reason: z.string() },
+}, async (args) => {
+  try {
+    const address = await getNanoAddress(args.walletName, args.accountIndex);
+    const id = generateId();
+    const requestRecord: PaymentRequest = {
+      id,
+      owsWalletId: args.walletName,
+      accountIndex: args.accountIndex,
+      address: address.address,
+      amountRaw: nanoToRaw(args.amountXno),
+      reason: args.reason,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      receivedBlocks: [],
+    };
+    state.paymentRequests.set(id, requestRecord);
+    persistPaymentRequests();
+    const qr = await generateAsciiQr(address.address, args.amountXno);
+    return toToolSuccess({ id, address: address.address, amountXno: args.amountXno, qr });
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('payment_request_list', {
+  description: 'List payment requests.',
+  inputSchema: { walletName: z.string().optional(), status: z.string().optional() },
+}, async (args) => {
+  let list = Array.from(state.paymentRequests.values());
+  if (args.walletName) list = list.filter(r => r.owsWalletId === args.walletName);
+  if (args.status) list = list.filter(r => r.status === args.status);
+  return toToolSuccess(list);
+});
+
+mcpServer.registerTool('payment_request_status', {
+  description: 'Check payment request status.',
+  inputSchema: { id: z.string() },
+}, async (args) => {
+  const rec = state.paymentRequests.get(args.id);
+  if (!rec) return toToolError(new Error('Not found'));
+  return toToolSuccess(rec);
+});
+
+mcpServer.registerTool('payment_request_receive', {
+  description: 'Receive pending funds for a payment request.',
+  inputSchema: { id: z.string() },
+}, async (args, extra) => {
+  try {
+    const rec = state.paymentRequests.get(args.id);
+    if (!rec) throw new Error('Not found');
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeReceive(rec.owsWalletId, undefined, ctx, readersFor(), { index: rec.accountIndex, count: 10 }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('payment_request_refund', {
+  description: 'Refund a payment request.',
+  inputSchema: { id: z.string(), execute: z.boolean().default(false), confirmAddress: z.string().optional() },
+}, async (args, extra) => {
+  try {
+    const rec = state.paymentRequests.get(args.id);
+    if (!rec) throw new Error('Not found');
+    if (!args.execute) return { content: [{ type: 'text' as const, text: 'Set execute: true to refund.' }] };
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeSend(rec.owsWalletId, undefined, ctx, readersFor(), String(args.confirmAddress), rawToNano(rec.amountRaw), { index: rec.accountIndex }));
+  } catch (error) { return toToolError(error); }
+});
+
+// Deprecated aliases
+mcpServer.registerTool('wallet_list', {
+  description: 'Deprecated alias for wallets.',
+  inputSchema: {},
+}, async () => toToolSuccess(await listNanoWallets()));
+
+mcpServer.registerTool('wallet_balance', {
+  description: 'Deprecated alias for balance.',
+  inputSchema: { name: z.string(), index: z.number().default(0), rpcUrl: z.string().optional() },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await getNanoBalance(args.name, readersFor(args.rpcUrl), ctx, args.index));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('wallet_receive', {
+  description: 'Deprecated alias for receive.',
+  inputSchema: {
+    name: z.string(),
+    index: z.number().default(0),
+    count: z.number().default(10),
+    onlyHash: z.string().optional(),
+    representative: z.string().optional(),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeReceive(args.name, args.rpcUrl, ctx, readersFor(args.rpcUrl), {
+      index: args.index,
+      count: args.count,
+      onlyHash: args.onlyHash,
+      representative: args.representative,
+    }));
+  } catch (error) { return toToolError(error); }
+});
+
+mcpServer.registerTool('wallet_send', {
+  description: `Deprecated alias for send. Max per transaction: ${state.config.maxSendXno || DEFAULT_MAX_SEND_XNO} XNO.`,
+  inputSchema: {
+    name: z.string(),
+    index: z.number().default(0),
+    destination: z.string(),
+    amountXno: z.string(),
+    rpcUrl: z.string().optional(),
+  },
+}, async (args, extra) => {
+  try {
+    const ctx = { config: state.config, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
+    return toToolSuccess(await executeSend(args.name, args.rpcUrl, ctx, readersFor(args.rpcUrl), args.destination, args.amountXno, { index: args.index }));
+  } catch (error) { return toToolError(error); }
+});
+
+// ---------------------------------------------------------------------------
+// Server lifecycle
+// ---------------------------------------------------------------------------
 
 export async function runMcpServer() {
   const transport = new StdioServerTransport();
@@ -764,7 +695,7 @@ export async function runMcpServer() {
   const shutdown = async () => {
     process.stderr.write('[xno-mcp] Shutting down...\n');
     try {
-      await server.close();
+      await mcpServer.close();
     } catch { }
     process.exit(0);
   };
@@ -773,7 +704,7 @@ export async function runMcpServer() {
   process.on('SIGTERM', shutdown);
 
   try {
-    await server.connect(transport);
+    await mcpServer.connect(transport);
     process.stderr.write('[xno-mcp] Connected to stdio.\n');
   } catch (error: any) {
     process.stderr.write(`[xno-mcp] Connection failed: ${error.message}\n`);

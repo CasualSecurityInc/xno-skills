@@ -190,8 +190,8 @@ describe('MCP Server Integration', () => {
 
   it('should return on-chain history for OWS wallet', async () => {
     const result = await client.callTool({
-      name: "wallet_history",
-      arguments: { walletName: "A" }
+      name: "history",
+      arguments: { wallet: "A" }
     });
 
     expect(result.isError).toBeFalsy();
@@ -248,7 +248,40 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = (result.content[0] as any).text;
+    const out = (result.content as any)[0].text;
     expect(out).toContain("▄");
+  });
+
+  it('should list resources (wallet-status template)', async () => {
+    const result = await client.listResources();
+    expect(result.resources).toBeInstanceOf(Array);
+    const walletA = result.resources.find((r: any) => r.uri === 'xno-wallet://A');
+    expect(walletA).toBeDefined();
+    expect(walletA!.name).toBe('A');
+  });
+
+  it('should list resource templates', async () => {
+    const result = await client.listResourceTemplates();
+    const templateUris = result.resourceTemplates.map((t: any) => t.uriTemplate);
+    expect(templateUris).toContain('xno-wallet://{name}');
+    expect(templateUris).toContain('xno-wallet://{name}/account/{index}');
+    expect(templateUris).toContain('xno-wallet://{name}/history');
+  });
+
+  it('should read xno-payment-requests://list resource', async () => {
+    const result = await client.readResource({ uri: 'xno-payment-requests://list' });
+    expect(result.contents).toBeInstanceOf(Array);
+    expect(result.contents.length).toBeGreaterThan(0);
+    const text = (result.contents[0] as any).text;
+    const parsed = JSON.parse(text);
+    expect(parsed).toBeInstanceOf(Array);
+  });
+
+  it('should read xno-wallet://A resource', async () => {
+    const result = await client.readResource({ uri: 'xno-wallet://A' });
+    expect(result.contents).toBeInstanceOf(Array);
+    const parsed = JSON.parse((result.contents[0] as any).text);
+    expect(parsed.wallet).toBe('A');
+    expect(parsed.address).toBeDefined();
   });
 });

@@ -1,5 +1,4 @@
 import { NOMS } from '@openrai/nano-core';
-import { ProgressNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { buildNanoStateBlockHex, hashNanoStateBlockHex, parseNanoStateBlockHex, type StateBlockHashInput } from './state-block.js';
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
@@ -252,21 +251,6 @@ async function signWorkAndProcess(
 
 export function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): resp is NanoRpcErrorResponse {
   return typeof (resp as any)?.error === 'string';
-}
-
-export async function createProgressReporter(server: { notification: (notification: unknown) => Promise<void> }, progressToken?: string | number): Promise<ProgressReporter | undefined> {
-  if (progressToken === undefined) return undefined;
-  return async (progress: number, total: number, message: string) => {
-    await server.notification({
-      method: 'notifications/progress',
-      params: {
-        progressToken,
-        progress,
-        total,
-        message,
-      },
-    });
-  };
 }
 
 async function report(ctx: NanoActionContext, progress: number, total: number, message: string): Promise<void> {
@@ -692,7 +676,7 @@ export function toToolSuccess(result: unknown, structuredContent?: Record<string
     ? result as Record<string, unknown>
     : undefined);
   return {
-    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+    content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
     structuredContent: derivedStructured,
   };
 }
@@ -700,7 +684,7 @@ export function toToolSuccess(result: unknown, structuredContent?: Record<string
 export function toToolError(error: unknown) {
   if (error instanceof NanoActionError) {
     return {
-      content: [{ type: 'text', text: `Error [${error.code}] at ${error.step}: ${error.message}` }],
+      content: [{ type: 'text' as const, text: `Error [${error.code}] at ${error.step}: ${error.message}` }],
       structuredContent: {
         code: error.code,
         step: error.step,
@@ -714,7 +698,7 @@ export function toToolError(error: unknown) {
 
   const message = error instanceof Error ? error.message : String(error);
   return {
-    content: [{ type: 'text', text: `Error: ${message}` }],
+    content: [{ type: 'text' as const, text: `Error: ${message}` }],
     structuredContent: {
       code: 'INTERNAL_ERROR',
       step: 'submit_block',
