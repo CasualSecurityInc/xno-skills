@@ -386,15 +386,23 @@ The `sign_message` and `verify_message` MCP tools require OWS upstream support t
 
 ### Low-level CLI signing (raw private key)
 
-If the user provides a **hex private key**, signing and verification work via CLI today:
+Signing with a raw hex private key works via CLI today, but **the agent must never handle the key value**. A raw private key passed through an LLM context is exposed to logs, memory, and any downstream system — treat it like a password.
+
+**Agent's role**: construct the command with a placeholder and ask the user to run it themselves in their own terminal.
+
+Present the user with this command to run locally:
 
 ```bash
-# Sign
-bunx -y xno-skills@2.8.3 sign "<message>" --key <private-key-hex>
+# Sign — run this yourself, replacing the placeholder with your actual key
+bunx -y xno-skills@2.8.3 sign "<message>" --key YOUR_PRIVATE_KEY_HEX
 
 # Sign with JSON output
-bunx -y xno-skills@2.8.3 sign "<message>" --key <private-key-hex> --json
+bunx -y xno-skills@2.8.3 sign "<message>" --key YOUR_PRIVATE_KEY_HEX --json
+```
 
+For verify, the agent *can* run this directly (no secret material involved):
+
+```bash
 # Verify
 bunx -y xno-skills@2.8.3 verify <nano_address> "<message>" <signature-hex>
 
@@ -406,7 +414,7 @@ bunx -y xno-skills@2.8.3 verify <nano_address> "<message>" <signature-hex> --jso
 
 **Note**: `verify` accepts both `nano_`/`xrb_` addresses and raw 32-byte hex public keys.
 
-> Do not prompt the user to export their mnemonic to get a private key. Only use the raw-key CLI path if they provide a hex private key directly.
+> Do not prompt the user to export their mnemonic to get a private key. Never accept, repeat, or emit a private key value — only use the placeholder pattern above.
 
 ---
 
