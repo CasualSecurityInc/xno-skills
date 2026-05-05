@@ -64,7 +64,7 @@ jobs:
           npx -y clawhub login --token "$CLAWHUB_TOKEN"
           npx -y clawhub skill publish ./skills/nano \
             --slug nano \
-            --name "Nano (XNO) Skills" \
+            --name "Nano (XNO) Cryptocurrency" \
             --version "${{ steps.version.outputs.version }}" \
             --changelog "Automated publish from ${GITHUB_SHA} (${{ steps.version.outputs.desc }})" \
             --tags latest
