@@ -22,6 +22,12 @@ mkdir -p mcpb/server
 cp -r dist mcpb/server/dist
 cp package.json mcpb/server/package.json
 
+# Copy static server card for Smithery quality scoring
+if [ -f "mcpb/server-card.json" ]; then
+  mkdir -p mcpb/server/.well-known/mcp
+  cp mcpb/server-card.json mcpb/server/.well-known/mcp/server-card.json
+fi
+
 # Install production deps into staging dir (includes platform .node binary)
 npm install --omit=dev --prefix mcpb/server --no-package-lock --silent
 

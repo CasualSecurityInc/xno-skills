@@ -35,6 +35,8 @@
     "build": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
+    "postbuild": "node scripts/generate-server-card.js && node scripts/generate-cli-refs.js",
+    "postbuild:esm": "node scripts/generate-server-card.js && node scripts/generate-cli-refs.js",
     "prepack": "npm run build && npm run build:cjs",
     "pack:mcpb": "bash scripts/pack-mcpb.sh"
   },

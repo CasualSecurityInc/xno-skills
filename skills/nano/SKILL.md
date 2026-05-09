@@ -68,7 +68,7 @@ This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: 
 
 ### 1. Prefer MCP tools first
 
-When the environment provides `xno-mcp` tools (`wallets`, `send`, `receive`, `balance`, `convert_units`, `generate_qr`, `validate_address`, `rpc_account_balance`, `payment_request_create`, etc.) — **always use them first**. They handle signing, PoW, and broadcast automatically via OWS.
+When the environment provides `xno-mcp` tools (`wallet.list`, `wallet.send`, `wallet.receive`, `wallet.balance`, `util.convert`, `util.qr`, `util.validate`, `rpc.account_balance`, `payment.create`, etc.) — **always use them first**. They handle signing, PoW, and broadcast automatically via OWS.
 
 ### 2. Fall back to CLI only when MCP is unavailable
 
@@ -105,20 +105,20 @@ For wallet **create, import, rename, or delete**: delegate to the `ows` skill. D
 
 - **State verification**: Always fetch balance and frontier via RPC before manually building a block. Never hallucinate previous hashes.
 - **PoW is automatic**: MCP tools and the CLI both handle PoW internally. Never attempt to supply or generate PoW manually.
-- **Proactivity on pending funds**: If you see pending funds during any balance check, call `receive` immediately. Do not wait for the user to ask.
-- **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `receive` will build the open block automatically. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
+- **Proactivity on pending funds**: If you see pending funds during any balance check, call `wallet.receive` immediately. Do not wait for the user to ask.
+- **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `wallet.receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
 - **No mnemonic exports**: Never call `ows wallet export` or suggest exporting to a third-party wallet unless the user explicitly commands it.
 - **Supply chain**: Only use `xno-skills@2.8.5` and `@open-wallet-standard/core`. No other npm packages.
-- **Stop-loss**: If you have made 5 tool calls without completing the operation, stop and report what you tried, what failed, and ask for guidance. Hard limits: max 3 retries of the same failing tool; max 2 `config_set` RPC endpoint switches.
+- **Stop-loss**: If you have made 5 tool calls without completing the operation, stop and report what you tried, what failed, and ask for guidance. Hard limits: max 3 retries of the same failing tool; max 2 `config.set` RPC endpoint switches.
 
 ---
 
 ## Wallet Discovery
 
-> **CRITICAL: Always call `wallets` first.** Before any wallet operation, identify which OWS wallets exist. Never assume a wallet name.
+> **CRITICAL: Always call `wallet.list` first.** Before any wallet operation, identify which OWS wallets exist. Never assume a wallet name.
 
-```
-wallets: {}
+```json
+{ "name": "wallet.list", "arguments": {} }
 ```
 
 To **create** a new wallet, delegate to the `ows` skill. Then return here for all Nano operations.
@@ -133,15 +133,17 @@ To **create** a new wallet, delegate to the `ows` skill. Then return here for al
 
 **Via MCP tools:**
 ```json
-{ "name": "balance", "arguments": { "wallet": "my-wallet", "index": 0 } }
-{ "name": "rpc_account_balance", "arguments": { "address": "nano_..." } }
+{ "name": "wallet.balance", "arguments": { "wallet": "my-wallet" } }
+{ "name": "rpc.account_balance", "arguments": { "address": "nano_..." } }
 ```
 
-**Via CLI:**
+**Via CLI (required flags only):**
 ```bash
 bunx -y xno-skills@2.8.5 balance --wallet "my-wallet"
-bunx -y xno-skills@2.8.5 rpc account-balance <address> --json
+bunx -y xno-skills@2.8.5 rpc account-balance <address>
 ```
+
+Full options: [balance](references/balance.md), [rpc_account-balance](references/rpc_account-balance.md)
 
 **Public zero-config RPC nodes** (used automatically by xno-skills defaults):
 - `https://rainstorm.city/api` (primary)
@@ -155,30 +157,32 @@ bunx -y xno-skills@2.8.5 rpc account-balance <address> --json
 
 A Nano transfer shows as **pending** until the recipient publishes a receive block. Funds are not spendable until received.
 
-**A new / "unopened" account chain is normal.** It returns `"Account not found"` from RPC. This is not an error — `receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast.
+**A new / "unopened" account chain is normal.** It returns `"Account not found"` from RPC. This is not an error — `wallet.receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast.
 
 > **OWS DOES support Nano block signing.** Never assume otherwise.
 
-**Mandate**: When funds are pending, call `receive`. Do not analyze whether the account "exists" first. Just call it.
+**Mandate**: When funds are pending, call `wallet.receive`. Do not analyze whether the account "exists" first. Just call it.
 
 **Via MCP:**
 ```json
-{ "name": "receive", "arguments": { "wallet": "my-wallet", "index": 0, "count": 10 } }
+{ "name": "wallet.receive", "arguments": { "wallet": "my-wallet" } }
 ```
 
-**Via CLI:**
+**Via CLI (required flags only):**
 ```bash
 bunx -y xno-skills@2.8.5 receive --wallet "my-wallet"
 ```
 
+Full options: [receive](references/receive.md)
+
 **Unopened account — explicit representative:**
-If no `defaultRepresentative` is configured via `config_set`, pass `representative` explicitly on the first receive.
+If no `defaultRepresentative` is configured via `config.set`, pass `representative` explicitly on the first receive.
 
 ### ⚠️ CLI `block` commands are NOT senders
 
-`xno-skills block receive` / `block send` output **unsigned hex only** — no PoW, no signing, no broadcast. A block without PoW is always rejected. **Never fall back to these when `receive` or `send` fails.**
+`xno-skills block receive` / `block send` output **unsigned hex only** — no PoW, no signing, no broadcast. A block without PoW is always rejected. **Never fall back to these when `wallet.receive` or `wallet.send` fails.**
 
-| | MCP `receive`/`send` | CLI `block receive`/`block send` |
+| | MCP `wallet.receive`/`wallet.send` | CLI `block receive`/`block send` |
 |---|---|---|
 | Builds block | ✅ | ✅ |
 | Signs via OWS | ✅ | ❌ |
@@ -193,19 +197,21 @@ The account must be opened (have a receive block) and have sufficient balance.
 
 **Via MCP:**
 ```json
-{ "name": "send", "arguments": { "wallet": "my-wallet", "index": 0, "destination": "nano_...", "amountXno": "0.01" } }
+{ "name": "wallet.send", "arguments": { "wallet": "my-wallet", "destination": "nano_...", "amountXno": "0.01" } }
 ```
 
-**Via CLI:**
+**Via CLI (required flags only):**
 ```bash
-bunx -y xno-skills@2.8.5 send --wallet "my-wallet" --destination "nano_..." --amount-xno 0.01
+bunx -y xno-skills@2.8.5 send --wallet "my-wallet" --to "nano_..." --amount-xno 0.01
 ```
+
+Full options: [send](references/send.md)
 
 **Validate the destination address first** (see Address Validation section).
 
-**Spending limits**: Every `send` and `payment_request_refund` is gated by `maxSendXno` (default: 1.0 XNO). Override:
+**Spending limits**: Every `wallet.send` and `payment.refund` is gated by `maxSendXno` (default: 1.0 XNO). Override:
 ```json
-{ "name": "config_set", "arguments": { "maxSendXno": "5.0" } }
+{ "name": "config.set", "arguments": { "maxSendXno": "5.0" } }
 ```
 
 ---
@@ -220,7 +226,7 @@ If sufficient funds already exist, skip creating a request.
 ### Step 2 — Create request
 ```json
 {
-  "name": "payment_request_create",
+  "name": "payment.create",
   "arguments": { "walletName": "my-wallet", "amountXno": "0.1", "reason": "testing payment flow" }
 }
 ```
@@ -232,7 +238,7 @@ Tell the user the amount, reason, and address. Offer a QR code (see QR Generatio
 ### Step 4 — Wait and receive
 After the user says funds are sent:
 ```json
-{ "name": "payment_request_receive", "arguments": { "id": "<request-id>" } }
+{ "name": "payment.receive", "arguments": { "id": "<request-id>" } }
 ```
 Returns status: `pending`, `partial`, `funded`, or `received`. If `partial`, tell the user how much more is needed.
 
@@ -241,13 +247,15 @@ Report the received amount, updated balance, and that funds are ready.
 
 **Rules:**
 - Always check existing wallets first; don't create unnecessary wallets.
-- Never claim receipt without calling `payment_request_receive` — pending is not received in Nano.
+- Never claim receipt without calling `payment.receive` — pending is not received in Nano.
 - If the operator asks "did you get it?", always re-check.
 
 **History:**
 ```json
-{ "name": "history", "arguments": { "wallet": "my-wallet", "limit": 20 } }
+{ "name": "wallet.history", "arguments": { "wallet": "my-wallet", "limit": 20 } }
 ```
+
+Full options: [payment.create](references/payment.create.md), [payment.receive](references/payment.receive.md), [wallet.history](references/history.md)
 
 ---
 
@@ -259,12 +267,12 @@ Report the received amount, updated balance, and that funds are ready.
 
 If linked to a payment request:
 ```json
-{ "name": "payment_request_refund", "arguments": { "id": "<request-id>", "execute": false } }
+{ "name": "payment.refund", "arguments": { "id": "<request-id>", "execute": false } }
 ```
 
 Otherwise, check history:
 ```json
-{ "name": "history", "arguments": { "wallet": "my-wallet", "limit": 20 } }
+{ "name": "wallet.history", "arguments": { "wallet": "my-wallet", "limit": 20 } }
 ```
 
 ### Step 2 — Evaluate and confirm
@@ -279,17 +287,19 @@ Always show the **full address** — never abbreviate.
 
 ```json
 {
-  "name": "payment_request_refund",
+  "name": "payment.refund",
   "arguments": { "id": "<request-id>", "execute": true, "confirmAddress": "nano_..." }
 }
 ```
 
-Or use `send` directly if not linked to a payment request.
+Or use `wallet.send` directly if not linked to a payment request.
 
 **Edge cases:**
 - "Return everything": list all accounts with balances, confirm before draining.
 - "Return to [specific address]": validate the address first, then confirm amount.
-- Spending limit blocks refund: tell the user to increase via `config_set({ maxSendXno: "..." })`.
+- Spending limit blocks refund: tell the user to increase via `config.set({ maxSendXno: "..." })`.
+
+Full options: [payment.refund](references/payment.refund.md)
 
 ---
 
@@ -299,30 +309,19 @@ Generates a terminal-friendly ASCII QR code for a Nano address, optionally with 
 
 **Via MCP:**
 ```json
-{ "name": "generate_qr", "arguments": { "address": "nano_...", "amountXno": "1.5" } }
+{ "name": "util.qr", "arguments": { "address": "nano_...", "amountXno": "1.5" } }
 ```
 
-**Via CLI:**
+**Via CLI (required args only):**
 ```bash
-# Address only
 bunx -y xno-skills@2.8.5 qr nano_1abc...
-
-# With amount
-bunx -y xno-skills@2.8.5 qr nano_1abc... --amount-xno 1.5
-
-# JSON output (recommended for agents — avoids stdout truncation)
-bunx -y xno-skills@2.8.5 qr nano_1abc... --amount-xno 1.5 --json
 ```
+
+Full options: [qr](references/qr.md)
 
 > **CRITICAL — stdout truncation**: Agents often have stdout truncated (e.g. `<truncated 14 lines>`). To display a full QR code:
 > 1. Use `--json` and parse the `"qr"` field, or
 > 2. Redirect to a temp file (`> /tmp/qr.txt`) and read it with a file-reading tool.
-
-JSON output contains:
-- `content`: canonical `nano:` URI (`nano:<address>?amount=<raw>`)
-- `qr`: the full ASCII QR block
-
-The CLI validates the address before generating the QR.
 
 ---
 
@@ -337,13 +336,15 @@ All validation is **offline** — no network required.
 
 **Via MCP:**
 ```json
-{ "name": "validate_address", "arguments": { "address": "nano_..." } }
+{ "name": "util.validate", "arguments": { "address": "nano_..." } }
 ```
 
 **Via CLI:**
 ```bash
 bunx -y xno-skills@2.8.5 validate nano_1abc...
 ```
+
+Full options: [validate](references/validate.md)
 
 **Always validate before sending XNO to an untrusted address.**
 
@@ -362,7 +363,7 @@ XNO uses **30 decimal places**. Floating-point arithmetic is unsafe. Always use 
 
 **Via MCP:**
 ```json
-{ "name": "convert_units", "arguments": { "amount": "1.5", "from": "xno", "to": "raw" } }
+{ "name": "util.convert", "arguments": { "amount": "1.5", "from": "xno", "to": "raw" } }
 ```
 
 **Via CLI:**
@@ -372,6 +373,8 @@ bunx -y xno-skills@2.8.5 convert 1 knano
 bunx -y xno-skills@2.8.5 convert 1000000000000000000000000000000 raw
 bunx -y xno-skills@2.8.5 convert 1 xno --json
 ```
+
+Full options: [convert](references/convert.md)
 
 ---
 
@@ -415,6 +418,8 @@ bunx -y xno-skills@2.8.5 verify <nano_address> "<message>" <signature-hex> --jso
 **Note**: `verify` accepts both `nano_`/`xrb_` addresses and raw 32-byte hex public keys.
 
 > Do not prompt the user to export their mnemonic to get a private key. Never accept, repeat, or emit a private key value — only use the placeholder pattern above.
+
+Full options: [sign](references/sign.md), [verify](references/verify.md)
 
 ---
 
@@ -481,11 +486,13 @@ Never use `curl` to probe this.
 
 **Change representative:**
 ```json
-{ "name": "change_rep", "arguments": { "wallet": "my-wallet", "representative": "nano_..." } }
+{ "name": "wallet.change_rep", "arguments": { "wallet": "my-wallet", "representative": "nano_..." } }
 ```
 ```bash
 bunx -y xno-skills@2.8.5 change-rep --wallet "my-wallet" --representative "nano_..."
 ```
+
+Full options: [change-rep](references/change-rep.md)
 
 ### Data Representations
 
@@ -510,8 +517,10 @@ As of v1.1.0, `xno-mcp` uses public RPC nodes and standard representatives autom
 
 **Optional overrides:**
 ```json
-{ "name": "config_set", "arguments": { "rpcUrl": "https://rainstorm.city/api", "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4" } }
+{ "name": "config.set", "arguments": { "rpcUrl": "https://rainstorm.city/api", "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4" } }
 ```
+
+Full options: [config.set](references/config.set.md)
 
 ---
 
@@ -522,22 +531,52 @@ As of v1.1.0, `xno-mcp` uses public RPC nodes and standard representatives autom
 | Step | Action |
 |---|---|
 | 1 | Wait 5 s. Retry with identical arguments. |
-| 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, retry. |
-| 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry. |
+| 2 | `config.set({ rpcUrl: "https://rainstorm.city/api" })`, retry. |
+| 3 | `config.set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry. |
 | 4 | Try any other public node, retry. |
-| 5 | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
+| 5 | `config.set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
 
-Calling `config_set` with a new `rpcUrl` creates a fresh `NanoClient`, bypassing the exponential backoff cooldown on default endpoints.
+Calling `config.set` with a new `rpcUrl` creates a fresh `NanoClient`, bypassing the exponential backoff cooldown on default endpoints.
 
 **Prohibited at every step**: custom scripts, curl, CLI `block` commands, manual PoW.
+
+---
+
+## CLI Reference
+
+All subcommands support `--json` for machine-readable output and `--help` for full options.
+
+| Subcommand | Description | Reference |
+|---|---|---|
+| `wallets` | List wallets with Nano accounts | [wallets](references/wallets.md) |
+| `balance` | Show balance and pending amount | [balance](references/balance.md) |
+| `receive` | Receive pending blocks | [receive](references/receive.md) |
+| `send` | Send Nano | [send](references/send.md) |
+| `change-rep` | Change representative | [change-rep](references/change-rep.md) |
+| `submit-block` | Sign and submit prepared block hex | [submit-block](references/submit-block.md) |
+| `history` | Show transaction history | [history](references/history.md) |
+| `info` | Discover account state and representative | [info](references/info.md) |
+| `convert` | Convert between XNO units | [convert](references/convert.md) |
+| `qr` | Generate QR code for address | [qr](references/qr.md) |
+| `validate` | Validate address or block hash | [validate](references/validate.md) |
+| `sign` | Sign NOMS message with private key | [sign](references/sign.md) |
+| `verify` | Verify NOMS message signature | [verify](references/verify.md) |
+| `rpc account-balance` | Fetch account balance via RPC | [rpc_account-balance](references/rpc_account-balance.md) |
+| `rpc receivable` | List receivable blocks via RPC | [rpc_receivable](references/rpc_receivable.md) |
+| `rpc account-info` | Fetch account info via RPC | [rpc_account-info](references/rpc_account-info.md) |
+| `rpc probe-caps` | Probe RPC node capabilities | [rpc_probe-caps](references/rpc_probe-caps.md) |
+| `block send` | Build unsigned send block hex | [block_send](references/block_send.md) |
+| `block receive` | Build unsigned receive block hex | [block_receive](references/block_receive.md) |
+| `block change` | Build unsigned change block hex | [block_change](references/block_change.md) |
+| `mcp` | Start MCP server or view config | [mcp](references/mcp.md) |
 
 ---
 
 ## Quick-Start Example
 
 ```
-1. wallets: {}                    → discover "my-wallet" exists
-2. balance: { wallet: "my-wallet" }    → check balance / pending
-3. receive: { wallet: "my-wallet" }    → pocket any pending funds
-4. send: { wallet: "my-wallet", destination: "nano_...", amountXno: "0.01" }
+1. wallet.list: {}                    → discover "my-wallet" exists
+2. wallet.balance: { wallet: "my-wallet" }    → check balance / pending
+3. wallet.receive: { wallet: "my-wallet" }    → pocket any pending funds
+4. wallet.send: { wallet: "my-wallet", destination: "nano_...", amountXno: "0.01" }
 ```
