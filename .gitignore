@@ -8,3 +8,4 @@ dist/
 coverage/
 *.tsbuildinfo
 .playwright-mcp/
+server.mcpb
