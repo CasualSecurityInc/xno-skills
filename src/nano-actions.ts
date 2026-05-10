@@ -13,6 +13,18 @@ export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7j
 const ZERO_32_HEX = '0'.repeat(64);
 const MOCK_TX_HASH = '0'.repeat(64);
 
+function logNanoAction(message: string): void {
+  process.stderr.write(`[xno-mcp] ${message}\n`);
+}
+
+function elapsedMs(startedAt: number): number {
+  return Date.now() - startedAt;
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export type NanoActionStep =
   | 'resolve_wallet'
   | 'resolve_account'
@@ -188,9 +200,13 @@ async function signWorkAndProcess(
 
   // 1. Sign with OWS (key custody only — no PoW, no broadcast)
   let signResult: { signature: string };
+  const signStartedAt = Date.now();
+  logNanoAction(`sign_with_ows start subtype=${subtype} wallet=${walletName} blockHash=${blockHash}`);
   try {
     signResult = await signTransactionProxy(walletName, chainId, blockHex, undefined, index);
+    logNanoAction(`sign_with_ows ok subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)}`);
   } catch (error) {
+    logNanoAction(`sign_with_ows fail subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)} error=${describeError(error)}`);
     wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
   }
 
@@ -492,6 +508,7 @@ export async function executeSend(
   const index = options.index ?? 0;
   const account = await resolveNanoWalletAccount(walletName, index);
   const amountRaw = nanoToRaw(amountXno);
+  logNanoAction(`send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`);
 
   await report(ctx, 1, 4, `send: account_info for ${account.address}`);
   let info: AccountInfoResponse | NanoRpcErrorResponse;
@@ -555,6 +572,7 @@ export async function executeSend(
   }
 
   await report(ctx, 4, 4, `send: persisted ${submitted.txHash}`);
+  logNanoAction(`send ok wallet=${walletName} address=${account.address} destination=${destination} hash=${submitted.txHash}`);
   ctx.appendTransaction?.({
     id: generateId(),
     owsWalletId: walletName,

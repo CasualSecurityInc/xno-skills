@@ -7,6 +7,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MCP_BIN_PATH = path.resolve(__dirname, '../bin/xno-skills');
 
+function getText(result: unknown): string {
+  return ((((result as any).content) as any[])[0] as any).text;
+}
+
 describe('MCP Server Integration', () => {
   let client: Client;
   let transport: StdioClientTransport;
@@ -77,13 +81,13 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    expect((result.content[0] as any).text).toBe("1000000000000000000000000000000");
+    expect(getText(result)).toBe("1000000000000000000000000000000");
   });
 
   it('should list wallets using OWS', async () => {
     const result = await client.callTool({ name: "wallet.list", arguments: {} });
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out.some((p: any) => p.name === "A")).toBe(true);
   });
 
@@ -95,7 +99,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const validation = JSON.parse((result.content[0] as any).text);
+    const validation = JSON.parse(getText(result));
     expect(validation.valid).toBe(true);
   });
 
@@ -118,7 +122,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const config = JSON.parse((result.content[0] as any).text);
+    const config = JSON.parse(getText(result));
     expect(config.defaultRepresentative).toBe(validRep);
   });
 
@@ -129,7 +133,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out.id).toBeDefined();
     expect(out.amountXno).toBe("0.01");
   });
@@ -141,7 +145,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out).toBeInstanceOf(Array);
     expect(out.length).toBeGreaterThanOrEqual(1);
     expect(out[0].id).toBeDefined();
@@ -154,7 +158,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     for (const r of out) {
       expect(r.status).toBe("pending");
     }
@@ -165,7 +169,7 @@ describe('MCP Server Integration', () => {
       name: "payment.create",
       arguments: { walletName: "A", amountXno: "0.5", reason: "status check test" }
     });
-    const created = JSON.parse((createResult.content[0] as any).text);
+    const created = JSON.parse(getText(createResult));
 
     const result = await client.callTool({
       name: "payment.status",
@@ -173,7 +177,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out.id).toBe(created.id);
     expect(out.status).toBe("pending");
     expect(out.amountRaw).toBe("500000000000000000000000000000");
@@ -195,7 +199,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out).toBeInstanceOf(Array);
   });
 
@@ -206,8 +210,19 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const config = JSON.parse((result.content[0] as any).text);
+    const config = JSON.parse(getText(result));
     expect(config.maxSendXno).toBe("5.0");
+  });
+
+  it('should set powTimeoutMs via config.set', async () => {
+    const result = await client.callTool({
+      name: "config.set",
+      arguments: { powTimeoutMs: 45000 }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const config = JSON.parse(getText(result));
+    expect(config.powTimeoutMs).toBe(45000);
   });
 
   it('should show maxSendXno in config.get', async () => {
@@ -217,7 +232,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const config = JSON.parse((result.content[0] as any).text);
+    const config = JSON.parse(getText(result));
     expect(config.maxSendXno).toBe("5.0");
   });
 
@@ -235,7 +250,7 @@ describe('MCP Server Integration', () => {
     });
 
     expect(result.isError).toBeFalsy();
-    const out = JSON.parse((result.content[0] as any).text);
+    const out = JSON.parse(getText(result));
     expect(out.status).toBe("Ready");
     expect(out.mode).toBe("Mock");
   });

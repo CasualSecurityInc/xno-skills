@@ -35,6 +35,7 @@ import {
   loadPaymentRequests,
   loadTransactions,
   saveConfig,
+  clearPowPlan,
   savePaymentRequests,
   saveTransactions,
   type PaymentRequest,
@@ -98,6 +99,22 @@ const DEFAULT_RPC_URLS = [
   'https://nanoslo.0x.no/proxy',
 ];
 
+function logTiming(scope: string, message: string): void {
+  process.stderr.write(`[${scope}] ${message}\n`);
+}
+
+function elapsedMs(startedAt: number): number {
+  return Date.now() - startedAt;
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function effectivePowTimeoutMs(config: XnoConfig): number {
+  return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -110,20 +127,27 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
     return state.nanoClient;
   }
 
-  const workTimeoutMs = state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
-  process.stderr.write(
-    `[xno-mcp] NanoClient init — rpc=[${rpc.join(',') || '(defaults)'}] work=[${work.join(',') || '(defaults)'}] workTimeoutMs=${workTimeoutMs}\n`,
+  const rpcTimeoutMs = state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
+  const powTimeoutMs = effectivePowTimeoutMs(state.config);
+  logTiming(
+    'xno-mcp',
+    `NanoClient init rpc=[${rpc.join(',') || '(defaults)'}] work=[${work.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
 
   const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
   const workUrls = work.length > 0 ? work : effectiveRpc;
 
+  const workProvider = WorkProvider.auto({
+    urls: workUrls,
+    timeoutMs: rpcTimeoutMs,
+    // Probe on first generate() call to build a local-first execution plan.
+    // Avoid eager startup probing in MCP so startup/stdio transport stays simple.
+    profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
+  });
+
   const client = NanoClient.initialize({
     rpc: effectiveRpc,
-    workProvider: WorkProvider.auto({
-      urls: workUrls,
-      timeoutMs: workTimeoutMs,
-    }),
+    workProvider,
   });
 
   if (!explicitRpc && !explicitWork) {
@@ -137,15 +161,37 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
   const effectiveRpc = explicitRpcUrl || state.config.rpcUrl || undefined;
   const client = getNanoClient(effectiveRpc);
   const timeoutMs = state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
+  const powTimeoutMs = effectivePowTimeoutMs(state.config);
   return {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
-    workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
-    process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
-      rpcProcess(client, block, subtype, { timeoutMs }),
-    powTimeoutMs: state.config.timeoutMs ? state.config.timeoutMs * 4 : 60_000,
+    workGenerate: async (hash: string, difficulty: string) => {
+      const startedAt = Date.now();
+      logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
+      try {
+        const work = await client.workProvider.generate(hash, difficulty);
+        logTiming('xno-mcp', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);
+        return work;
+      } catch (error) {
+        logTiming('xno-mcp', `pow.generate fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
+        throw error;
+      }
+    },
+    process: async (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => {
+      const startedAt = Date.now();
+      logTiming('xno-mcp', `rpc.process start subtype=${subtype}`);
+      try {
+        const result = await rpcProcess(client, block, subtype, { timeoutMs });
+        logTiming('xno-mcp', `rpc.process ok subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} hash=${result.hash}`);
+        return result;
+      } catch (error) {
+        logTiming('xno-mcp', `rpc.process fail subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
+        throw error;
+      }
+    },
+    powTimeoutMs,
   };
 }
 
@@ -315,6 +361,7 @@ mcpServer.registerTool('config.set', {
     rpcUrl: z.string().optional().describe('Primary Nano RPC endpoint URL'),
     workPeerUrl: z.string().optional().describe('Remote proof-of-work peer URL'),
     timeoutMs: z.number().optional().describe('Request timeout in milliseconds (default: 15000)'),
+    powTimeoutMs: z.number().optional().describe('Proof-of-work timeout in milliseconds (default: max(timeoutMs * 4, 30000))'),
     defaultRepresentative: z.string().optional().describe('Default representative nano_ address for new accounts'),
     maxSendXno: z.string().optional().describe('Maximum XNO allowed per send transaction (default: 1.0)'),
   },
@@ -323,9 +370,13 @@ mcpServer.registerTool('config.set', {
   if (args.rpcUrl !== undefined) state.config.rpcUrl = args.rpcUrl;
   if (args.workPeerUrl !== undefined) state.config.workPeerUrl = args.workPeerUrl;
   if (args.timeoutMs !== undefined) state.config.timeoutMs = args.timeoutMs;
+  if (args.powTimeoutMs !== undefined) state.config.powTimeoutMs = args.powTimeoutMs;
   if (args.defaultRepresentative !== undefined) state.config.defaultRepresentative = args.defaultRepresentative;
   if (args.maxSendXno !== undefined) state.config.maxSendXno = args.maxSendXno;
   state.nanoClient = undefined;
+  // Clear the PoW plan cache whenever config changes — the new RPC/work URLs
+  // may point to different endpoints, making the old probe results stale.
+  clearPowPlan();
   persistConfig();
   return toToolSuccess(state.config);
 });

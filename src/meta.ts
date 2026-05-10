@@ -92,7 +92,7 @@ function getEnvVars(): EnvVarEntry[] {
     },
     {
       name: 'XNO_MCP_HOME',
-      defaultValue: '~/.xno-mcp',
+      defaultValue: '<installed-dir>/.xno-mcp',
       effectiveValue: process.env.XNO_MCP_HOME,
       description: 'Directory for config, requests, and transaction state',
     },

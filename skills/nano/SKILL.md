@@ -471,10 +471,7 @@ PoW input:
 - Open block (height 1): `blake2b(nonce || public_key)`
 - All other blocks: `blake2b(nonce || previous_frontier_hash)`
 
-To probe whether an RPC endpoint supports remote `work_generate`:
-```bash
-bunx -y xno-skills@3.1.1 rpc probe-caps <url>
-```
+To probe whether an RPC endpoint supports remote `work_generate`, use the CLI troubleshooting step in the Troubleshooting section above.
 Never use `curl` to probe this.
 
 ### Representatives & ORV
@@ -593,6 +590,44 @@ Returns:
 ```bash
 xno-skills about
 xno-skills about --json
+```
+
+### PoW failures (`POW_FAILED` / timeout)
+
+**PoW is done locally by default.** xno-skills uses WASM-based Proof of Work that runs in-process — no external work peer is required. Do not jump to configuring `workPeerUrl` as a first response to a PoW failure.
+
+On first use, the system probes local backends (WebGPU → WebGL → WASM) to build a local-first execution plan. This probe itself runs real PoW and may take 5–15 seconds — this is normal and happens on the first PoW operation in a process.
+
+**Diagnose in order, stopping at the first resolution:**
+
+| Step | Check | Action |
+|---|---|---|
+| 1 | Was this the very first `send`/`receive` on a fresh MCP or CLI process? | Allow for first-use warmup. Retry the operation once. |
+| 2 | Did the error say "Timed out after 10000ms"? | That is the local WASM per-backend timeout. It means WASM itself failed or is unavailable. Check Node.js version (`node --version`) — WASM PoW requires Node 16+. |
+| 3 | Is the system under heavy CPU load? | WASM PoW is CPU-bound. A send block requires ~8× more work than receive. Wait for load to drop, then retry. |
+| 4 | Is `pow-plan.json` available for diagnostics? | Check `$XNO_MCP_CACHE_DIR/pow-plan.json` or the platform cache dir. Treat it as diagnostic output only. |
+| 5 | Has the system confirmed that local PoW genuinely fails across multiple retries on an idle machine? | Only now consider a remote work peer (see below). |
+
+**Remote work peer — last resort only:**
+
+Set a `workPeerUrl` only after confirming local PoW consistently fails on this machine:
+
+```json
+{ "name": "config.set", "arguments": { "workPeerUrl": "https://rainstorm.city/api" } }
+```
+
+Public nodes that support `work_generate` (not guaranteed — depends on node operator config):
+- `https://rainstorm.city/api`
+- `https://nanoslo.0x.no/proxy`
+
+To probe whether an RPC endpoint supports remote `work_generate`:
+```bash
+bunx -y xno-skills@3.1.1 rpc probe-caps <url>
+```
+
+Reset to local-only after resolving:
+```json
+{ "name": "config.set", "arguments": { "workPeerUrl": "" } }
 ```
 
 ---

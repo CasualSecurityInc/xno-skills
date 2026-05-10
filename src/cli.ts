@@ -40,17 +40,44 @@ const DEFAULT_RPC_URLS = [
   'https://nanoslo.0x.no/proxy',
 ];
 
+function logTiming(scope: string, message: string): void {
+  process.stderr.write(`[${scope}] ${message}\n`);
+}
+
+function elapsedMs(startedAt: number): number {
+  return Date.now() - startedAt;
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function effectivePowTimeoutMs(config: XnoConfig): number {
+  return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
+}
+
 function getNanoClient(options?: { url?: string }): NanoClient {
   const rpc = options?.url || config.rpcUrl || process.env.NANO_RPC_URL;
   const work = config.workPeerUrl || process.env.XNO_WORK_URL;
   const workUrls = work
     ? work.split(',').filter(Boolean)
     : rpc ? [rpc] : DEFAULT_RPC_URLS;
+  const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
+  const powTimeoutMs = effectivePowTimeoutMs(config);
+  logTiming(
+    'xno-cli',
+    `NanoClient init rpc=[${rpc || '(defaults)'}] work=[${work || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+  );
   return NanoClient.initialize({
     rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
       urls: workUrls,
-      timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
+      timeoutMs: rpcTimeoutMs,
+      // Probe on first generate() call to build a local-first execution plan.
+      // Without this, WorkProvider defaults to remote-first regardless of local capability.
+      // CLI cold-starts a fresh WorkProvider per invocation, so the probe runs each time
+      // a PoW-generating subcommand is used (send, receive, change-rep) — this is expected.
+      profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
     }),
   });
 }
@@ -58,14 +85,37 @@ function getNanoClient(options?: { url?: string }): NanoClient {
 function readersFor(options?: { url?: string }) {
   const client = getNanoClient(options);
   const timeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
+  const powTimeoutMs = effectivePowTimeoutMs(config);
   return {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
-    workGenerate: (hash: string, difficulty: string) => client.workProvider.generate(hash, difficulty),
-    process: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') =>
-      rpcProcess(client, block, subtype, { timeoutMs }),
+    workGenerate: async (hash: string, difficulty: string) => {
+      const startedAt = Date.now();
+      logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
+      try {
+        const work = await client.workProvider.generate(hash, difficulty);
+        logTiming('xno-cli', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);
+        return work;
+      } catch (error) {
+        logTiming('xno-cli', `pow.generate fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
+        throw error;
+      }
+    },
+    process: async (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => {
+      const startedAt = Date.now();
+      logTiming('xno-cli', `rpc.process start subtype=${subtype}`);
+      try {
+        const result = await rpcProcess(client, block, subtype, { timeoutMs });
+        logTiming('xno-cli', `rpc.process ok subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} hash=${result.hash}`);
+        return result;
+      } catch (error) {
+        logTiming('xno-cli', `rpc.process fail subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
+        throw error;
+      }
+    },
+    powTimeoutMs,
   };
 }
 

@@ -63,6 +63,10 @@
             "description": "Request timeout in milliseconds (default: 15000)",
             "type": "number"
           },
+          "powTimeoutMs": {
+            "description": "Proof-of-work timeout in milliseconds (default: max(timeoutMs * 4, 30000))",
+            "type": "number"
+          },
           "defaultRepresentative": {
             "description": "Default representative nano_ address for new accounts",
             "type": "string"
