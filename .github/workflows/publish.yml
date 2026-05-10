@@ -60,7 +60,12 @@ jobs:
 
       - name: Publish
         run: |
-          npm publish --provenance --access public
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "xno-skills@${VERSION}" version 2>/dev/null; then
+            echo "xno-skills@${VERSION} already on npm — skipping."
+          else
+            npm publish --provenance --access public
+          fi
 
       - name: Create GitHub Release (if missing)
         uses: softprops/action-gh-release@v3
