@@ -9,6 +9,24 @@
   },
   "tools": [
     {
+      "name": "system.info",
+      "description": "Show version and environment metadata for xno-skills and OWS. Useful for troubleshooting.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "config.get",
       "description": "Read the current xno-mcp configuration including RPC URLs, timeouts, and spending limits.",
       "inputSchema": {
