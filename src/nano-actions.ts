@@ -530,12 +530,28 @@ export async function executeSend(
   let submitted;
   try {
     submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers);
-  } catch (error) {
-    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit send block for ${account.address}`, {
-      walletName,
-      address: account.address,
-      destination,
-    }, true);
+  } catch (error: any) {
+    const errMsg = String(error?.message ?? error);
+    const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
+    if (stale) {
+      await report(ctx, 3, 4, `send: retrying after stale account info for ${account.address}`);
+      try {
+        info = await readers.accountInfo(account.address);
+      } catch { /* keep old info */ }
+      if (!isRpcError(info)) {
+        sendBlockInput.previous = info.frontier;
+        sendBlockInput.balanceRaw = (BigInt(info.balance) - BigInt(amountRaw)).toString();
+        submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers);
+      } else {
+        throw error;
+      }
+    } else {
+      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit send block for ${account.address}`, {
+        walletName,
+        address: account.address,
+        destination,
+      }, true);
+    }
   }
 
   await report(ctx, 4, 4, `send: persisted ${submitted.txHash}`);
@@ -594,12 +610,28 @@ export async function executeChange(
   let submitted;
   try {
     submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers);
-  } catch (error) {
-    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit change block for ${account.address}`, {
-      walletName,
-      address: account.address,
-      representative,
-    }, true);
+  } catch (error: any) {
+    const errMsg = String(error?.message ?? error);
+    const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
+    if (stale) {
+      await report(ctx, 3, 4, `change: retrying after stale account info for ${account.address}`);
+      try {
+        info = await readers.accountInfo(account.address);
+      } catch { /* keep old info */ }
+      if (!isRpcError(info)) {
+        changeBlockInput.previous = info.frontier;
+        changeBlockInput.balanceRaw = info.balance;
+        submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers);
+      } else {
+        throw error;
+      }
+    } else {
+      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit change block for ${account.address}`, {
+        walletName,
+        address: account.address,
+        representative,
+      }, true);
+    }
   }
 
   await report(ctx, 4, 4, `change: persisted ${submitted.txHash}`);
