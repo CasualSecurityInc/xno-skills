@@ -46,6 +46,7 @@ triggers:
   - how much nano
 complements:
   - ows  # Open Wallet Standard — wallet lifecycle (create, import, rename, delete)
+requires_network: true
 ---
 
 # Nano (XNO)
@@ -69,6 +70,12 @@ This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: 
 ### 1. Prefer MCP tools first
 
 When the environment provides `xno-mcp` tools (`wallet.list`, `wallet.send`, `wallet.receive`, `wallet.balance`, `util.convert`, `util.qr`, `util.validate`, `rpc.account_balance`, `payment.create`, etc.) — **always use them first**. They handle signing, PoW, and broadcast automatically via OWS.
+
+If the client supports MCP, set it up as a "stdio" type MCP server:
+
+    npx -y -p xno-skills@3.1.2 -- mcp
+
+MCP is the primary execution path because tools, schemas, and results are structured for the client. Use the included CLI script (`xno-skills`) only as a fallback when MCP is unavailable or the client cannot attach MCP servers. MCP and the CLI target EXACTLY the same underlying code paths — two access paths, not two different products.
 
 ### 2. Fall back to CLI only when MCP is unavailable
 
