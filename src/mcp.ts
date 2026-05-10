@@ -22,7 +22,6 @@ import {
   getNanoAccountInfo,
   isRpcError,
   listNanoWallets,
-  resolveNanoWalletAccount,
   signWalletMessage,
   submitPreparedBlock,
   toToolError,

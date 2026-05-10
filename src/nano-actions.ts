@@ -5,7 +5,7 @@ import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse, type AccountHistoryEntry } from './rpc.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
-import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy, type OwsWalletLike } from './ows.js';
+import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from 'nano-pow-with-fallback';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
@@ -27,7 +27,7 @@ export type NanoActionStep =
   | 'persist_history'
   | 'verify_message';
 
-export class NanoActionError extends Error {
+class NanoActionError extends Error {
   code: string;
   step: NanoActionStep;
   retriable: boolean;
@@ -270,7 +270,7 @@ export async function listNanoWallets(): Promise<NanoWalletSummary[]> {
   }));
 }
 
-export async function resolveNanoWalletAccount(walletName: string, index = 0): Promise<NanoWalletAccount> {
+async function resolveNanoWalletAccount(walletName: string, index = 0): Promise<NanoWalletAccount> {
   const wallet = await getWalletProxy(walletName);
   if (!wallet) {
     throw new NanoActionError('OWS_WALLET_NOT_FOUND', 'resolve_wallet', `OWS wallet not found: ${walletName}`, { details: { walletName } });

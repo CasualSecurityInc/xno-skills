@@ -9,3 +9,4 @@ coverage/
 *.tsbuildinfo
 .playwright-mcp/
 server.mcpb
+interview/

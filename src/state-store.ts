@@ -49,7 +49,7 @@ function getInstalledDir(): string {
   return __dirname;
 }
 
-export function getHomeDir(): string {
+function getHomeDir(): string {
   const envHome = process.env.XNO_MCP_HOME;
   if (envHome && envHome.trim()) return path.resolve(envHome);
   return path.join(getInstalledDir(), '.xno-mcp');

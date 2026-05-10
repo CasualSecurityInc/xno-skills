@@ -50,14 +50,14 @@ export const signMessageProxy = useMockOws
   ? async (_wallet: string, _chain: string, _msg: string, _passphrase?: string, _encoding?: string, _index?: number): Promise<SignResult> => ({ signature: '0'.repeat(128) })
   : async (wallet: string, chain: string, msg: string, passphrase?: string, encoding?: string, index?: number) => signMessage(wallet, chain, msg, passphrase, encoding, index);
 
-export const signAndSendProxy = useMockOws
+const signAndSendProxy = useMockOws
   ? async (_wallet: string, _chain: string, _tx: string, _passphrase?: string, _index?: number, _rpcUrl?: string): Promise<SendResult> => ({ txHash: '0'.repeat(64) })
   : async (wallet: string, chain: string, tx: string, passphrase?: string, index?: number, rpcUrl?: string) => signAndSend(wallet, chain, tx, passphrase, index, rpcUrl);
 
-export const createWalletProxy = async (name: string) => createWallet(name);
-export const importWalletMnemonicProxy = async (name: string, mnemonic: string) => importWalletMnemonic(name, mnemonic);
-export const importWalletPrivateKeyProxy = async (name: string, privateKeyHex: string) => importWalletPrivateKey(name, privateKeyHex);
-export const renameWalletProxy = async (name: string, newName: string) => renameWallet(name, newName);
-export const deleteWalletProxy = async (name: string) => deleteWallet(name);
+const createWalletProxy = async (name: string) => createWallet(name);
+const importWalletMnemonicProxy = async (name: string, mnemonic: string) => importWalletMnemonic(name, mnemonic);
+const importWalletPrivateKeyProxy = async (name: string, privateKeyHex: string) => importWalletPrivateKey(name, privateKeyHex);
+const renameWalletProxy = async (name: string, newName: string) => renameWallet(name, newName);
+const deleteWalletProxy = async (name: string) => deleteWallet(name);
 
-export type OwsWalletLike = WalletLike;
+type OwsWalletLike = WalletLike;
