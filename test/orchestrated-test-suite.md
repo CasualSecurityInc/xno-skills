@@ -4,20 +4,24 @@
 Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill to verify the agent correctly routes from natural language prompts to dot-notation tool calls without human hints.
 
 ## Environment
+
 - MCP server: `xno-mcp` (v3.0.0, local stdio)
 - Skill: `casualsecurityinc/nano` (v3.0.0)
-- Wallet: Mock OWS (`XNO_MCP_MOCK_OWS=true`)
-- Known wallet: `A` with address `nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7`
+- **Mock mode** (default for tests): Set `XNO_MCP_MOCK_OWS=true` env var. Creates a single mock wallet named `A`.
+- **Real mode**: Uses actual OWS wallets. Wallet names vary. Query `wallet.list` first to discover names.
 
 ## Instructions for the Orchestrator
 
-1. **Reset state** before each run: `rm -rf ~/.xno-mcp/requests.json ~/.xno-mcp/transactions.json`
-2. **Process sequentially** — some steps depend on state from earlier steps (e.g., payment request IDs)
-3. **For each step**, delegate to a subagent with this exact prompt:
+1. **Choose mode** before starting:
+   - **Mock mode**: `export XNO_MCP_MOCK_OWS=true` before launching the MCP server. Wallet `A` exists.
+   - **Real mode**: No env var needed. Run Step 1 first to discover wallet names, then substitute the real wallet name for `A` in all subsequent steps.
+2. **Reset state** before each run: `rm -rf ~/.xno-mcp/requests.json ~/.xno-mcp/transactions.json`
+3. **Process sequentially** — some steps depend on state from earlier steps (e.g., payment request IDs)
+4. **For each step**, delegate to a subagent with this exact prompt:
    > The user said: "[USER_PROMPT]"
    > Use the nano skill. Call the appropriate xno-mcp tool. Return the tool name, arguments, and raw response.
-4. **Capture results** in the pass/fail table below
-5. **Stop on first failure** and report: what the agent tried, what tool it called (if any), and the error
+5. **Capture results** in the pass/fail table below
+6. **Stop on first failure** and report: what the agent tried, what tool it called (if any), and the error
 
 ## Test Steps
 
@@ -134,8 +138,10 @@ If any step fails, inspect in this order:
 
 ## Known Limitations
 
+- **Mock mode required**: Steps 2, 6–8, 17–19, 23–24, 27–28 assume wallet `A` exists. In real mode, substitute the actual wallet name discovered in Step 1.
 - Step 9 uses the wallet's own address for external balance query (self-query is valid)
 - Step 18 sends to the wallet's own address (self-send is valid)
 - Step 23 requires a hex from step 20 — the orchestrator must capture and forward it
 - Step 26–28 require a payment request ID from step 24 — the orchestrator must capture and forward it
 - Step 28 has two tool calls (dry run + execute) — both must succeed
+- Step 15 (`util.convert` raw → mnano): Fixed in v3.0.1 — was returning input unchanged due to incorrect knano/mnano scaling (10^33/10^36 instead of 10^27/10^24)
