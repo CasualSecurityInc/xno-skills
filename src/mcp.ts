@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
 import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess, rpcProbeCaps } from './rpc.js';
-import { nanoToRaw, rawToNano } from './convert.js';
+import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -568,8 +568,7 @@ mcpServer.registerTool('util.convert', {
   },
   annotations: READONLY,
 }, async (args) => {
-  const raw = args.from.toLowerCase() === 'xno' ? nanoToRaw(args.amount) : args.amount;
-  const result = args.to.toLowerCase() === 'xno' ? rawToNano(raw) : raw;
+  const result = convertUnits(args.amount, args.from, args.to);
   return { content: [{ type: 'text' as const, text: result }] };
 });
 

@@ -131,41 +131,115 @@ export function formatNano(raw: string): string {
 }
 
 /**
+ * Converts raw units to knano.
+ * @param raw - Raw amount as string
+ * @returns knano amount as string
+ */
+export function rawToKnano(raw: string): string {
+  if (!raw || raw === '') return '0';
+  if (raw.startsWith('-')) throw new Error('rawToKnano: negative values not supported');
+
+  const { integer: intPart } = parseDecimal(raw);
+  const rawBigInt = BigInt(intPart);
+
+  const knanoBigInt = rawBigInt / BigInt(10) ** 27n;
+  const remainder = rawBigInt % BigInt(10) ** 27n;
+
+  const remainderStr = remainder.toString().padStart(27, '0');
+  const trimmedDecimals = remainderStr.replace(/0+$/, '');
+
+  const intStr = knanoBigInt === 0n ? '0' : knanoBigInt.toString();
+  return trimmedDecimals ? `${intStr}.${trimmedDecimals}` : intStr;
+}
+
+/**
  * Converts knano (kilo-nano) to raw units.
+ * 1 knano = 10^27 raw
  * @param knano - knano amount as string
  * @returns Raw amount as string
  */
 export function knanoToRaw(knano: string): string {
   if (!knano || knano === '') return '0';
   if (knano.startsWith('-')) throw new Error('knanoToRaw: negative values not supported');
-  
+
   const { integer, decimal } = parseDecimal(knano);
-  
-  // 1 knano = 10^3 Nano = 10^33 raw
-  const scaledDecimal = decimal.slice(0, 33).padEnd(33, '0');
+
+  const scaledDecimal = decimal.slice(0, 27).padEnd(27, '0');
   const combined = integer + scaledDecimal;
-  
-  const result = BigInt(combined).toString();
-  
-  return stripLeadingZeros(result);
+
+  return stripLeadingZeros(BigInt(combined).toString());
+}
+
+/**
+ * Converts raw units to mnano.
+ * @param raw - Raw amount as string
+ * @returns mnano amount as string
+ */
+export function rawToMnano(raw: string): string {
+  if (!raw || raw === '') return '0';
+  if (raw.startsWith('-')) throw new Error('rawToMnano: negative values not supported');
+
+  const { integer: intPart } = parseDecimal(raw);
+  const rawBigInt = BigInt(intPart);
+
+  const mnanoBigInt = rawBigInt / BigInt(10) ** 24n;
+  const remainder = rawBigInt % BigInt(10) ** 24n;
+
+  const remainderStr = remainder.toString().padStart(24, '0');
+  const trimmedDecimals = remainderStr.replace(/0+$/, '');
+
+  const intStr = mnanoBigInt === 0n ? '0' : mnanoBigInt.toString();
+  return trimmedDecimals ? `${intStr}.${trimmedDecimals}` : intStr;
 }
 
 /**
  * Converts mnano (mega-nano) to raw units.
+ * 1 mnano = 10^24 raw
  * @param mnano - mnano amount as string
  * @returns Raw amount as string
  */
 export function mnanoToRaw(mnano: string): string {
   if (!mnano || mnano === '') return '0';
   if (mnano.startsWith('-')) throw new Error('mnanoToRaw: negative values not supported');
-  
+
   const { integer, decimal } = parseDecimal(mnano);
-  
-  // 1 mnano = 10^6 Nano = 10^36 raw
-  const scaledDecimal = decimal.slice(0, 36).padEnd(36, '0');
+
+  const scaledDecimal = decimal.slice(0, 24).padEnd(24, '0');
   const combined = integer + scaledDecimal;
-  
-  const result = BigInt(combined).toString();
-  
-  return stripLeadingZeros(result);
+
+  return stripLeadingZeros(BigInt(combined).toString());
+}
+
+/**
+ * General unit conversion: converts amount from one unit to another.
+ * Supported units: raw, mnano, knano, xno
+ * @param amount - Amount as string
+ * @param from - Source unit
+ * @param to - Target unit
+ * @returns Converted amount as string
+ */
+export function convertUnits(amount: string, from: string, to: string): string {
+  const f = from.toLowerCase();
+  const t = to.toLowerCase();
+
+  if (f === t) return amount;
+
+  // Step 1: Convert from → raw
+  let raw: string;
+  switch (f) {
+    case 'raw': raw = amount; break;
+    case 'mnano': raw = mnanoToRaw(amount); break;
+    case 'knano': raw = knanoToRaw(amount); break;
+    case 'xno': raw = nanoToRaw(amount); break;
+    default: throw new Error(`Unsupported unit: ${from}`);
+  }
+
+  // Step 2: Convert raw → to
+  switch (t) {
+    case 'raw': return raw;
+    case 'mnano': return rawToMnano(raw);
+    case 'knano': return rawToKnano(raw);
+    case 'xno': return rawToNano(raw);
+    default: throw new Error(`Unsupported unit: ${to}`);
+  }
 }

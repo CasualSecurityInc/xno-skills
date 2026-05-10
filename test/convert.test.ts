@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nanoToRaw, rawToNano, formatNano, knanoToRaw, mnanoToRaw } from '../src/convert';
+import { nanoToRaw, rawToNano, formatNano, knanoToRaw, mnanoToRaw, rawToKnano, rawToMnano, convertUnits } from '../src/convert';
 
 describe('nanoToRaw', () => {
   it('converts 1 nano to raw', () => {
@@ -106,12 +106,12 @@ describe('formatNano', () => {
 });
 
 describe('knanoToRaw', () => {
-  it('converts 1 knano to raw', () => {
-    expect(knanoToRaw('1')).toBe('1000000000000000000000000000000000');
+  it('converts 1 knano to raw (10^27)', () => {
+    expect(knanoToRaw('1')).toBe('1000000000000000000000000000');
   });
 
   it('handles decimals', () => {
-    expect(knanoToRaw('1.001')).toBe('1001000000000000000000000000000000');
+    expect(knanoToRaw('1.001')).toBe('1001000000000000000000000000');
   });
 
   it('rejects negative values', () => {
@@ -119,16 +119,66 @@ describe('knanoToRaw', () => {
   });
 });
 
+describe('rawToKnano', () => {
+  it('converts 10^27 raw to 1 knano', () => {
+    expect(rawToKnano('1000000000000000000000000000')).toBe('1');
+  });
+
+  it('converts 1.5 * 10^27 raw to 1.5 knano', () => {
+    expect(rawToKnano('1500000000000000000000000000')).toBe('1.5');
+  });
+});
+
 describe('mnanoToRaw', () => {
-  it('converts 1 mnano to raw', () => {
-    expect(mnanoToRaw('1')).toBe('1000000000000000000000000000000000000');
+  it('converts 1 mnano to raw (10^24)', () => {
+    expect(mnanoToRaw('1')).toBe('1000000000000000000000000');
   });
 
   it('handles decimals', () => {
-    expect(mnanoToRaw('1.001')).toBe('1001000000000000000000000000000000000');
+    expect(mnanoToRaw('1.001')).toBe('1001000000000000000000000');
   });
 
   it('rejects negative values', () => {
     expect(() => mnanoToRaw('-1')).toThrow('mnanoToRaw: negative values not supported');
+  });
+});
+
+describe('rawToMnano', () => {
+  it('converts 10^24 raw to 1 mnano', () => {
+    expect(rawToMnano('1000000000000000000000000')).toBe('1');
+  });
+
+  it('converts 10^27 raw to 1000 mnano', () => {
+    expect(rawToMnano('1000000000000000000000000000')).toBe('1000');
+  });
+});
+
+describe('convertUnits', () => {
+  it('converts xno to raw', () => {
+    expect(convertUnits('1.5', 'xno', 'raw')).toBe('1500000000000000000000000000000');
+  });
+
+  it('converts raw to xno', () => {
+    expect(convertUnits('1500000000000000000000000000000', 'raw', 'xno')).toBe('1.5');
+  });
+
+  it('converts xno to knano', () => {
+    expect(convertUnits('1.5', 'xno', 'knano')).toBe('1500');
+  });
+
+  it('converts knano to mnano', () => {
+    expect(convertUnits('1', 'knano', 'mnano')).toBe('1000');
+  });
+
+  it('converts mnano to xno', () => {
+    expect(convertUnits('1000', 'mnano', 'xno')).toBe('0.001');
+  });
+
+  it('returns same value for same unit', () => {
+    expect(convertUnits('42', 'raw', 'raw')).toBe('42');
+  });
+
+  it('rejects unsupported units', () => {
+    expect(() => convertUnits('1', 'btc', 'xno')).toThrow('Unsupported unit: btc');
   });
 });
