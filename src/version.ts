@@ -2,6 +2,6 @@
 // Keep this in sync by running "npm run build" (prebuild hook).
 export const pkg = {
   name: "xno-skills",
-  version: "3.1.1"
+  version: "3.1.2"
 } as const;
 export const version = pkg.version;
