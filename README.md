@@ -74,6 +74,7 @@ xno-skills --help
 
 | Command | Description |
 |---|---|
+| `about` | Show version and environment info for troubleshooting |
 | `mcp` | Start the MCP server or view configuration instructions |
 
 All commands support `-j` / `--json` for machine-readable output.
