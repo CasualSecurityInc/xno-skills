@@ -3,7 +3,6 @@
 [![npm version](https://img.shields.io/npm/v/xno-skills.svg)](https://www.npmjs.com/package/xno-skills)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![smithery badge](https://smithery.ai/badge/casualsecurityinc/xno-skills)](https://smithery.ai/servers/casualsecurityinc/xno-skills)
 
 A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on top of [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core) for secure key custody.
 
@@ -11,7 +10,10 @@ A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on t
 
 ## Agent Skills
 
-Built-in skill for Personal AI Agents (OpenClaw etc.) and humans running AI coding assistants (Claude Code, Cursor, etc.) alike:
+[![smithery badge](https://smithery.ai/badge/casualsecurityinc/xno-skills)](https://smithery.ai/servers/casualsecurityinc/xno-skills)
+[![skills.sh](https://skills.sh/b/casualsecurityinc/xno-skills)](https://skills.sh/casualsecurityinc/xno-skills)
+
+Built-in skill for Personal AI Agents (OpenClaw etc.) and humans with AI Coding Assistants (Claude Code, Cursor, etc.) alike:
 
 ```bash
 npx skills add -g CasualSecurityInc/xno-skills
