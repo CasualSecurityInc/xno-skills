@@ -1,122 +1,170 @@
-# Nano MCP v3 Orchestrated Test Suite
+# Nano MCP v3 Real-Mode Test Suite
 
 ## Goal
-Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill to verify the agent correctly routes from natural language prompts to dot-notation tool calls without human hints.
+Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill against **real** OWS wallets. The agent discovers wallet names dynamically — no hardcoded names, no mock mode.
 
 ## Environment
 
 - MCP server: `xno-mcp` (v3.0.0, local stdio)
 - Skill: `casualsecurityinc/nano` (v3.0.0)
-- **Mock mode** (default for tests): Set `XNO_MCP_MOCK_OWS=true` env var. Creates a single mock wallet named `A`.
-- **Real mode**: Uses actual OWS wallets. Wallet names vary. Query `wallet.list` first to discover names.
+- **Real mode only**: `XNO_MCP_MOCK_OWS` must be unset. Uses actual OWS wallets with real keys.
+- **Safety**: The test only sends tiny amounts (0.01 XNO) to the wallet's own address (self-send is valid and free). Block-building steps are unsigned (no funds moved). Payment requests are tracked locally, not on-chain.
 
 ## Instructions for the Orchestrator
 
-1. **Choose mode** before starting:
-   - **Mock mode**: `export XNO_MCP_MOCK_OWS=true` before launching the MCP server. Wallet `A` exists.
-   - **Real mode**: No env var needed. Run Step 1 first to discover wallet names, then substitute the real wallet name for `A` in all subsequent steps.
-2. **Reset state** before each run: `rm -rf ~/.xno-mcp/requests.json ~/.xno-mcp/transactions.json`
-3. **Process sequentially** — some steps depend on state from earlier steps (e.g., payment request IDs)
-4. **For each step**, delegate to a subagent with this exact prompt:
+1. **Ensure real mode**: `unset XNO_MCP_MOCK_OWS` (or verify it's not set)
+2. **Reset local state** before each run: `rm -rf ~/.xno-mcp/requests.json ~/.xno-mcp/transactions.json`
+3. **Process sequentially** — state flows between steps
+4. **Dynamic substitution**: After Step 1, capture the first wallet name and substitute `<wallet>` in all subsequent prompts
+5. **Dynamic substitution**: After Step 2, capture the wallet's address and substitute `<address>` in all subsequent prompts
+6. **For each step**, delegate to a subagent with:
    > The user said: "[USER_PROMPT]"
    > Use the nano skill. Call the appropriate xno-mcp tool. Return the tool name, arguments, and raw response.
-5. **Capture results** in the pass/fail table below
-6. **Stop on first failure** and report: what the agent tried, what tool it called (if any), and the error
+7. **Capture results** in the pass/fail table
+8. **Stop on first failure** and report: what the agent tried, what tool it called (if any), and the error
+
+## Dynamic Variables
+
+| Variable | Source | Steps Used |
+|----------|--------|------------|
+| `<wallet>` | Step 1: first wallet name from `wallet.list` | 2, 6–8, 16–20, 22–24 |
+| `<address>` | Step 2: address from `wallet.address` for `<wallet>` | 9–11, 16, 20–22 |
+| `<hex>` | Step 20: `blockHex` from `block.send` response | 23 |
+| `<payment-id>` | Step 24: `id` from `payment.create` response | 26–28 |
 
 ## Test Steps
 
 ### Phase 1: Setup / Discovery
+
 - [ ] **Step 1**: "What wallets do I have?"
   - Expected: `wallet.list` {}
-- [ ] **Step 2**: "What's the Nano address for my wallet A?"
-  - Expected: `wallet.address` {"wallet": "A"}
+  - Capture: first wallet name → `<wallet>`
+
+- [ ] **Step 2**: "What's the Nano address for my wallet <wallet>?"
+  - Expected: `wallet.address` {"wallet": "<wallet>"}
+  - Capture: address → `<address>`
+
 - [ ] **Step 3**: "Is the wallet signing daemon working?"
   - Expected: `wallet.ows_health` {}
+
 - [ ] **Step 4**: "What's the current server configuration?"
   - Expected: `config.get` {}
+
 - [ ] **Step 5**: "I want to raise my spending limit to 5 XNO."
   - Expected: `config.set` {"maxSendXno": "5.0"}
 
 ### Phase 2: Reading State
-- [ ] **Step 6**: "Check the balance on wallet A. Tell me if there's anything pending too."
-  - Expected: `wallet.balance` {"wallet": "A", "count": 10}
-- [ ] **Step 7**: "Give me everything about wallet A — frontier, representative, balance, the works."
-  - Expected: `wallet.info` {"wallet": "A"}
-- [ ] **Step 8**: "Show me the last 20 transactions for wallet A."
-  - Expected: `wallet.history` {"wallet": "A", "limit": 20}
-- [ ] **Step 9**: "How much XNO does nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7 have?"
-  - Expected: `rpc.account_balance` {"address": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7"}
-- [ ] **Step 10**: "Get the full account info for that same address."
-  - Expected: `rpc.account_info` {"address": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7"}
-- [ ] **Step 11**: "Are there any pending receivable blocks for wallet A?"
-  - Expected: `rpc.receivable` {"address": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7", "count": 10}
+
+- [ ] **Step 6**: "Check the balance on wallet <wallet>. Tell me if there's anything pending too."
+  - Expected: `wallet.balance` {"wallet": "<wallet>", "count": 10}
+
+- [ ] **Step 7**: "Give me everything about wallet <wallet> — frontier, representative, balance, the works."
+  - Expected: `wallet.info` {"wallet": "<wallet>"}
+
+- [ ] **Step 8**: "Show me the last 20 transactions for wallet <wallet>."
+  - Expected: `wallet.history` {"wallet": "<wallet>", "limit": 20}
+
+- [ ] **Step 9**: "How much XNO does <address> have according to the network?"
+  - Expected: `rpc.account_balance` {"address": "<address>"}
+
+- [ ] **Step 10**: "Get the full account info for that same address from the network."
+  - Expected: `rpc.account_info` {"address": "<address>"}
+
+- [ ] **Step 11**: "Are there any pending receivable blocks for <address>?"
+  - Expected: `rpc.receivable` {"address": "<address>", "count": 10}
+
 - [ ] **Step 12**: "Does the node I'm connected to support remote proof of work?"
   - Expected: `rpc.probe` {}
 
 ### Phase 3: Utilities
+
 - [ ] **Step 13**: "Is nano_1invalid a valid Nano address?"
   - Expected: `util.validate` {"address": "nano_1invalid"}
+
 - [ ] **Step 14**: "How much is 1.5 XNO in raw?"
   - Expected: `util.convert` {"amount": "1.5", "from": "xno", "to": "raw"}
+
 - [ ] **Step 15**: "Convert 1000000000000000000000000000 raw to mnano."
   - Expected: `util.convert` {"amount": "1000000000000000000000000000", "from": "raw", "to": "mnano"}
-- [ ] **Step 16**: "Make me a QR code for wallet A's address."
-  - Expected: `util.qr` {"address": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7"}
+
+- [ ] **Step 16**: "Make me a QR code for <address>."
+  - Expected: `util.qr` {"address": "<address>"}
 
 ### Phase 4: Operations
-- [ ] **Step 17**: "There should be pending funds for wallet A — receive them."
-  - Expected: `wallet.receive` {"wallet": "A", "count": 10}
-- [ ] **Step 18**: "Send 0.01 XNO from wallet A to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7."
-  - Expected: `wallet.send` {"wallet": "A", "destination": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7", "amountXno": "0.01"}
-- [ ] **Step 19**: "Change the representative on wallet A to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4."
-  - Expected: `wallet.change_rep` {"wallet": "A", "representative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"}
 
-### Phase 5: Expert / Block Building
-- [ ] **Step 20**: "Build me an unsigned send block from wallet A's address to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7 for 0.01 XNO. I want the hex."
-  - Expected: `block.send` {"account": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7", "to": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7", "amountXno": "0.01"}
-- [ ] **Step 21**: "Build an unsigned receive block hex for wallet A."
-  - Expected: `block.receive` {"account": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7"}
-- [ ] **Step 22**: "Build an unsigned change representative block for wallet A to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4."
-  - Expected: `block.change` {"account": "nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7", "representative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"}
-- [ ] **Step 23**: "Sign and submit this block hex I have using wallet A."
-  - Expected: `wallet.submit_block` {"wallet": "A", "txHex": "<hex-from-step-20>", "subtype": "send"}
+- [ ] **Step 17**: "There should be pending funds for wallet <wallet> — receive them."
+  - Expected: `wallet.receive` {"wallet": "<wallet>", "count": 10}
+  - Note: May return no pending blocks if nothing is waiting. That's a clean response, not a failure.
 
-### Phase 6: Payment Requests
-- [ ] **Step 24**: "Create an invoice for 0.1 XNO for consulting work. Use wallet A."
-  - Expected: `payment.create` {"walletName": "A", "amountXno": "0.1", "reason": "consulting work"}
+- [ ] **Step 18**: "Send 0.01 XNO from wallet <wallet> to <address>."
+  - Expected: `wallet.send` {"wallet": "<wallet>", "destination": "<address>", "amountXno": "0.01"}
+  - Note: Self-send is valid. Fails only if balance is insufficient.
+
+- [ ] **Step 19**: "Change the representative on wallet <wallet> to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4."
+  - Expected: `wallet.change_rep` {"wallet": "<wallet>", "representative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"}
+
+### Phase 5: Expert / Block Building (unsigned, no funds moved)
+
+- [ ] **Step 20**: "Build me an unsigned send block from <address> to <address> for 0.01 XNO. I want the hex."
+  - Expected: `block.send` {"account": "<address>", "to": "<address>", "amountXno": "0.01"}
+  - Capture: `blockHex` → `<hex>`
+  - Note: Fails if account has 0 balance (can't build send block with no funds). That's expected behavior, not a test failure.
+
+- [ ] **Step 21**: "Build an unsigned receive block hex for <address>."
+  - Expected: `block.receive` {"account": "<address>"}
+  - Note: Fails if no pending blocks. That's expected behavior, not a test failure.
+
+- [ ] **Step 22**: "Build an unsigned change representative block for <address> to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4."
+  - Expected: `block.change` {"account": "<address>", "representative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4"}
+
+- [ ] **Step 23**: "Sign and submit this block hex <hex> using wallet <wallet>."
+  - Expected: `wallet.submit_block` {"wallet": "<wallet>", "txHex": "<hex>", "subtype": "send"}
+  - Note: Only runnable if Step 20 succeeded and produced a hex.
+
+### Phase 6: Payment Requests (local tracking, no on-chain funds)
+
+- [ ] **Step 24**: "Create an invoice for 0.1 XNO for consulting work. Use wallet <wallet>."
+  - Expected: `payment.create` {"walletName": "<wallet>", "amountXno": "0.1", "reason": "consulting work"}
+  - Capture: `id` → `<payment-id>`
+
 - [ ] **Step 25**: "Show me all my payment requests."
   - Expected: `payment.list` {}
+
 - [ ] **Step 26**: "What's the status of that invoice I just created?"
-  - Expected: `payment.status` {"id": "<id-from-step-24>"}
+  - Expected: `payment.status` {"id": "<payment-id>"}
+
 - [ ] **Step 27**: "The client says they paid the invoice. Receive the funds."
-  - Expected: `payment.receive` {"id": "<id-from-step-24>"}
+  - Expected: `payment.receive` {"id": "<payment-id>"}
+  - Note: Fails if no pending blocks match. That's expected if nobody actually sent funds.
+
 - [ ] **Step 28**: "The client wants a refund for that invoice."
-  - Expected: `payment.refund` {"id": "<id-from-step-24>", "execute": false} (dry run)
-  - Then confirm: `payment.refund` {"id": "<id-from-step-24>", "execute": true, "confirmAddress": "<original-sender>"}
+  - Expected: `payment.refund` {"id": "<payment-id>", "execute": false} (dry run)
+  - Then confirm: `payment.refund` {"id": "<payment-id>", "execute": true, "confirmAddress": "<address>"}
+  - Note: Fails if balance insufficient or payment request was never funded. That's expected behavior.
 
 ## Pass / Fail Criteria
 
 | Step | Prompt | Expected Tool | Actual Tool | Args Match? | Clean Response? | Notes |
 |------|--------|---------------|-------------|-------------|-----------------|-------|
 | 1 | What wallets do I have? | wallet.list | | | | |
-| 2 | What's the Nano address for my wallet A? | wallet.address | | | | |
+| 2 | What's the Nano address for my wallet <wallet>? | wallet.address | | | | |
 | 3 | Is the wallet signing daemon working? | wallet.ows_health | | | | |
 | 4 | What's the current server configuration? | config.get | | | | |
 | 5 | I want to raise my spending limit to 5 XNO. | config.set | | | | |
-| 6 | Check the balance on wallet A... | wallet.balance | | | | |
-| 7 | Give me everything about wallet A... | wallet.info | | | | |
+| 6 | Check the balance on wallet <wallet>... | wallet.balance | | | | |
+| 7 | Give me everything about wallet <wallet>... | wallet.info | | | | |
 | 8 | Show me the last 20 transactions... | wallet.history | | | | |
-| 9 | How much XNO does nano_3i1aq... have? | rpc.account_balance | | | | |
-| 10 | Get the full account info for that same address. | rpc.account_info | | | | |
-| 11 | Are there any pending receivable blocks for wallet A? | rpc.receivable | | | | |
+| 9 | How much XNO does <address> have? | rpc.account_balance | | | | |
+| 10 | Get the full account info for that address. | rpc.account_info | | | | |
+| 11 | Are there any pending blocks for <address>? | rpc.receivable | | | | |
 | 12 | Does the node support remote PoW? | rpc.probe | | | | |
 | 13 | Is nano_1invalid a valid address? | util.validate | | | | |
 | 14 | How much is 1.5 XNO in raw? | util.convert | | | | |
-| 15 | Convert 1000... raw to mnano. | util.convert | | | | |
-| 16 | Make me a QR code for wallet A. | util.qr | | | | |
-| 17 | Receive pending funds for wallet A. | wallet.receive | | | | |
-| 18 | Send 0.01 XNO from wallet A... | wallet.send | | | | |
-| 19 | Change the representative on wallet A... | wallet.change_rep | | | | |
+| 15 | Convert 10^27 raw to mnano. | util.convert | | | | |
+| 16 | Make me a QR code for <address>. | util.qr | | | | |
+| 17 | Receive pending funds for <wallet>. | wallet.receive | | | | |
+| 18 | Send 0.01 XNO from <wallet> to <address>. | wallet.send | | | | |
+| 19 | Change the representative on <wallet>... | wallet.change_rep | | | | |
 | 20 | Build an unsigned send block... | block.send | | | | |
 | 21 | Build an unsigned receive block... | block.receive | | | | |
 | 22 | Build an unsigned change block... | block.change | | | | |
@@ -127,6 +175,12 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill to 
 | 27 | The client paid. Receive the funds. | payment.receive | | | | |
 | 28 | The client wants a refund. | payment.refund | | | | |
 
+## Scoring
+
+- **Tool routing**: 28/28 correct tool selection with correct arguments = ✅
+- **Execution**: Steps may return empty/no-op responses (no pending blocks, insufficient balance, etc.) — these are **not failures** as long as the tool call itself was valid and the error message is informative.
+- **Real failure**: Wrong tool selected, wrong arguments, skill not activated, or cryptic error.
+
 ## Failure Analysis
 
 If any step fails, inspect in this order:
@@ -134,14 +188,13 @@ If any step fails, inspect in this order:
 2. **Tool routing** — is the tool description clear enough for the model to map the intent?
 3. **Parameter inference** — does the model know which params are required vs optional? Are param descriptions specific?
 4. **Annotations** — is the model overly cautious about calling write tools? (annotations should signal safety)
-5. **Output schema** — did the tool return data the model expected? (structured vs plain text)
+5. **Dynamic variables** — did the orchestrator correctly substitute `<wallet>` and `<address>` from earlier steps?
 
-## Known Limitations
+## Known Behaviors (Not Failures)
 
-- **Mock mode required**: Steps 2, 6–8, 17–19, 23–24, 27–28 assume wallet `A` exists. In real mode, substitute the actual wallet name discovered in Step 1.
-- Step 9 uses the wallet's own address for external balance query (self-query is valid)
-- Step 18 sends to the wallet's own address (self-send is valid)
-- Step 23 requires a hex from step 20 — the orchestrator must capture and forward it
-- Step 26–28 require a payment request ID from step 24 — the orchestrator must capture and forward it
-- Step 28 has two tool calls (dry run + execute) — both must succeed
-- Step 15 (`util.convert` raw → mnano): Fixed in v3.0.1 — was returning input unchanged due to incorrect knano/mnano scaling (10^33/10^36 instead of 10^27/10^24)
+- **Step 17** (wallet.receive): Returns empty if no pending blocks exist. Clean.
+- **Step 18** (wallet.send): Fails with "insufficient balance" if wallet has < 0.01 XNO. Expected.
+- **Step 20** (block.send): Fails with "insufficient balance" or "Account not opened" if account has no funds. Expected.
+- **Step 21** (block.receive): Fails with "No receivable blocks found" if nothing pending. Expected.
+- **Step 27** (payment.receive): Fails with no pending blocks if invoice was never funded. Expected.
+- **Step 28** (payment.refund): Fails with "insufficient balance" if payment request was never funded. Expected.
