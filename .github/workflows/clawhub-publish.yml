@@ -33,9 +33,6 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Test
-        run: npm test
-
       - name: Compute ClawHub version
         id: version
         run: |
@@ -51,6 +48,9 @@ jobs:
 
           echo "desc=$DESC" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: npm test
 
       - name: Publish Nano skill to ClawHub
         env:
