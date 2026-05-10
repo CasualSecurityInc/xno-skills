@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
 import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess, rpcProbeCaps } from './rpc.js';
 import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
+import { getSystemInfo } from './meta.js';
 import { validateAddress } from './validate.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -292,6 +293,14 @@ mcpServer.registerResource(
 // ---------------------------------------------------------------------------
 // Tools
 // ---------------------------------------------------------------------------
+
+// ── system ─────────────────────────────────────────────────────────────────
+
+mcpServer.registerTool('system.info', {
+  description: 'Show version and environment metadata for xno-skills and OWS. Useful for troubleshooting.',
+  inputSchema: {},
+  annotations: READONLY,
+}, async () => toToolSuccess(getSystemInfo()));
 
 // ── config ─────────────────────────────────────────────────────────────────
 

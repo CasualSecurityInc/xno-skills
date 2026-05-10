@@ -10,6 +10,7 @@ import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
 import { version } from './version.js';
+import { getSystemInfo, formatSystemInfo } from './meta.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -765,6 +766,20 @@ Configuration for popular AI agent harnesses:
 To run the MCP server directly in this terminal:
   npx -y xno-skills mcp
 `;
+
+program
+  .command('about')
+  .helpGroup('System')
+  .description('Show version and environment info for troubleshooting')
+  .option('-j, --json', 'Output in JSON format')
+  .action(async (options: { json?: boolean }) => {
+    const info = getSystemInfo();
+    if (options.json) {
+      console.log(JSON.stringify(info, null, 2));
+    } else {
+      console.log(formatSystemInfo(info));
+    }
+  });
 
 program
   .command('mcp')
