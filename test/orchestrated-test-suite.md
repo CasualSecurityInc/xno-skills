@@ -5,8 +5,8 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 
 ## Environment
 
-- MCP server: `xno-mcp` (v3.0.0, local stdio)
-- Skill: `casualsecurityinc/nano` (v3.0.0)
+- MCP server: `xno-mcp` (local stdio)
+- Skill: `casualsecurityinc/nano`
 - **Real mode only**: `XNO_MCP_MOCK_OWS` must be unset. Uses actual OWS wallets with real keys.
 - **Safety**: The test only sends tiny amounts (0.01 XNO) to the wallet's own address (self-send is valid and free). Block-building steps are unsigned (no funds moved). Payment requests are tracked locally, not on-chain.
 
@@ -38,7 +38,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 
 - [ ] **Step 0**: "What versions are running and how was xno-skills invoked?"
   - Expected: `system.info` {}
-  - Verify: version is v3.0.0+, mockOws is false, OWS is found
+  - Verify: mockOws is false, OWS is found
 
 ### Phase 1: Setup / Discovery
 
