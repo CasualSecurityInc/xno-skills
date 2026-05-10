@@ -1,6 +1,6 @@
 {
   "name": "xno-skills",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "XNO CLI - Interact with Nano (XNO)",
   "type": "module",
   "main": "./dist/cjs/index.js",
