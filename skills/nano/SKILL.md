@@ -572,6 +572,31 @@ All subcommands support `--json` for machine-readable output and `--help` for fu
 
 ---
 
+## Troubleshooting
+
+If tools are behaving unexpectedly, call `system.info` first to verify versions and environment:
+
+```json
+{ "name": "system.info", "arguments": {} }
+```
+
+Returns:
+- `xnoSkills.version` — xno-skills version
+- `xnoSkills.path` — resolved executable path
+- `xnoSkills.invocation` — how it was launched (npm-global, npx, bunx, source, etc.)
+- `ows.version` — `@open-wallet-standard/core` version
+- `ows.path` — OWS package location
+- `environment.mockOws` — whether mock mode is active
+- `environment.nanoRpcUrl` — override RPC URL if set
+
+**CLI equivalent:**
+```bash
+xno-skills about
+xno-skills about --json
+```
+
+---
+
 ## Quick-Start Example
 
 ```
