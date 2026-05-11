@@ -3,7 +3,7 @@
  * Generate mcpb/server-card.json by introspecting the MCP tool definitions.
  * Run after the ESM build (needs dist/esm/mcp.js compiled output).
  */
-import { writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -68,10 +68,12 @@ try {
   process.exit(1);
 }
 
+const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8'));
+
 const card = {
   serverInfo: {
-    name: 'xno-skills',
-    version: 'unknown',
+    name: pkg.name,
+    version: pkg.version,
   },
   authentication: {
     required: false,
