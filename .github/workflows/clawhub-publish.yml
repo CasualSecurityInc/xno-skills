@@ -63,6 +63,7 @@ jobs:
           npx -y clawhub skill publish ./skills/nano \
             --slug nano \
             --name "Nano (XNO)" \
+            --owner casualsecurityinc \
             --version "${{ steps.version.outputs.version }}" \
             --changelog "Automated publish from ${GITHUB_SHA} (${{ steps.version.outputs.desc }})" \
             --tags latest
