@@ -2,7 +2,7 @@
   "manifest_version": "0.2",
   "name": "xno-skills",
   "version": "{{VERSION}}",
-  "description": "Nano (XNO) MCP server — send, receive, check balances, manage payment requests, and track transactions. For wallet creation and management, also install the ows skill: npx skills add -a -g -y open-wallet-standard/core/ows",
+  "description": "The Nano (XNO) toolkit for AI agents and developers. Send, receive, check balances, and manage payment requests without ever handling private keys.",
   "author": {
     "name": "Casual Security Inc",
     "url": "https://github.com/CasualSecurityInc/xno-skills"
