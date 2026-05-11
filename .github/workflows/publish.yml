@@ -82,6 +82,6 @@ jobs:
       - name: Publish to Smithery
         env:
           SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}
-        run: npx smithery mcp publish ./server.mcpb -n casualsecurityinc/xno-skills
+        run: npx @smithery/cli@latest mcp publish ./server.mcpb -n casualsecurityinc/xno-skills
 
 
