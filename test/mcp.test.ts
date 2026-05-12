@@ -59,20 +59,20 @@ describe('MCP Server Integration', () => {
     
     expect(toolNames).not.toContain('generate_wallet');
     expect(toolNames).not.toContain('derive_address');
-    expect(toolNames).toContain('util.convert');
-    expect(toolNames).toContain('util.validate');
+    expect(toolNames).toContain('util_convert');
+    expect(toolNames).toContain('util_validate');
     expect(toolNames).not.toContain('wallet_create');
-    expect(toolNames).toContain('wallet.list');
+    expect(toolNames).toContain('wallet_list');
     expect(toolNames).not.toContain('wallet_addresses');
-    expect(toolNames).toContain('wallet.receive');
-    expect(toolNames).toContain('wallet.send');
-    expect(toolNames).toContain('config.get');
-    expect(toolNames).toContain('config.set');
+    expect(toolNames).toContain('wallet_receive');
+    expect(toolNames).toContain('wallet_send');
+    expect(toolNames).toContain('config_get');
+    expect(toolNames).toContain('config_set');
   });
 
-  it('should convert units via util.convert tool', async () => {
+  it('should convert units via util_convert tool', async () => {
     const result = await client.callTool({
-      name: "util.convert",
+      name: "util_convert",
       arguments: {
         amount: "1",
         from: "xno",
@@ -85,16 +85,16 @@ describe('MCP Server Integration', () => {
   });
 
   it('should list wallets using OWS', async () => {
-    const result = await client.callTool({ name: "wallet.list", arguments: {} });
+    const result = await client.callTool({ name: "wallet_list", arguments: {} });
     expect(result.isError).toBeFalsy();
     const out = JSON.parse(getText(result));
     expect(out.some((p: any) => p.name === "A")).toBe(true);
   });
 
-  it('should validate an address via util.validate tool', async () => {
+  it('should validate an address via util_validate tool', async () => {
     const address = "nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d";
     const result = await client.callTool({
-      name: "util.validate",
+      name: "util_validate",
       arguments: { address }
     });
 
@@ -114,10 +114,10 @@ describe('MCP Server Integration', () => {
     }
   });
 
-  it('should accept valid representative in config.set', async () => {
+  it('should accept valid representative in config_set', async () => {
     const validRep = "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4";
     const result = await client.callTool({
-      name: "config.set",
+      name: "config_set",
       arguments: { defaultRepresentative: validRep }
     });
 
@@ -128,7 +128,7 @@ describe('MCP Server Integration', () => {
 
   it('should create a payment request with explicit OWS wallet', async () => {
     const result = await client.callTool({
-      name: "payment.create",
+      name: "payment_create",
       arguments: { walletName: "A", amountXno: "0.01", reason: "explicit wallet test" }
     });
 
@@ -140,7 +140,7 @@ describe('MCP Server Integration', () => {
 
   it('should list payment requests', async () => {
     const result = await client.callTool({
-      name: "payment.list",
+      name: "payment_list",
       arguments: {}
     });
 
@@ -153,7 +153,7 @@ describe('MCP Server Integration', () => {
 
   it('should filter payment requests by status', async () => {
     const result = await client.callTool({
-      name: "payment.list",
+      name: "payment_list",
       arguments: { status: "pending" }
     });
 
@@ -166,13 +166,13 @@ describe('MCP Server Integration', () => {
 
   it('should check payment request status', async () => {
     const createResult = await client.callTool({
-      name: "payment.create",
+      name: "payment_create",
       arguments: { walletName: "A", amountXno: "0.5", reason: "status check test" }
     });
     const created = JSON.parse(getText(createResult));
 
     const result = await client.callTool({
-      name: "payment.status",
+      name: "payment_status",
       arguments: { id: created.id }
     });
 
@@ -185,7 +185,7 @@ describe('MCP Server Integration', () => {
 
   it('should error for unknown payment request', async () => {
     const result = await client.callTool({
-      name: "payment.status",
+      name: "payment_status",
       arguments: { id: "nonexistent" }
     });
 
@@ -194,7 +194,7 @@ describe('MCP Server Integration', () => {
 
   it('should return on-chain history for OWS wallet', async () => {
     const result = await client.callTool({
-      name: "wallet.history",
+      name: "wallet_history",
       arguments: { wallet: "A" }
     });
 
@@ -203,9 +203,9 @@ describe('MCP Server Integration', () => {
     expect(out).toBeInstanceOf(Array);
   });
 
-  it('should set maxSendXno via config.set', async () => {
+  it('should set maxSendXno via config_set', async () => {
     const result = await client.callTool({
-      name: "config.set",
+      name: "config_set",
       arguments: { maxSendXno: "5.0" }
     });
 
@@ -214,9 +214,9 @@ describe('MCP Server Integration', () => {
     expect(config.maxSendXno).toBe("5.0");
   });
 
-  it('should set powTimeoutMs via config.set', async () => {
+  it('should set powTimeoutMs via config_set', async () => {
     const result = await client.callTool({
-      name: "config.set",
+      name: "config_set",
       arguments: { powTimeoutMs: 45000 }
     });
 
@@ -225,9 +225,9 @@ describe('MCP Server Integration', () => {
     expect(config.powTimeoutMs).toBe(45000);
   });
 
-  it('should show maxSendXno in config.get', async () => {
+  it('should show maxSendXno in config_get', async () => {
     const result = await client.callTool({
-      name: "config.get",
+      name: "config_get",
       arguments: {}
     });
 
@@ -236,16 +236,16 @@ describe('MCP Server Integration', () => {
     expect(config.maxSendXno).toBe("5.0");
   });
 
-  it('should embed max-send cap in wallet.send tool description', async () => {
+  it('should embed max-send cap in wallet_send tool description', async () => {
     const result = await client.listTools();
-    const sendTool = result.tools.find(t => t.name === 'wallet.send');
+    const sendTool = result.tools.find(t => t.name === 'wallet_send');
     expect(sendTool).toBeDefined();
     expect(sendTool!.description).toContain('XNO');
   });
 
-  it('should return health status via wallet.ows_health tool', async () => {
+  it('should return health status via wallet_ows_health tool', async () => {
     const result = await client.callTool({
-      name: "wallet.ows_health",
+      name: "wallet_ows_health",
       arguments: {}
     });
 
@@ -258,7 +258,7 @@ describe('MCP Server Integration', () => {
   it('should generate a QR code for an address', async () => {
     const address = "nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d";
     const result = await client.callTool({
-      name: "util.qr",
+      name: "util_qr",
       arguments: { address }
     });
 

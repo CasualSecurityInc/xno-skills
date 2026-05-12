@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "xno-skills",
-    "version": "3.1.3"
+    "version": "3.1.4"
   },
   "authentication": {
     "required": false,
@@ -9,7 +9,7 @@
   },
   "tools": [
     {
-      "name": "system.info",
+      "name": "system_info",
       "description": "Show version and environment metadata for xno-skills and OWS. Useful for troubleshooting.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27,7 +27,7 @@
       }
     },
     {
-      "name": "config.get",
+      "name": "config_get",
       "description": "Read the current xno-mcp configuration including RPC URLs, timeouts, and spending limits.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -45,7 +45,7 @@
       }
     },
     {
-      "name": "config.set",
+      "name": "config_set",
       "description": "Update the xno-mcp configuration. Any provided fields overwrite existing values; omitted fields are preserved.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -88,7 +88,7 @@
       }
     },
     {
-      "name": "wallet.list",
+      "name": "wallet_list",
       "description": "List all OWS wallets that have Nano accounts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -106,7 +106,7 @@
       }
     },
     {
-      "name": "wallet.address",
+      "name": "wallet_address",
       "description": "Show the Nano address for a specific OWS wallet and account index.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -137,7 +137,7 @@
       }
     },
     {
-      "name": "wallet.balance",
+      "name": "wallet_balance",
       "description": "Show the confirmed balance and pending receivable amount for an OWS wallet. Also lists pending receivable blocks.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -177,7 +177,7 @@
       }
     },
     {
-      "name": "wallet.receive",
+      "name": "wallet_receive",
       "description": "Receive pending Nano blocks for an OWS wallet. Automatically handles open vs receive block creation, signs via OWS, generates PoW, and broadcasts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -225,7 +225,7 @@
       }
     },
     {
-      "name": "wallet.send",
+      "name": "wallet_send",
       "description": "Send Nano from an OWS wallet. Signs via OWS, generates PoW, and broadcasts. Max per transaction: 5.0 XNO.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -270,7 +270,7 @@
       }
     },
     {
-      "name": "wallet.change_rep",
+      "name": "wallet_change_rep",
       "description": "Change the representative for an OWS wallet account. Signs via OWS, generates PoW, and broadcasts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -310,7 +310,7 @@
       }
     },
     {
-      "name": "wallet.submit_block",
+      "name": "wallet_submit_block",
       "description": "Sign and submit a previously prepared unsigned Nano block hex using an OWS wallet. Useful for custom block workflows.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -361,7 +361,7 @@
       }
     },
     {
-      "name": "wallet.info",
+      "name": "wallet_info",
       "description": "Discover the current state (balance, frontier, representative) of any Nano account by wallet name or explicit address.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -388,7 +388,7 @@
       }
     },
     {
-      "name": "wallet.ows_health",
+      "name": "wallet_ows_health",
       "description": "Check whether the OWS wallet daemon is reachable and responding correctly.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -406,7 +406,7 @@
       }
     },
     {
-      "name": "wallet.history",
+      "name": "wallet_history",
       "description": "View the confirmed transaction history for an OWS wallet account.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -441,7 +441,7 @@
       }
     },
     {
-      "name": "payment.create",
+      "name": "payment_create",
       "description": "Create a tracked Nano payment request. Generates a QR code and returns a request ID for tracking.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -482,7 +482,7 @@
       }
     },
     {
-      "name": "payment.list",
+      "name": "payment_list",
       "description": "List tracked Nano payment requests, optionally filtered by wallet or status.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -509,7 +509,7 @@
       }
     },
     {
-      "name": "payment.status",
+      "name": "payment_status",
       "description": "Check the status of a specific payment request by ID.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -535,7 +535,7 @@
       }
     },
     {
-      "name": "payment.receive",
+      "name": "payment_receive",
       "description": "Receive pending funds associated with a payment request. Updates the request status.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -561,7 +561,7 @@
       }
     },
     {
-      "name": "payment.refund",
+      "name": "payment_refund",
       "description": "Refund a payment request by sending funds back to the original payer. Requires confirmation with execute: true.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -596,7 +596,7 @@
       }
     },
     {
-      "name": "util.convert",
+      "name": "util_convert",
       "description": "Convert between Nano units (raw, mnano, knano, XNO).",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -632,7 +632,7 @@
       }
     },
     {
-      "name": "util.validate",
+      "name": "util_validate",
       "description": "Validate a Nano address offline. Checks prefix, alphabet, and Blake2b-40 checksum.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -658,7 +658,7 @@
       }
     },
     {
-      "name": "util.qr",
+      "name": "util_qr",
       "description": "Generate an ASCII or SVG QR code for a Nano address, optionally with an amount.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -697,7 +697,7 @@
       }
     },
     {
-      "name": "rpc.probe",
+      "name": "rpc_probe_caps",
       "description": "Probe a Nano node RPC for capabilities: version, ledger-read support, and remote PoW availability.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -720,7 +720,7 @@
       }
     },
     {
-      "name": "rpc.account_balance",
+      "name": "rpc_account_balance",
       "description": "Fetch the confirmed balance and pending amount for any Nano account via RPC.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -750,7 +750,7 @@
       }
     },
     {
-      "name": "rpc.account_info",
+      "name": "rpc_account_info",
       "description": "Fetch detailed account info including frontier hash, balance, representative, and block count via RPC.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -780,7 +780,7 @@
       }
     },
     {
-      "name": "rpc.receivable",
+      "name": "rpc_receivable",
       "description": "List pending receivable blocks for a Nano account via RPC.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -815,7 +815,7 @@
       }
     },
     {
-      "name": "block.send",
+      "name": "block_send",
       "description": "Build an unsigned send block hex for a manual/expert workflow. Does NOT sign, generate PoW, or broadcast.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -855,7 +855,7 @@
       }
     },
     {
-      "name": "block.receive",
+      "name": "block_receive",
       "description": "Build an unsigned receive (or open) block hex for a manual/expert workflow. Does NOT sign, generate PoW, or broadcast.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -893,7 +893,7 @@
       }
     },
     {
-      "name": "block.change",
+      "name": "block_change",
       "description": "Build an unsigned change representative block hex for a manual/expert workflow. Does NOT sign, generate PoW, or broadcast.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
