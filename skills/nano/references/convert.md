@@ -7,7 +7,7 @@ Convert between XNO units
 
 Arguments:
   amount      Value to convert
-  from        Source unit: xno, raw, mnano, or knano
+  from        Source unit: xno or raw
 
 Options:
   -j, --json  Output in JSON format

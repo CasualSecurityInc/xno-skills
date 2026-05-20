@@ -619,11 +619,11 @@ mcpServer.registerTool('payment_refund', {
 // ── util ───────────────────────────────────────────────────────────────────
 
 mcpServer.registerTool('util_convert', {
-  description: 'Convert between Nano units (raw, mnano, knano, XNO).',
+  description: 'Convert between Nano units (raw, XNO).',
   inputSchema: {
     amount: z.string().describe('Value to convert (e.g. "1.5")'),
-    from: z.string().describe('Source unit: raw, mnano, knano, or xno'),
-    to: z.string().describe('Target unit: raw, mnano, knano, or xno'),
+    from: z.string().describe('Source unit: raw or xno'),
+    to: z.string().describe('Target unit: raw or xno'),
   },
   annotations: READONLY,
 }, async (args) => {

@@ -1,5 +1,5 @@
 export { validateAddress } from './validate.js';
-export { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
+export { nanoToRaw, rawToNano } from './convert.js';
 export { generateAsciiQr, buildNanoUri } from './qr.js';
 export {
   rpcAccountBalance,

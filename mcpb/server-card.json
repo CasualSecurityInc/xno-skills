@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "xno-skills",
-    "version": "3.1.4"
+    "version": "3.2.0"
   },
   "authentication": {
     "required": false,
@@ -597,7 +597,7 @@
     },
     {
       "name": "util_convert",
-      "description": "Convert between Nano units (raw, mnano, knano, XNO).",
+      "description": "Convert between Nano units (raw, XNO).",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -608,11 +608,11 @@
           },
           "from": {
             "type": "string",
-            "description": "Source unit: raw, mnano, knano, or xno"
+            "description": "Source unit: raw or xno"
           },
           "to": {
             "type": "string",
-            "description": "Target unit: raw, mnano, knano, or xno"
+            "description": "Target unit: raw or xno"
           }
         },
         "required": [

@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { validateAddress } from './validate.js';
-import { nanoToRaw, rawToNano, knanoToRaw, mnanoToRaw } from './convert.js';
+import { nanoToRaw, rawToNano } from './convert.js';
 import { generateAsciiQr, buildNanoUri, generateSvgQr } from './qr.js';
 import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcWorkGenerate, rpcProcess, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
@@ -398,15 +398,13 @@ program
   .helpGroup('Utilities')
   .description('Convert between XNO units')
   .argument('<amount>', 'Value to convert')
-  .argument('<from>', 'Source unit: xno, raw, mnano, or knano')
+  .argument('<from>', 'Source unit: xno or raw')
   .option('-j, --json', 'Output in JSON format')
   .action((amount: string, from: string, options: { json?: boolean }) => {
     const normalizeUnit = (unit: string): string => {
       const value = unit.toLowerCase();
       if (value === 'xno' || value === 'nano') return 'xno';
       if (value === 'raw' || value === 'rai') return 'raw';
-      if (value === 'mnano' || value === 'mrai') return 'mnano';
-      if (value === 'knano' || value === 'krai') return 'knano';
       return value;
     };
 
@@ -415,11 +413,9 @@ program
     let rawValue: string;
     switch (fromUnit) {
       case 'xno': rawValue = nanoToRaw(amount); break;
-      case 'mnano': rawValue = mnanoToRaw(amount); break;
-      case 'knano': rawValue = knanoToRaw(amount); break;
       case 'raw': rawValue = amount; break;
       default:
-        console.error(`Unknown source unit: ${fromUnit}. Use xno, raw, mnano, or knano.`);
+        console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
         process.exit(1);
     }
 
