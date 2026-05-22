@@ -138,8 +138,6 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
   const workUrls = work.length > 0 ? work : effectiveRpc;
 
   const workProvider = WorkProvider.auto({
-    urls: workUrls,
-    timeoutMs: rpcTimeoutMs,
     // Probe on first generate() call to build a local-first execution plan.
     // Avoid eager startup probing in MCP so startup/stdio transport stays simple.
     profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },

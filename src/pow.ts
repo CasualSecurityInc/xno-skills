@@ -1,22 +1,11 @@
-import { getProofOfWork, THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from 'nano-pow-with-fallback';
+import { WorkProvider } from '@openrai/nano-core';
 
-export type PowThreshold = 'send' | 'open';
-
-let powServiceReady = false;
-
-async function ensurePowReady(): Promise<void> {
-  if (powServiceReady) return;
-  try {
-    await getProofOfWork({ hash: '0'.repeat(64).toLowerCase(), threshold: THRESHOLD__SEND_CHANGE });
-    powServiceReady = true;
-  } catch {
-    powServiceReady = true;
-  }
+export enum WorkType {
+  Send = 'Send',
+  Receive = 'Receive',
 }
 
-function thresholdHex(threshold: PowThreshold): string {
-  return threshold === 'open' ? THRESHOLD__OPEN_RECEIVE : THRESHOLD__SEND_CHANGE;
-}
+const workProvider = WorkProvider.auto();
 
 export function validateWork(work: string): void {
   if (!work || !/^[0-9A-F]{16}$/.test(work)) {
@@ -26,19 +15,16 @@ export function validateWork(work: string): void {
 
 export async function localWorkGenerate(
   rootOrHash: string,
-  threshold: PowThreshold = 'send'
+  threshold: WorkType = WorkType.Send
 ): Promise<{ work: string }> {
   if (typeof rootOrHash !== 'string' || !/^[0-9a-fA-F]{64}$/.test(rootOrHash)) {
     throw new Error('work root/hash must be 32-byte hex (64 hex characters)');
   }
 
-  await ensurePowReady();
-
-  const thresholdValue = thresholdHex(threshold);
-  const proofOfWork = await getProofOfWork({
-    hash: rootOrHash.toLowerCase(),
-    threshold: thresholdValue,
-  });
+  const proofOfWork = await workProvider.generate(
+    rootOrHash.toLowerCase(),
+    threshold
+  );
 
   if (!proofOfWork || typeof proofOfWork !== 'string') {
     throw new Error('Local PoW generation failed');
@@ -50,6 +36,7 @@ export async function localWorkGenerate(
   return { work };
 }
 
-export function getThresholdForSubtype(subtype: 'send' | 'receive' | 'open' | 'change'): PowThreshold {
-  return subtype === 'open' || subtype === 'receive' ? 'open' : 'send';
+export function getThresholdForSubtype(subtype: 'send' | 'receive' | 'open' | 'change'): WorkType {
+  return subtype === 'open' || subtype === 'receive' ? WorkType.Receive : WorkType.Send;
 }
+

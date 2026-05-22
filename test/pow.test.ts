@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { localWorkGenerate, getThresholdForSubtype, validateWork } from '../src/pow';
+import { localWorkGenerate, getThresholdForSubtype, validateWork, WorkType } from '../src/pow';
 
 describe('Local PoW', () => {
   it('should return correct threshold for subtype', () => {
-    expect(getThresholdForSubtype('send')).toBe('send');
-    expect(getThresholdForSubtype('change')).toBe('send');
-    expect(getThresholdForSubtype('receive')).toBe('open');
-    expect(getThresholdForSubtype('open')).toBe('open');
+    expect(getThresholdForSubtype('send')).toBe(WorkType.Send);
+    expect(getThresholdForSubtype('change')).toBe(WorkType.Send);
+    expect(getThresholdForSubtype('receive')).toBe(WorkType.Receive);
+    expect(getThresholdForSubtype('open')).toBe(WorkType.Receive);
   });
 
   it('should throw for invalid hash', async () => {

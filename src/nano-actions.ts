@@ -3,10 +3,10 @@ import { buildNanoStateBlockHex, hashNanoStateBlockHex, parseNanoStateBlockHex, 
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
-import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse, type AccountHistoryEntry } from './rpc.js';
-import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
-import { THRESHOLD__OPEN_RECEIVE, THRESHOLD__SEND_CHANGE } from 'nano-pow-with-fallback';
+import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
+import { WorkType } from './pow.js';
+import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse, type AccountHistoryEntry } from './rpc.js';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
 export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
@@ -211,7 +211,7 @@ async function signWorkAndProcess(
   }
 
   // 2. Generate PoW via WorkProvider (local-first: WebGPU → WebGL → WASM → remote)
-  const difficulty = (subtype === 'open' || subtype === 'receive') ? THRESHOLD__OPEN_RECEIVE : THRESHOLD__SEND_CHANGE;
+  const difficulty = (subtype === 'open' || subtype === 'receive') ? WorkType.Receive : WorkType.Send;
   const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
 
   let work: string;

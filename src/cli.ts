@@ -71,10 +71,7 @@ function getNanoClient(options?: { url?: string }): NanoClient {
   return NanoClient.initialize({
     rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
-      urls: workUrls,
-      timeoutMs: rpcTimeoutMs,
       // Probe on first generate() call to build a local-first execution plan.
-      // Without this, WorkProvider defaults to remote-first regardless of local capability.
       // CLI cold-starts a fresh WorkProvider per invocation, so the probe runs each time
       // a PoW-generating subcommand is used (send, receive, change-rep) — this is expected.
       profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
