@@ -26,17 +26,22 @@ function requestToolList() {
     });
 
     let buffer = '';
+    let initialized = false;
     const timeout = setTimeout(() => {
       child.kill();
       reject(new Error('Timeout waiting for tools/list response'));
-    }, 10000);
+    }, 15000);
 
     child.stdout.on('data', (d) => {
       buffer += d.toString();
-      for (const line of buffer.split('\n')) {
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
+
+          // tools/list response — we're done
           if (msg.result?.tools !== undefined) {
             clearTimeout(timeout);
             child.stdin.end();
@@ -44,19 +49,30 @@ function requestToolList() {
             resolve(msg.result.tools);
             return;
           }
+
+          // initialize response — complete handshake, then query tools/list
+          if (msg.id === 1 && !initialized) {
+            initialized = true;
+            child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
+            setTimeout(() => {
+              const toolsList = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+              child.stdin.write(toolsList + '\n');
+            }, 200);
+          }
         } catch { /* not JSON, ignore */ }
       }
     });
 
-    child.stderr.on('data', (d) => {
+    child.stderr.on('data', () => {
       // Suppress stderr noise during scan
     });
 
-    // MCP initialize request
-    const init = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'smithery-scanner', version: '1.0.0' } } });
-    const toolsList = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+    // Start MCP handshake: send initialize, then await response
+    const init = JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'initialize',
+      params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'smithery-scanner', version: '1.0.0' } },
+    });
     child.stdin.write(init + '\n');
-    setTimeout(() => child.stdin.write(toolsList + '\n'), 500);
   });
 }
 
