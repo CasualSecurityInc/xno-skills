@@ -16,15 +16,15 @@ A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on t
 Built-in skill for Personal AI Agents (OpenClaw etc.) and humans with AI Coding Assistants (Claude Code, Cursor, etc.) alike:
 
 ```bash
-npx skills add -g CasualSecurityInc/xno-skills
+npx skills add CasualSecurityInc/xno-skills -g
 # or non-interactively, i.e. for agent use: 
-npx -y skills add -y --all -g CasualSecurityInc/xno-skills
+npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
 > [!IMPORTANT]
 > If you installed skills from this repository before May 4, 2026, you have 11 individual `nano-*` skills that have been consolidated into a single `nano` skill. Remove the old ones first:
 > ```bash
-> npx skills remove -g -y nano-block-lattice-expert nano-check-balance nano-convert-units nano-create-wallet nano-generate-qr nano-mcp-wallet nano-request-payment nano-return-funds nano-sign-message nano-validate-address nano-verify-message
+> npx skills remove nano-block-lattice-expert nano-check-balance nano-convert-units nano-create-wallet nano-generate-qr nano-mcp-wallet nano-request-payment nano-return-funds nano-sign-message nano-validate-address nano-verify-message -g -y
 > ```
 > Then reinstall as above.
 
@@ -40,7 +40,7 @@ xno-skills --help
 
 To upgrade the CLI, AI agent skills, and wallet dependencies to the latest version, run:
 ```bash
-npm install -g xno-skills@latest && npx -y skills add -y --all -g CasualSecurityInc/xno-skills
+npm install -g xno-skills@latest && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
 
