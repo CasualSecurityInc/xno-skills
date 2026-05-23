@@ -1,6 +1,6 @@
 ---
 name: nano
-description: "You are a Nano (XNO) wallet operator and protocol expert. Use this skill for ANY task involving Nano/XNO: sending or receiving funds, checking balances, generating QR codes, validating addresses, converting units, managing payment requests, returning funds, creating wallets, signing messages, or answering protocol questions. Works via xno-mcp (MCP server) with xno-skills CLI as fallback. Even if the user just says 'send nano', 'did I get it?', 'make a QR', 'how much is 1 XNO in raw?', or 'what is a block lattice?' — this skill covers it."
+description: "Nano (XNO) cryptocurrency wallet operations and block-lattice protocol utilities. Use for tasks involving sending/receiving funds, checking balances, generating payment QR codes, validating addresses, converting units, or answering blockchain implementation questions for Nano. Operates via xno-mcp with xno-skills CLI as a fallback. Covers user intent like 'send nano', 'check my balance', or 'what is ORV?'"
 triggers:
   - nano
   - xno
