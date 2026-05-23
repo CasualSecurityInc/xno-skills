@@ -38,7 +38,7 @@ npm install -g xno-skills@3.2.4
 xno-skills --help
 ```
 
-To upgrade the CLI, AI agent skills, and wallet dependencies to the latest version, run:
+To upgrade the CLI, AI agent skills, and wallet dependencies to the latest version at any time, run the installation commands using `@latest`:
 ```bash
 npm install -g xno-skills@latest && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
