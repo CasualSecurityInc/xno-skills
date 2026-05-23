@@ -23,7 +23,6 @@
       "env": {
         "XNO_MAX_SEND": "${user_config.XNO_MAX_SEND}",
         "NANO_RPC_URL": "${user_config.NANO_RPC_URL}",
-        "XNO_WORK_URL": "${user_config.XNO_WORK_URL}",
         "XNO_MCP_HOME": "${user_config.XNO_MCP_HOME}"
       }
     }
@@ -42,11 +41,6 @@
       "type": "string",
       "title": "Nano RPC URL",
       "description": "Override the default public Nano node RPC endpoint"
-    },
-    "XNO_WORK_URL": {
-      "type": "string",
-      "title": "Work Peer URL",
-      "description": "Override the remote proof-of-work endpoint"
     },
     "XNO_MCP_HOME": {
       "type": "directory",

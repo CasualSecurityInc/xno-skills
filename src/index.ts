@@ -7,7 +7,6 @@ export {
   rpcAccountsFrontiers,
   rpcAccountInfo,
   rpcReceivable,
-  rpcWorkGenerate,
   rpcProcess,
   rpcProbeCaps,
 } from './rpc.js';

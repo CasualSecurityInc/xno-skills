@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { generateAsciiQr, buildNanoUri, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcWorkGenerate, rpcProcess, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcProcess, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -58,22 +58,15 @@ function effectivePowTimeoutMs(config: XnoConfig): number {
 
 function getNanoClient(options?: { url?: string }): NanoClient {
   const rpc = options?.url || config.rpcUrl || process.env.NANO_RPC_URL;
-  const work = config.workPeerUrl || process.env.XNO_WORK_URL;
-  const workUrls = work
-    ? work.split(',').filter(Boolean)
-    : rpc ? [rpc] : DEFAULT_RPC_URLS;
   const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   const powTimeoutMs = effectivePowTimeoutMs(config);
   logTiming(
     'xno-cli',
-    `NanoClient init rpc=[${rpc || '(defaults)'}] work=[${work || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    `NanoClient init rpc=[${rpc || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
   return NanoClient.initialize({
     rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
-      // Probe on first generate() call to build a local-first execution plan.
-      // CLI cold-starts a fresh WorkProvider per invocation, so the probe runs each time
-      // a PoW-generating subcommand is used (send, receive, change-rep) — this is expected.
       profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
     }),
   });
@@ -615,7 +608,7 @@ rpcCmd
 
 rpcCmd
   .command('probe-caps')
-  .description('Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)')
+  .description('Probe a Nano node RPC for capabilities (version, ledger-read)')
   .argument('[url]', 'RPC URL to probe (defaults to configured/env URL)')
   .option('--timeout-ms <ms>', 'Timeout per probe in milliseconds', (v) => parseInt(v, 10), 10000)
   .option('-j, --json', 'Output raw JSON result')
@@ -650,7 +643,6 @@ rpcCmd
       if (!result.caps.blockCount.ok && result.caps.blockCount.detail) {
         console.log(`                  ${result.caps.blockCount.detail}`);
       }
-      console.log(`  work_generate   ${tick(result.caps.workGenerate.ok)}  (${ms(result.caps.workGenerate.latencyMs)})${result.caps.workGenerate.detail ? `  [${result.caps.workGenerate.detail}]` : ''}`);
       console.log(`─────────────────────────────────────────\n`);
 
       if (!result.reachable) process.exit(1);

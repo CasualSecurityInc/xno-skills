@@ -144,25 +144,6 @@ export async function rpcAccountsFrontiers(
   );
 }
 
-export interface WorkGenerateResponse {
-  work: string;
-}
-
-export async function rpcWorkGenerate(
-  client: NanoClient,
-  rootOrHash: string,
-  options: RpcCallOptions = {}
-): Promise<WorkGenerateResponse> {
-  if (typeof rootOrHash !== 'string' || !/^[0-9a-fA-F]{64}$/.test(rootOrHash)) {
-    throw new Error('work root/hash must be 32-byte hex (64 hex characters)');
-  }
-  return nanoRpcCall<WorkGenerateResponse>(
-    client,
-    { action: 'work_generate', hash: rootOrHash },
-    options
-  );
-}
-
 export interface ProcessResponse {
   hash: string;
 }
@@ -274,7 +255,6 @@ export type RpcProbeResult = {
   caps: {
     version: ProbeCapResult;
     blockCount: ProbeCapResult;
-    workGenerate: ProbeCapResult;
   };
 };
 
@@ -290,7 +270,6 @@ export async function rpcProbeCaps(
     caps: {
       version: { ok: false, latencyMs: 0 },
       blockCount: { ok: false, latencyMs: 0 },
-      workGenerate: { ok: false, latencyMs: 0 },
     },
   };
 
@@ -320,30 +299,6 @@ export async function rpcProbeCaps(
     result.cementedCount = bc.cemented;
   } catch (e: any) {
     result.caps.blockCount = { ok: false, latencyMs: Date.now() - bcStart, detail: e.message };
-  }
-
-  // 3. work_generate — critical remote PoW capability
-  // Use a dummy 64-hex root that is guaranteed invalid so no real work is done / accepted.
-  // The node still proves it can accept the call; it may return an error like "Bad block type"
-  // for nodes that have work generation disabled vs. those that do support it.
-  const DUMMY_ROOT = 'A'.repeat(64);
-  const wStart = Date.now();
-  try {
-    await nanoRpcCall<WorkGenerateResponse>(
-      client,
-      { action: 'work_generate', hash: DUMMY_ROOT },
-      { ...options, allowRpcError: true }
-    );
-    const wMs = Date.now() - wStart;
-    // A successful response (even error JSON) that parses means the endpoint accepted the call.
-    // We distinguish "disabled" vs "succeeded" below.
-    result.caps.workGenerate = { ok: true, latencyMs: wMs };
-  } catch (e: any) {
-    const wMs = Date.now() - wStart;
-    const msg: string = (e.message || '').toLowerCase();
-    // "disabled" or "control required" means the endpoint exists but work generation is off.
-    const disabled = msg.includes('disabled') || msg.includes('enable_control') || msg.includes('not allowed');
-    result.caps.workGenerate = { ok: false, latencyMs: wMs, detail: disabled ? 'disabled' : e.message };
   }
 
   return result;

@@ -23,11 +23,9 @@ export type CachedPowPlan = {
 
 export type XnoConfig = {
   rpcUrl?: string;
-  workPeerUrl?: string;
   timeoutMs?: number;
   powTimeoutMs?: number;
   defaultRepresentative?: string;
-  useWorkPeer?: boolean;
   maxSendXno?: string;
 };
 

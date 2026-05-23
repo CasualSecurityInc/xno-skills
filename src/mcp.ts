@@ -2,7 +2,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcWorkGenerate, rpcProcess, rpcProbeCaps } from './rpc.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProcess, rpcProbeCaps } from './rpc.js';
 import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
 import { getSystemInfo } from './meta.js';
 import { validateAddress } from './validate.js';
@@ -119,11 +119,10 @@ function effectivePowTimeoutMs(config: XnoConfig): number {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient {
+function getNanoClient(explicitRpc?: string): NanoClient {
   const rpc = (explicitRpc || state.config.rpcUrl || process.env.NANO_RPC_URL || '').split(',').filter(Boolean);
-  const work = (explicitWork || state.config.workPeerUrl || process.env.XNO_WORK_URL || '').split(',').filter(Boolean);
 
-  if (state.nanoClient && !explicitRpc && !explicitWork) {
+  if (state.nanoClient && !explicitRpc) {
     return state.nanoClient;
   }
 
@@ -131,15 +130,12 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
   const powTimeoutMs = effectivePowTimeoutMs(state.config);
   logTiming(
     'xno-mcp',
-    `NanoClient init rpc=[${rpc.join(',') || '(defaults)'}] work=[${work.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    `NanoClient init rpc=[${rpc.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
 
   const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
-  const workUrls = work.length > 0 ? work : effectiveRpc;
 
   const workProvider = WorkProvider.auto({
-    // Probe on first generate() call to build a local-first execution plan.
-    // Avoid eager startup probing in MCP so startup/stdio transport stays simple.
     profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
   });
 
@@ -148,7 +144,7 @@ function getNanoClient(explicitRpc?: string, explicitWork?: string): NanoClient 
     workProvider,
   });
 
-  if (!explicitRpc && !explicitWork) {
+  if (!explicitRpc) {
     state.nanoClient = client;
   }
 
@@ -357,7 +353,7 @@ mcpServer.registerTool('config_set', {
   description: 'Update the xno-mcp configuration. Any provided fields overwrite existing values; omitted fields are preserved.',
   inputSchema: {
     rpcUrl: z.string().optional().describe('Primary Nano RPC endpoint URL'),
-    workPeerUrl: z.string().optional().describe('Remote proof-of-work peer URL'),
+
     timeoutMs: z.number().optional().describe('Request timeout in milliseconds (default: 15000)'),
     powTimeoutMs: z.number().optional().describe('Proof-of-work timeout in milliseconds (default: max(timeoutMs * 4, 30000))'),
     defaultRepresentative: z.string().optional().describe('Default representative nano_ address for new accounts'),
@@ -366,14 +362,11 @@ mcpServer.registerTool('config_set', {
   annotations: WRITE,
 }, async (args) => {
   if (args.rpcUrl !== undefined) state.config.rpcUrl = args.rpcUrl;
-  if (args.workPeerUrl !== undefined) state.config.workPeerUrl = args.workPeerUrl;
   if (args.timeoutMs !== undefined) state.config.timeoutMs = args.timeoutMs;
   if (args.powTimeoutMs !== undefined) state.config.powTimeoutMs = args.powTimeoutMs;
   if (args.defaultRepresentative !== undefined) state.config.defaultRepresentative = args.defaultRepresentative;
   if (args.maxSendXno !== undefined) state.config.maxSendXno = args.maxSendXno;
   state.nanoClient = undefined;
-  // Clear the PoW plan cache whenever config changes — the new RPC/work URLs
-  // may point to different endpoints, making the old probe results stale.
   clearPowPlan();
   persistConfig();
   return toToolSuccess(state.config);
@@ -653,7 +646,7 @@ mcpServer.registerTool('util_qr', {
 // ── rpc ────────────────────────────────────────────────────────────────────
 
 mcpServer.registerTool('rpc_probe_caps', {
-  description: 'Probe a Nano node RPC for capabilities: version, ledger-read support, and remote PoW availability.',
+  description: 'Probe a Nano node RPC for capabilities: version and ledger-read support.',
   inputSchema: {
     rpcUrl: z.string().optional().describe('RPC URL to probe (defaults to configured URL)'),
   },

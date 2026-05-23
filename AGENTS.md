@@ -38,4 +38,4 @@
 +- `XNO_MCP_HOME` for config/state.
 +- `XNO_MCP_CACHE_DIR` for PoW plan cache.
 +- `XNO_MAX_SEND` for the send limit.
-+- `NANO_RPC_URL` / `XNO_WORK_URL` for RPC and work overrides.
++- `NANO_RPC_URL` for RPC endpoint override.

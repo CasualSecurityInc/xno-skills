@@ -3,7 +3,7 @@
 ```
 Usage: cli rpc probe-caps [options] [url]
 
-Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)
+Probe a Nano node RPC for capabilities (version, ledger-read)
 
 Arguments:
   url                RPC URL to probe (defaults to configured/env URL)

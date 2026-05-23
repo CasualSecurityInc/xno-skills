@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "xno-skills",
-    "version": "3.2.5"
+    "version": "3.2.6"
   },
   "authentication": {
     "required": false,
@@ -53,10 +53,6 @@
         "properties": {
           "rpcUrl": {
             "description": "Primary Nano RPC endpoint URL",
-            "type": "string"
-          },
-          "workPeerUrl": {
-            "description": "Remote proof-of-work peer URL",
             "type": "string"
           },
           "timeoutMs": {
@@ -698,7 +694,7 @@
     },
     {
       "name": "rpc_probe_caps",
-      "description": "Probe a Nano node RPC for capabilities: version, ledger-read support, and remote PoW availability.",
+      "description": "Probe a Nano node RPC for capabilities: version and ledger-read support.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
