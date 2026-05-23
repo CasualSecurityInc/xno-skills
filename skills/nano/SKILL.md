@@ -598,6 +598,11 @@ xno-skills about
 xno-skills about --json
 ```
 
+### MCP Server Crashes & "Not connected" Errors
+
+- **OWS is an in-process library, NOT a daemon**: There is no background "OWS daemon" or wallet service running. `@open-wallet-standard/core` is a library loaded entirely in-process by the MCP server and CLI.
+- **"Not connected" from MCP client**: If an MCP client/agent receives a "Not connected" error on `wallet_balance` or any other tool, it typically means the underlying `xno-mcp` server process has crashed (usually due to a Rust native addon panic during PoW or backend initialization) or was terminated. It does **not** mean a background daemon is down.
+
 ### PoW failures (`POW_FAILED` / timeout)
 
 **PoW is done locally by default.** xno-skills uses WASM-based Proof of Work that runs in-process — no external work peer is required.
