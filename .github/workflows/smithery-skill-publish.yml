@@ -40,4 +40,4 @@ jobs:
       - name: Publish nano skill to Smithery
         env:
           SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}
-        run: npx smithery@latest skill publish skills/nano --namespace casualsecurityinc --name nano
+        run: npx @smithery/cli@latest skill publish skills/nano --namespace casualsecurityinc --name nano
