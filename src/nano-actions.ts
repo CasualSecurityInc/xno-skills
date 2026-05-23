@@ -70,7 +70,6 @@ export type NanoReaders = {
   accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
   workGenerate?: (hash: string, difficulty: string) => Promise<string>;
   process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
-  powTimeoutMs?: number;
 };
 
 export type NanoWalletAccount = {
@@ -172,16 +171,6 @@ function wrapError(error: unknown, code: string, step: NanoActionStep, message: 
   throw new NanoActionError(code, step, `${message}: ${inner}`, { retriable, details: { ...details, cause: inner } });
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  return Promise.race([
-    promise.finally(() => clearTimeout(timer)),
-    new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(message)), ms);
-    }),
-  ]);
-}
-
 /**
  * Sign a block with OWS, generate PoW via the configured WorkProvider (local-first),
  * then broadcast via rpcProcess. This replaces the monolithic OWS signAndSend which
@@ -216,16 +205,7 @@ async function signWorkAndProcess(
 
   let work: string;
   if (readers.workGenerate) {
-    const powTimeoutMs = Math.max(readers.powTimeoutMs ?? 60_000, 30_000);
-    try {
-      work = await withTimeout(
-        readers.workGenerate(workRoot, difficulty),
-        powTimeoutMs,
-        `PoW generation timed out after ${powTimeoutMs}ms`,
-      );
-    } catch (error) {
-      wrapError(error, 'POW_FAILED', 'submit_block', `PoW generation failed for ${subtype} block`, {}, true);
-    }
+    work = await readers.workGenerate(workRoot, difficulty);
   } else {
     // Fallback: ask OWS to do it the old way (legacy path, no config control)
     try {

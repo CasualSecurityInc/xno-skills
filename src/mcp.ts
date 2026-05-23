@@ -152,17 +152,22 @@ function getNanoClient(explicitRpc?: string): NanoClient {
   return client;
 }
 
+let gpuProbeLogged = false;
+
 function readersFor(explicitRpcUrl?: string): NanoReaders {
   const effectiveRpc = explicitRpcUrl || state.config.rpcUrl || undefined;
   const client = getNanoClient(effectiveRpc);
   const timeoutMs = state.config.timeoutMs || DEFAULT_TIMEOUT_MS;
-  const powTimeoutMs = effectivePowTimeoutMs(state.config);
   return {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
     workGenerate: async (hash: string, difficulty: string) => {
+      if (!gpuProbeLogged) {
+        gpuProbeLogged = true;
+        logTiming('xno-mcp', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+      }
       const startedAt = Date.now();
       logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
       try {
@@ -186,7 +191,6 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
         throw error;
       }
     },
-    powTimeoutMs,
   };
 }
 

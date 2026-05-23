@@ -90,7 +90,7 @@ After each prompt, verify:
 
 **Should trigger:** `util_convert` — amount 1.5, from xno, to raw.
 
-### 15. Unit conversion (raw → mnano)
+### 15. Unit conversion (raw → mnano) *SKIPPED, DEPRECATED*
 > Convert 1000000000000000000000000000 raw to mnano.
 
 **Should trigger:** `util_convert` — from raw, to mnano.

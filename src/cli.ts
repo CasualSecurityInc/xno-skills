@@ -73,16 +73,21 @@ function getNanoClient(options?: { url?: string }): NanoClient {
   });
 }
 
+let gpuProbeLogged = false;
+
 function readersFor(options?: { url?: string }) {
   const client = getNanoClient(options);
   const timeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
-  const powTimeoutMs = effectivePowTimeoutMs(config);
   return {
     accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
     accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
     workGenerate: async (hash: string, difficulty: string) => {
+      if (!gpuProbeLogged) {
+        gpuProbeLogged = true;
+        logTiming('xno-cli', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+      }
       const startedAt = Date.now();
       logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
       try {
@@ -106,7 +111,6 @@ function readersFor(options?: { url?: string }) {
         throw error;
       }
     },
-    powTimeoutMs,
   };
 }
 
