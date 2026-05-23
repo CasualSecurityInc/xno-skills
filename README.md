@@ -43,7 +43,7 @@ xno-skills --help
 
 To pin to the current stable release instead:
 ```bash
-npm install -g xno-skills@3.3.1 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
+npm install -g xno-skills@3.3.2 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
 
@@ -102,7 +102,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@3.3.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@3.3.2", "xno-mcp"]
     }
   }
 }
@@ -118,7 +118,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
-  -- npx -y -p xno-skills@3.3.1 xno-mcp
+  -- npx -y -p xno-skills@3.3.2 xno-mcp
 ```
 </details>
 
@@ -130,7 +130,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@3.3.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@3.3.2", "xno-mcp"]
     }
   }
 }
@@ -146,7 +146,7 @@ codex mcp add nano \
   "mcp": {
     "nano": {
       "type": "local",
-      "command": ["npx", "-y", "-p", "xno-skills@3.3.1", "xno-mcp"],
+      "command": ["npx", "-y", "-p", "xno-skills@3.3.2", "xno-mcp"],
       "enabled": true
     }
   }
@@ -162,7 +162,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@3.3.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@3.3.2", "xno-mcp"]
     }
   }
 }
@@ -177,7 +177,7 @@ codex mcp add nano \
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@3.3.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@3.3.2", "xno-mcp"]
     }
   }
 }
@@ -193,7 +193,7 @@ codex mcp add nano \
     "nano": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@3.3.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@3.3.2", "xno-mcp"]
     }
   }
 }
