@@ -12,6 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Install OpenCL (nano-rspow-node native dep)
+        run: sudo apt-get update && sudo apt-get install -y ocl-icd-opencl-dev
+
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
