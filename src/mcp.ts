@@ -136,6 +136,7 @@ function getNanoClient(explicitRpc?: string): NanoClient {
   const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
 
   const workProvider = WorkProvider.auto({
+    localTimeoutMs: powTimeoutMs,
     profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
   });
 

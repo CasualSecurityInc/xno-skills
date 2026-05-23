@@ -67,6 +67,7 @@ function getNanoClient(options?: { url?: string }): NanoClient {
   return NanoClient.initialize({
     rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
+      localTimeoutMs: powTimeoutMs,
       profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
     }),
   });
