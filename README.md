@@ -33,14 +33,17 @@ Available skills:
 
 ## CLI
 
+### Installation & Upgrades
+
+To install or upgrade the CLI, AI agent skills, and wallet dependencies to the latest version, run:
 ```bash
-npm install -g xno-skills@3.2.4 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
+npm install -g xno-skills && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 xno-skills --help
 ```
 
-To upgrade the CLI, AI agent skills, and wallet dependencies to the latest version at any time, run:
+To pin to the current stable release instead:
 ```bash
-npm install -g xno-skills && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
+npm install -g xno-skills@3.2.4 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
 
