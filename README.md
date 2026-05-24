@@ -86,7 +86,7 @@ npm install -g xno-skills@3.3.4 && npx -y skills add CasualSecurityInc/xno-skill
 
 | Command | Description |
 |---|---|
-| `about` | Show version and environment info for troubleshooting |
+| `diag` | Show version, environment, and diagnostic info for troubleshooting |
 | `mcp` | Start the MCP server or view configuration instructions |
 
 All commands support `-j` / `--json` for machine-readable output.

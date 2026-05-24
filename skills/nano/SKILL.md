@@ -577,10 +577,10 @@ All subcommands support `--json` for machine-readable output and `--help` for fu
 
 ## Troubleshooting
 
-If tools are behaving unexpectedly, call `system_info` first to verify versions and environment:
+If tools are behaving unexpectedly, call `system_diag` first to verify versions and environment:
 
 ```json
-{ "name": "system_info", "arguments": {} }
+{ "name": "system_diag", "arguments": {} }
 ```
 
 Returns:
@@ -594,8 +594,8 @@ Returns:
 
 **CLI equivalent:**
 ```bash
-xno-skills about
-xno-skills about --json
+xno-skills diag
+xno-skills diag --json
 ```
 
 ### MCP Server Crashes & "Not connected" Errors

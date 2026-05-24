@@ -370,7 +370,7 @@ mcpServer.registerResource(
 
 // ── system ─────────────────────────────────────────────────────────────────
 
-mcpServer.registerTool('system_info', {
+mcpServer.registerTool('system_diag', {
   description: 'Show version and environment metadata for xno-skills and OWS. Useful for troubleshooting.',
   inputSchema: {},
   annotations: READONLY,

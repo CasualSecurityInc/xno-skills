@@ -1,0 +1,96 @@
+{
+	"name": "smithery",
+	"version": "1.0.1",
+	"type": "module",
+	"private": false,
+	"homepage": "https://smithery.ai/",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/smithery-ai/cli.git"
+	},
+	"description": "An NPX command to install and list Model Context Protocols from Smithery",
+	"main": "dist/index.js",
+	"scripts": {
+		"postinstall": "node scripts/postinstall.js",
+		"build": "tsc && node build.mjs && shx chmod +x dist/index.js",
+		"start": "node dist/index.js",
+		"test:list": "tsx src/index.ts list",
+		"test:install": "tsx src/index.ts install",
+		"test:installed": "tsx src/index.ts installed",
+		"extract": "tsx src/extractors/modelcontextprotocol-extractor.ts",
+		"test:uninstall": "tsx src/index.ts uninstall",
+		"prepare": "git config core.hooksPath .githooks 2>/dev/null; pnpm run build",
+		"check": "biome check",
+		"fmt": "pnpm exec biome check --write --unsafe",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"typecheck": "tsc --noEmit",
+		"knip": "knip"
+	},
+	"packageManager": "pnpm@10.27.0",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@biomejs/biome",
+			"esbuild",
+			"keytar",
+			"@smithery/api",
+			"workerd"
+		]
+	},
+	"bin": {
+		"smithery": "dist/index.js"
+	},
+	"devDependencies": {
+		"@anthropic-ai/mcpb": "^1.1.1",
+		"@biomejs/biome": "2.3.10",
+		"@modelcontextprotocol/sdk": "^1.25.3",
+		"@smithery/api": "^0.64.2",
+		"@smithery/sdk": "^4.1.0",
+		"@types/inquirer": "^8.2.4",
+		"@types/inquirer-autocomplete-prompt": "^3.0.3",
+		"@types/node": "^20.19.27",
+		"@types/ws": "^8.18.1",
+		"commander": "^14.0.0",
+		"comment-json": "^4.5.1",
+		"dotenv": "^17.2.2",
+		"es-toolkit": "^1.0.0",
+		"esbuild": "^0.27.0",
+		"fflate": "^0.8.2",
+		"flexsearch": "^0.7.43",
+		"inquirer": "^8.2.4",
+		"inquirer-autocomplete-prompt": "^2.0.0",
+		"keytar": "^7.9.0",
+		"knip": "^5.80.0",
+		"miniflare": "^4.20260103.0",
+		"picocolors": "^1.1.0",
+		"shx": "^0.4.0",
+		"tinyglobby": "^0.2.0",
+		"tsx": "^4.19.2",
+		"typescript": "^5.9.3",
+		"uuid": "^11.1.0",
+		"uuidv7": "^1.0.2",
+		"vitest": "^3.2.4",
+		"ws": "^8.20.0",
+		"yaml": "^2.3.4",
+		"yocto-spinner": "^0.2.0",
+		"zod": "^4",
+		"zod-to-json-schema": "^3.25.1"
+	},
+	"peerDependencies": {
+		"zod": "^3.20.0 || ^4"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"package.json",
+		"scripts"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js"
+		}
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}

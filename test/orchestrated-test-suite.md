@@ -37,7 +37,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 ### Phase 0: Environment Check
 
 - [ ] **Step 0**: "What versions are running and how was xno-skills invoked?"
-  - Expected: `system_info` {}
+  - Expected: `system_diag` {}
   - Verify: mockOws is false, OWS is found
 
 ### Phase 1: Setup / Discovery
@@ -152,7 +152,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 
 | Step | Prompt | Expected Tool | Actual Tool | Args Match? | Clean Response? | Notes |
 |------|--------|---------------|-------------|-------------|-----------------|-------|
-| 0 | What versions are running? | system_info | | | | |
+| 0 | What versions are running? | system_diag | | | | |
 | 1 | What wallets do I have? | wallet_list | | | | |
 | 2 | What's the Nano address for my wallet <wallet>? | wallet_address | | | | |
 | 3 | Is the wallet signing daemon working? | wallet_ows_health | | | | |
