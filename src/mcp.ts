@@ -164,12 +164,42 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
     workGenerate: async (hash: string, difficulty: string) => {
+      let preferLocal = true;
+      try {
+        const { recommendLocalPow } = await import('nano-rspow-node');
+        preferLocal = recommendLocalPow();
+      } catch (e) {
+        // ignore
+      }
+
+      const workUrl = process.env.XNO_WORK_URL || process.env.NANO_WORK_URL || (!preferLocal ? (explicitRpcUrl || state.config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]) : undefined);
+
       if (!gpuProbeLogged) {
         gpuProbeLogged = true;
-        logTiming('xno-mcp', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+        if (preferLocal) {
+          logTiming('xno-mcp', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+        }
       }
       const startedAt = Date.now();
-      logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
+
+      if (workUrl) {
+        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrl}`);
+        try {
+          const workClient = getNanoClient(workUrl);
+          const { nanoRpcCall } = await import('./rpc.js');
+          const res = await nanoRpcCall<{ work: string }>(
+            workClient,
+            { action: 'work_generate', hash, difficulty },
+            { timeoutMs: effectivePowTimeoutMs(state.config) }
+          );
+          logTiming('xno-mcp', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
+          return res.work;
+        } catch (error) {
+          logTiming('xno-mcp', `pow.generate remote fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}, falling back to local`);
+        }
+      }
+
+      logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);
       try {
         const work = await client.workProvider.generate(hash, difficulty);
         logTiming('xno-mcp', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);

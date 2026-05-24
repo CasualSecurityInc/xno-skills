@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { generateAsciiQr, buildNanoUri, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcProcess, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcProcess, nanoRpcCall, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -84,12 +84,41 @@ function readersFor(options?: { url?: string }) {
     receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
     accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
     workGenerate: async (hash: string, difficulty: string) => {
+      let preferLocal = true;
+      try {
+        const { recommendLocalPow } = await import('nano-rspow-node');
+        preferLocal = recommendLocalPow();
+      } catch (e) {
+        // ignore
+      }
+
+      const workUrl = process.env.XNO_WORK_URL || process.env.NANO_WORK_URL || (!preferLocal ? (options?.url || config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]) : undefined);
+
       if (!gpuProbeLogged) {
         gpuProbeLogged = true;
-        logTiming('xno-cli', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+        if (preferLocal) {
+          logTiming('xno-cli', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+        }
       }
       const startedAt = Date.now();
-      logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty}`);
+
+      if (workUrl) {
+        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrl}`);
+        try {
+          const workClient = getNanoClient({ url: workUrl });
+          const res = await nanoRpcCall<{ work: string }>(
+            workClient,
+            { action: 'work_generate', hash, difficulty },
+            { timeoutMs: effectivePowTimeoutMs(config) }
+          );
+          logTiming('xno-cli', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
+          return res.work;
+        } catch (error) {
+          logTiming('xno-cli', `pow.generate remote fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}, falling back to local`);
+        }
+      }
+
+      logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);
       try {
         const work = await client.workProvider.generate(hash, difficulty);
         logTiming('xno-cli', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);
@@ -808,16 +837,34 @@ To run the MCP server directly in this terminal:
 `;
 
 program
-  .command('about')
+  .command('diag')
   .helpGroup('System')
-  .description('Show version and environment info for troubleshooting')
+  .description('Show diagnostics and system information')
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { json?: boolean }) => {
+  .option('--retune', 'Rerun PoW profiling and overwrite cached tuning')
+  .action(async (options: { json?: boolean, retune?: boolean }) => {
+    if (options.retune) {
+      try {
+        const { clearPowTuningCache, recommendLocalPow } = await import('nano-rspow-node');
+        clearPowTuningCache();
+        recommendLocalPow(); // repopulates cache
+        console.log('PoW tuning cache cleared and retuned.');
+      } catch (e) {
+        console.error('Failed to retune:', e);
+      }
+    }
     const info = getSystemInfo();
+    let localPowRecommended = false;
+    try {
+      const { recommendLocalPow } = await import('nano-rspow-node');
+      localPowRecommended = recommendLocalPow();
+    } catch (e) {}
+    
     if (options.json) {
-      console.log(JSON.stringify(info, null, 2));
+      console.log(JSON.stringify({ ...info, localPowRecommended }, null, 2));
     } else {
       console.log(formatSystemInfo(info));
+      console.log(`\nLocal PoW Recommended: ${localPowRecommended}`);
     }
   });
 
