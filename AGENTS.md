@@ -33,6 +33,8 @@
 +- Do **not** run `npm publish`, `pnpm release`, or any local publish command.
 +- Use `npm version patch|minor|major`, then `git push --follow-tags`; the publish workflow handles npm, GitHub Release, MCPB, and Smithery.
 +- `preversion` runs tests first, so release version bumps are test-gated.
++- npm and PyPI publish **must** use OCID Trusted Publisher (`--provenance`) only — never rely on a preset `GITHUB_TOKEN` for registry auth.
++- Keep all `{owner}/{repo}@{version}` action steps on their latest major versions. Watch workflow annotation warnings for Node.js runtime deprecations — any action built on Node <20 is a candidate for replacement or upgrade.
 
 ## Useful Env Vars
 +- `XNO_MCP_HOME` for config/state.
