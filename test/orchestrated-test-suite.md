@@ -90,7 +90,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 - [ ] **Step 14**: "How much is 1.5 XNO in raw?"
   - Expected: `util_convert` {"amount": "1.5", "from": "xno", "to": "raw"}
 
-- [ ] **Step 15**: "Convert 1000000000000000000000000000 raw to mnano."
+- [ ] **Step 15**: "Convert 1000000000000000000000000000 raw to mnano." (*DEPRECATED - SKIP mnano and knano*)
   - Expected: `util_convert` {"amount": "1000000000000000000000000000", "from": "raw", "to": "mnano"}
 
 - [ ] **Step 16**: "Make me a QR code for <address>."

@@ -11,6 +11,7 @@ import { buildNanoStateBlockHex } from './state-block.js';
 import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo } from './meta.js';
+import { resolveEffectiveWorkUrl, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -35,11 +36,6 @@ const program = new Command();
 const config: XnoConfig = loadConfig();
 const transactions = loadTransactions();
 
-const DEFAULT_RPC_URLS = [
-  'https://rainstorm.city/api',
-  'https://nanoslo.0x.no/proxy',
-];
-
 function logTiming(scope: string, message: string): void {
   process.stderr.write(`[${scope}] ${message}\n`);
 }
@@ -57,7 +53,7 @@ function effectivePowTimeoutMs(config: XnoConfig): number {
 }
 
 function getNanoClient(options?: { url?: string }): NanoClient {
-  const rpc = options?.url || config.rpcUrl || process.env.NANO_RPC_URL;
+  const rpc = options?.url || resolveEffectiveRpcUrls(undefined, config).join(',') || undefined;
   const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   const powTimeoutMs = effectivePowTimeoutMs(config);
   logTiming(
@@ -92,7 +88,7 @@ function readersFor(options?: { url?: string }) {
         // ignore
       }
 
-      const workUrl = process.env.XNO_WORK_URL || process.env.NANO_WORK_URL || (!preferLocal ? (options?.url || config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]) : undefined);
+      const workUrl = !preferLocal ? resolveEffectiveWorkUrl(config) : undefined;
 
       if (!gpuProbeLogged) {
         gpuProbeLogged = true;
@@ -861,10 +857,11 @@ program
     } catch (e) {}
     
     if (options.json) {
-      console.log(JSON.stringify({ ...info, localPowRecommended }, null, 2));
+      console.log(JSON.stringify({ ...info, localPowRecommended, effectiveWorkUrl: resolveEffectiveWorkUrl(config) }, null, 2));
     } else {
       console.log(formatSystemInfo(info));
       console.log(`\nLocal PoW Recommended: ${localPowRecommended}`);
+      console.log(`Effective Remote Work URL: ${resolveEffectiveWorkUrl(config)}`);
     }
   });
 

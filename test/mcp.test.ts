@@ -240,7 +240,7 @@ describe('MCP Server Integration', () => {
     const result = await client.listTools();
     const sendTool = result.tools.find(t => t.name === 'wallet_send');
     expect(sendTool).toBeDefined();
-    expect(sendTool!.description).toContain('XNO');
+    expect(sendTool!.description).toContain('per-transaction limit');
   });
 
   it('should return health status via wallet_ows_health tool', async () => {

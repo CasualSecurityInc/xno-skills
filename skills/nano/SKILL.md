@@ -1,13 +1,23 @@
 ---
 name: nano
-description: "Nano (XNO) cryptocurrency wallet operations and block-lattice protocol utilities. Use for tasks involving sending/receiving funds, checking balances, generating payment QR codes, validating addresses, converting units, or answering blockchain implementation questions for Nano. Operates via xno-mcp with xno-skills CLI as a fallback. Covers user intent like 'send nano', 'check my balance', or 'what is ORV?'"
+description: "Nano (XNO) cryptocurrency wallet operations, transaction analysis, and explorer lookups. Use for send/receive, balances, pending funds, address validation, unit conversion, tx/hash/account lookup, explorer links, and Nano block-lattice questions. Prefer xno-mcp first; use xno-skills CLI as fallback."
 triggers:
   - nano
   - xno
+  - nano transaction
+  - xno transaction
+  - transaction analysis
+  - largest transaction
   - nanocurrency
   - nano_
   - xrb_
   - block lattice
+  - block explorer
+  - explorer link
+  - transaction link
+  - tx link
+  - tx hash
+  - block hash
   - xno-skills
   - xno-mcp
   - wallet
@@ -105,6 +115,11 @@ For wallet **create, import, rename, or delete**: delegate to the `ows` skill. D
 - Attempt to manually compute or supply Proof of Work. PoW is automatic.
 - Use `npx` to fetch random or third-party npm packages as workarounds.
 - Export mnemonics or seeds (`ows wallet export`). OWS keeps secrets encrypted. The entire point of OWS is that the agent never sees the private key.
+- Change `maxSendXno` unless the human/operator explicitly asks to change the spending limit. A blocked send or refund is not permission to raise the limit automatically.
+
+### 5. Prefer `blocklattice.io` for explorer links
+
+When the user asks for an account, block, transaction, or explorer link, always prefer `blocklattice.io` unless they explicitly request another explorer.
 
 ---
 
@@ -216,7 +231,11 @@ Full options: [send](references/send.md)
 
 **Validate the destination address first** (see Address Validation section).
 
-**Spending limits**: Every `wallet_send` and `payment_refund` is gated by `maxSendXno` (default: 1.0 XNO). Override:
+**Spending limits**: Every `wallet_send` and `payment_refund` is gated by `maxSendXno` (default: 1.0 XNO).
+
+If a send is blocked by this limit, report the current limit and ask the human/operator whether they want to change it. Never call `config_set` to raise `maxSendXno` unless they explicitly asked to modify the spending limit.
+
+Only when the human/operator explicitly asks to change the spending limit:
 ```json
 { "name": "config_set", "arguments": { "maxSendXno": "5.0" } }
 ```
@@ -304,7 +323,7 @@ Or use `wallet_send` directly if not linked to a payment request.
 **Edge cases:**
 - "Return everything": list all accounts with balances, confirm before draining.
 - "Return to [specific address]": validate the address first, then confirm amount.
-- Spending limit blocks refund: tell the user to increase via `config_set({ maxSendXno: "..." })`.
+- Spending limit blocks refund: report the current limit and ask whether the human/operator wants to change it. Never raise `maxSendXno` unless they explicitly request that configuration change.
 
 Full options: [payment_refund](references/payment.refund.md)
 
@@ -509,6 +528,7 @@ Full options: [change-rep](references/change-rep.md)
 
 ### Blockchain Explorer
 
+- Always prefer `blocklattice.io` unless the user explicitly requests another explorer.
 - Account: `https://blocklattice.io/account/<nano_address>`
 - Block: `https://blocklattice.io/block/<UPPERCASE_HEX_HASH>`
 
@@ -516,14 +536,49 @@ Full options: [change-rep](references/change-rep.md)
 
 ## Configuration & Defaults
 
-As of v1.1.0, `xno-mcp` uses public RPC nodes and standard representatives automatically. No configuration required to get started.
+`xno-mcp` reads configuration from a JSON file on disk. It reloads the file before every operation, so manual edits take effect immediately. No restart required.
 
-**Optional overrides:**
+**No configuration is required to get started.** Defaults work out of the box:
+
+- Public RPC nodes (`rainstorm.city`, `nanoslo.0x.no/proxy`)
+- PoW: local WASM/GPU by default; falls back to remote via the first RPC node when local is not performant
+- Representative: `nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4`
+- Max per send: `1.0 XNO`
+
+### Override precedence
+
+**Remote PoW URL** (resolved in order):
+1. `NANO_WORK_URL` env var
+2. saved config `workUrl`
+3. `NANO_RPC_URL` env var
+4. saved config `rpcUrl`
+5. default primary RPC node
+
+**RPC endpoint list** (normal traffic):
+1. explicit tool argument `rpcUrl`
+2. saved config `rpcUrl`
+3. `NANO_RPC_URL` env var
+4. default RPC node list
+
+### Setting values
+
 ```json
-{ "name": "config_set", "arguments": { "rpcUrl": "https://rainstorm.city/api", "defaultRepresentative": "nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4" } }
+{ "name": "config_set", "arguments": { "workUrl": "https://my-node.example/api" } }
 ```
 
-Full options: [config_set](references/config.set.md)
+### Resetting values
+
+Setting a string field to `""` or `null` clears the saved override (falls back to defaults):
+```json
+{ "name": "config_set", "arguments": { "workUrl": "" } }
+```
+
+Setting a number field to `null` clears the saved override:
+```json
+{ "name": "config_set", "arguments": { "powTimeoutMs": null } }
+```
+
+Omitted fields are preserved unchanged.
 
 ---
 

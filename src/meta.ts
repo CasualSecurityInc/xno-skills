@@ -24,19 +24,13 @@ export type EnvVarEntry = {
 };
 
 export type SystemInfo = {
-  xnoSkills: {
-    version: string;
-    path: string;
-    invocation: InvocationMethod;
-  };
-  ows: {
-    version: string;
-    path: string;
-  } | null;
+  xnoSkills: { version: string; path: string; invocation: string };
+  ows: { version: string; path: string } | null;
   environment: {
     mockOws: boolean;
-    nanoRpcUrl?: string;
-    xnoMcpHome?: string;
+    nanoRpcUrl: string | undefined;
+    nanoWorkUrl: string | undefined;
+    xnoMcpHome: string | undefined;
   };
   envVars: EnvVarEntry[];
 };
@@ -84,6 +78,12 @@ function getEnvVars(): EnvVarEntry[] {
       description: 'Override primary Nano node RPC endpoint',
     },
     {
+      name: 'NANO_WORK_URL',
+      defaultValue: '(same as RPC URL)',
+      effectiveValue: process.env.NANO_WORK_URL,
+      description: 'Override remote proof-of-work endpoint',
+    },
+    {
       name: 'XNO_MCP_HOME',
       defaultValue: '<installed-dir>/.xno-mcp',
       effectiveValue: process.env.XNO_MCP_HOME,
@@ -129,6 +129,7 @@ export function getSystemInfo(): SystemInfo {
     environment: {
       mockOws: process.env.XNO_MCP_MOCK_OWS === 'true',
       nanoRpcUrl: process.env.NANO_RPC_URL,
+      nanoWorkUrl: process.env.NANO_WORK_URL,
       xnoMcpHome: process.env.XNO_MCP_HOME,
     },
     envVars: getEnvVars(),
@@ -151,6 +152,7 @@ export function formatSystemInfo(info: SystemInfo): string {
   lines.push('environment:');
   lines.push(`  mockOws: ${info.environment.mockOws}`);
   if (info.environment.nanoRpcUrl) lines.push(`  NANO_RPC_URL: ${info.environment.nanoRpcUrl}`);
+  if (info.environment.nanoWorkUrl) lines.push(`  NANO_WORK_URL: ${info.environment.nanoWorkUrl}`);
   if (info.environment.xnoMcpHome) lines.push(`  XNO_MCP_HOME: ${info.environment.xnoMcpHome}`);
 
   lines.push('');

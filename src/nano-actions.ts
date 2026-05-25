@@ -507,6 +507,15 @@ export async function executeSend(
     throw new NanoActionError('INVALID_DESTINATION', 'build_block', `Invalid destination address: ${destinationValidation.error}`, { details: { destination } });
   }
 
+  const sendLimitStr = ctx.config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+  const sendLimitRaw = nanoToRaw(sendLimitStr);
+  if (BigInt(amountRaw) > BigInt(sendLimitRaw)) {
+    throw new NanoActionError('MAX_SEND_EXCEEDED', 'build_block', `Amount ${amountXno} XNO exceeds the per-transaction limit of ${sendLimitStr} XNO.`, {
+      details: { amountXno, amountRaw, maxSendXno: sendLimitStr, maxSendRaw: sendLimitRaw },
+      retriable: false,
+    });
+  }
+
   const currentBalance = BigInt(info.balance);
   if (BigInt(amountRaw) > currentBalance) {
     throw new NanoActionError('INSUFFICIENT_BALANCE', 'build_block', 'Insufficient balance.', {

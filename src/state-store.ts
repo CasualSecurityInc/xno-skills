@@ -23,6 +23,7 @@ export type CachedPowPlan = {
 
 export type XnoConfig = {
   rpcUrl?: string;
+  workUrl?: string;
   timeoutMs?: number;
   powTimeoutMs?: number;
   defaultRepresentative?: string;
