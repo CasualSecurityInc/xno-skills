@@ -1,5 +1,7 @@
 import { validateAddress } from './validate.js';
 import { NanoClient } from '@openrai/nano-core';
+import { buildHeaders } from '@openrai/nano-core/transport/http';
+import type { NormalizedEndpoint } from '@openrai/nano-core/transport';
 
 export interface NanoRpcErrorResponse {
   error: string;
@@ -36,15 +38,32 @@ export async function nanoRpcCall<T>(
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? 15_000;
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`RPC request timed out after ${timeoutMs}ms`)), timeoutMs);
-  });
-
   try {
-    const json = await Promise.race([
-      client.rpcPool.postJson<any>(body),
-      timeoutPromise
-    ]);
+    const json = await (client.rpcPool as any).pool.execute(async (endpoint: NormalizedEndpoint) => {
+      const payload = endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'json-body-key'
+        ? { ...body, key: endpoint.auth.value }
+        : endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'bearer-and-json-body-key'
+          ? { ...body, key: endpoint.auth.value }
+          : body;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: buildHeaders(endpoint),
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP error ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+
     if (typeof json?.error === 'string') {
       if (options.allowRpcError) {
         return json as T;
@@ -53,8 +72,6 @@ export async function nanoRpcCall<T>(
     }
     return json as T;
   } catch (e: any) {
-    // If we're allowing RPC errors, and the error looks like a "not found" or similar
-    // we should return it as an object if possible.
     if (options.allowRpcError) {
       const msg = (e.message || String(e)).toLowerCase();
       if (msg.includes('account not found') || msg.includes('404')) {
