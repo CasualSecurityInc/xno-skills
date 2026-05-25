@@ -255,6 +255,25 @@ describe('MCP Server Integration', () => {
     expect(out.mode).toBe("Mock");
   });
 
+  it('should probe RPC capabilities including work_generate', async () => {
+    const result = await client.callTool({
+      name: "rpc_probe_caps",
+      arguments: { rpcUrl: "https://rainstorm.city/api" }
+    });
+
+    expect(result.isError).toBeFalsy();
+    const out = JSON.parse(getText(result));
+    expect(out.url).toBe("https://rainstorm.city/api");
+    expect(out.reachable).toBe(true);
+    expect(out.caps.version).toBeDefined();
+    expect(out.caps.version.ok).toBe(true);
+    expect(out.caps.blockCount).toBeDefined();
+    expect(out.caps.blockCount.ok).toBe(true);
+    expect(out.caps.workGenerate).toBeDefined();
+    expect(typeof out.caps.workGenerate.ok).toBe('boolean');
+    expect(typeof out.caps.workGenerate.latencyMs).toBe('number');
+  });
+
   it('should generate a QR code for an address', async () => {
     const address = "nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d";
     const result = await client.callTool({

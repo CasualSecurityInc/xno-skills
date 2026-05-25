@@ -639,7 +639,7 @@ rpcCmd
 
 rpcCmd
   .command('probe-caps')
-  .description('Probe a Nano node RPC for capabilities (version, ledger-read)')
+  .description('Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)')
   .argument('[url]', 'RPC URL to probe (defaults to configured/env URL)')
   .option('--timeout-ms <ms>', 'Timeout per probe in milliseconds', (v) => parseInt(v, 10), 10000)
   .option('-j, --json', 'Output raw JSON result')
@@ -673,6 +673,10 @@ rpcCmd
       console.log(`  block_count     ${tick(result.caps.blockCount.ok)}  (${ms(result.caps.blockCount.latencyMs)})${result.blockCount ? `  count=${result.blockCount} cemented=${result.cementedCount ?? '?'}` : ''}`);
       if (!result.caps.blockCount.ok && result.caps.blockCount.detail) {
         console.log(`                  ${result.caps.blockCount.detail}`);
+      }
+      console.log(`  work_generate   ${tick(result.caps.workGenerate.ok)}  (${ms(result.caps.workGenerate.latencyMs)})`);
+      if (!result.caps.workGenerate.ok && result.caps.workGenerate.detail) {
+        console.log(`                  ${result.caps.workGenerate.detail}`);
       }
       console.log(`─────────────────────────────────────────\n`);
 

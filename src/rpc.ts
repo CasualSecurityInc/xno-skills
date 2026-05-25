@@ -272,6 +272,7 @@ export type RpcProbeResult = {
   caps: {
     version: ProbeCapResult;
     blockCount: ProbeCapResult;
+    workGenerate: ProbeCapResult;
   };
 };
 
@@ -287,6 +288,7 @@ export async function rpcProbeCaps(
     caps: {
       version: { ok: false, latencyMs: 0 },
       blockCount: { ok: false, latencyMs: 0 },
+      workGenerate: { ok: false, latencyMs: 0 },
     },
   };
 
@@ -316,6 +318,20 @@ export async function rpcProbeCaps(
     result.cementedCount = bc.cemented;
   } catch (e: any) {
     result.caps.blockCount = { ok: false, latencyMs: Date.now() - bcStart, detail: e.message };
+  }
+
+  // 3. work_generate — remote PoW support
+  const wgStart = Date.now();
+  try {
+    const wg = await nanoRpcCall<{ work: string }>(
+      client,
+      { action: 'work_generate', hash: '0'.repeat(64), difficulty: 'Dev' },
+      options
+    );
+    const wgMs = Date.now() - wgStart;
+    result.caps.workGenerate = { ok: true, latencyMs: wgMs };
+  } catch (e: any) {
+    result.caps.workGenerate = { ok: false, latencyMs: Date.now() - wgStart, detail: e.message };
   }
 
   return result;

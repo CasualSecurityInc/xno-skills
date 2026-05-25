@@ -721,7 +721,7 @@ mcpServer.registerTool('util_qr', {
 // ── rpc ────────────────────────────────────────────────────────────────────
 
 mcpServer.registerTool('rpc_probe_caps', {
-  description: 'Probe a Nano node RPC for capabilities: version and ledger-read support.',
+  description: 'Probe a Nano node RPC for capabilities: version, ledger-read, and remote PoW (work_generate) support.',
   inputSchema: {
     rpcUrl: z.string().optional().describe('RPC URL to probe (defaults to configured URL)'),
   },

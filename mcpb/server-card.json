@@ -740,7 +740,7 @@
     },
     {
       "name": "rpc_probe_caps",
-      "description": "Probe a Nano node RPC for capabilities: version and ledger-read support.",
+      "description": "Probe a Nano node RPC for capabilities: version, ledger-read, and remote PoW (work_generate) support.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
