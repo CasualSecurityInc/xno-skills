@@ -395,7 +395,19 @@ mcpServer.registerTool('system_diag', {
   description: 'Show version and environment metadata for xno-skills and OWS. Useful for troubleshooting.',
   inputSchema: {},
   annotations: READONLY,
-}, async () => toToolSuccess(getSystemInfo()));
+}, async () => {
+  const cfg = requireFreshConfig();
+  let localPowRecommended = false;
+  try {
+    const { recommendLocalPow } = await import('nano-rspow-node');
+    localPowRecommended = recommendLocalPow();
+  } catch {}
+  return toToolSuccess(getSystemInfo({
+    localPowRecommended,
+    effectiveRpcUrls: resolveEffectiveRpcUrls(undefined, cfg),
+    effectiveWorkUrls: resolveEffectiveWorkUrls(cfg),
+  }));
+});
 
 // ── config ─────────────────────────────────────────────────────────────────
 

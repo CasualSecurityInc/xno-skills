@@ -854,19 +854,21 @@ program
         console.error('Failed to retune:', e);
       }
     }
-    const info = getSystemInfo();
     let localPowRecommended = false;
     try {
       const { recommendLocalPow } = await import('nano-rspow-node');
       localPowRecommended = recommendLocalPow();
     } catch (e) {}
+    const info = getSystemInfo({
+      localPowRecommended,
+      effectiveRpcUrls: resolveEffectiveRpcUrls(undefined, config),
+      effectiveWorkUrls: resolveEffectiveWorkUrls(config),
+    });
     
     if (options.json) {
-      console.log(JSON.stringify({ ...info, localPowRecommended, effectiveWorkUrls: resolveEffectiveWorkUrls(config) }, null, 2));
+      console.log(JSON.stringify(info, null, 2));
     } else {
       console.log(formatSystemInfo(info));
-      console.log(`\nLocal PoW Recommended: ${localPowRecommended}`);
-      console.log(`Effective Remote Work URLs: ${resolveEffectiveWorkUrls(config).join(', ')}`);
     }
   });
 

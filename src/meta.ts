@@ -33,6 +33,9 @@ export type SystemInfo = {
     xnoMcpHome: string | undefined;
   };
   envVars: EnvVarEntry[];
+  localPowRecommended: boolean;
+  effectiveRpcUrls: string[];
+  effectiveWorkUrls: string[];
 };
 
 function detectInvocation(): InvocationMethod {
@@ -116,7 +119,11 @@ function getEnvVars(): EnvVarEntry[] {
   ];
 }
 
-export function getSystemInfo(): SystemInfo {
+export function getSystemInfo(overrides?: {
+  localPowRecommended?: boolean;
+  effectiveRpcUrls?: string[];
+  effectiveWorkUrls?: string[];
+}): SystemInfo {
   const scriptPath = process.argv[1] || 'unknown';
 
   return {
@@ -133,6 +140,9 @@ export function getSystemInfo(): SystemInfo {
       xnoMcpHome: process.env.XNO_MCP_HOME,
     },
     envVars: getEnvVars(),
+    localPowRecommended: overrides?.localPowRecommended ?? false,
+    effectiveRpcUrls: overrides?.effectiveRpcUrls ?? [],
+    effectiveWorkUrls: overrides?.effectiveWorkUrls ?? [],
   };
 }
 
@@ -154,6 +164,11 @@ export function formatSystemInfo(info: SystemInfo): string {
   if (info.environment.nanoRpcUrl) lines.push(`  NANO_RPC_URL: ${info.environment.nanoRpcUrl}`);
   if (info.environment.nanoWorkUrl) lines.push(`  NANO_WORK_URL: ${info.environment.nanoWorkUrl}`);
   if (info.environment.xnoMcpHome) lines.push(`  XNO_MCP_HOME: ${info.environment.xnoMcpHome}`);
+
+  lines.push('');
+  lines.push(`Local PoW Recommended: ${info.localPowRecommended}`);
+  lines.push(`Effective RPC URLs: ${info.effectiveRpcUrls.join(', ')}`);
+  lines.push(`Effective Remote Work URLs: ${info.effectiveWorkUrls.join(', ')}`);
 
   lines.push('');
   lines.push('env vars:');
