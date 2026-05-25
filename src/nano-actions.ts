@@ -25,7 +25,7 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export type NanoActionStep =
+type NanoActionStep =
   | 'resolve_wallet'
   | 'resolve_account'
   | 'fetch_account_info'
@@ -72,7 +72,7 @@ export type NanoReaders = {
   process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
 };
 
-export type NanoWalletAccount = {
+type NanoWalletAccount = {
   walletName: string;
   index: number;
   address: string;

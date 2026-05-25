@@ -237,7 +237,7 @@ export async function rpcAccountHistory(
   return res.history || [];
 }
 
-export interface VersionResponse {
+interface VersionResponse {
   rpc_version: string;
   store_version: string;
   protocol_version: string;
@@ -248,7 +248,7 @@ export interface VersionResponse {
   build_info?: string;
 }
 
-export interface BlockCountResponse {
+interface BlockCountResponse {
   count: string;
   unchecked: string;
   cemented?: string;

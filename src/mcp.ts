@@ -35,7 +35,6 @@ import {
   loadPaymentRequests,
   loadTransactions,
   saveConfig,
-  clearPowPlan,
   savePaymentRequests,
   saveTransactions,
   type PaymentRequest,
@@ -433,7 +432,6 @@ mcpServer.registerTool('config_set', {
   setField('defaultRepresentative', args.defaultRepresentative);
   setField('maxSendXno', args.maxSendXno);
   state.nanoClient = undefined;
-  clearPowPlan();
   persistConfig();
   return toToolSuccess(state.config);
 });

@@ -5,7 +5,7 @@ import { version } from './version.js';
 
 const require = createRequire(import.meta.url);
 
-export type InvocationMethod =
+type InvocationMethod =
   | 'npm-global'
   | 'npm-local'
   | 'npx'
