@@ -63,7 +63,7 @@ requires_network: true
 
 ## Scope & Disambiguation
 
-This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: XNO, block-lattice ledger, https://nano.org).
+This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: XNO, block-lattice ledger, [Nano.org](https://nano.org)).
 
 **Activate for**: nanocurrency, XNO, `nano_` addresses, block-lattice, ORV, xno-skills, xno-mcp.
 
