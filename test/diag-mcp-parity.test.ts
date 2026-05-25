@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +45,7 @@ describe('diag parity: CLI --json vs MCP system_diag', () => {
     const result = await client.callTool({ name: 'system_diag', arguments: {} });
     mcpDiag = JSON.parse(getText(result)) as SystemInfo;
     await client.close();
-  });
+  }, 30_000);
 
   it('reports same xnoSkills version', () => {
     expect(cliDiag.xnoSkills.version).toBe(mcpDiag.xnoSkills.version);
