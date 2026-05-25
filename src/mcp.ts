@@ -42,7 +42,7 @@ import {
   type TransactionRecord,
   type XnoConfig,
 } from './state-store.js';
-import { resolveEffectiveWorkUrl, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import { listWalletsProxy } from './ows.js';
 
 // ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
         // ignore
       }
 
-      const workUrl = !preferLocal ? resolveEffectiveWorkUrl(cfg) : undefined;
+      const workUrls = !preferLocal ? resolveEffectiveWorkUrls(cfg) : [];
 
       if (!gpuProbeLogged) {
         gpuProbeLogged = true;
@@ -201,10 +201,10 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
       }
       const startedAt = Date.now();
 
-      if (workUrl) {
-        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrl}`);
+      if (workUrls.length > 0) {
+        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrls.join(',')}`);
         try {
-          const workClient = getNanoClient(workUrl);
+          const workClient = getNanoClient(workUrls.join(','));
           const { nanoRpcCall } = await import('./rpc.js');
           const res = await nanoRpcCall<{ work: string }>(
             workClient,

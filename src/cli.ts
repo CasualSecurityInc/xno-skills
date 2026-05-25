@@ -11,7 +11,7 @@ import { buildNanoStateBlockHex } from './state-block.js';
 import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo } from './meta.js';
-import { resolveEffectiveWorkUrl, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -52,16 +52,16 @@ function effectivePowTimeoutMs(config: XnoConfig): number {
   return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
 }
 
-function getNanoClient(options?: { url?: string }): NanoClient {
-  const rpc = options?.url || resolveEffectiveRpcUrls(undefined, config).join(',') || undefined;
+function getNanoClient(options?: { urls?: string[] }): NanoClient {
+  const rpcUrls = options?.urls?.length ? options.urls : resolveEffectiveRpcUrls(undefined, config);
   const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   const powTimeoutMs = effectivePowTimeoutMs(config);
   logTiming(
     'xno-cli',
-    `NanoClient init rpc=[${rpc || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    `NanoClient init rpc=[${rpcUrls.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
   return NanoClient.initialize({
-    rpc: rpc ? [rpc] : DEFAULT_RPC_URLS,
+    rpc: rpcUrls.length > 0 ? rpcUrls : DEFAULT_RPC_URLS,
     workProvider: WorkProvider.auto({
       localTimeoutMs: powTimeoutMs,
       profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
@@ -71,7 +71,7 @@ function getNanoClient(options?: { url?: string }): NanoClient {
 
 let gpuProbeLogged = false;
 
-function readersFor(options?: { url?: string }) {
+function readersFor(options?: { urls?: string[] }) {
   const client = getNanoClient(options);
   const timeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   return {
@@ -88,7 +88,8 @@ function readersFor(options?: { url?: string }) {
         // ignore
       }
 
-      const workUrl = !preferLocal ? resolveEffectiveWorkUrl(config) : undefined;
+      const workUrls = !preferLocal ? resolveEffectiveWorkUrls(config) : [];
+
 
       if (!gpuProbeLogged) {
         gpuProbeLogged = true;
@@ -98,10 +99,10 @@ function readersFor(options?: { url?: string }) {
       }
       const startedAt = Date.now();
 
-      if (workUrl) {
-        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrl}`);
+      if (workUrls.length > 0) {
+        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrls.join(',')}`);
         try {
-          const workClient = getNanoClient({ url: workUrl });
+          const workClient = getNanoClient({ urls: workUrls });
           const res = await nanoRpcCall<{ work: string }>(
             workClient,
             { action: 'work_generate', hash, difficulty },
@@ -549,7 +550,7 @@ rpcCmd
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; timeoutMs: number; xno?: boolean; json?: boolean }) => {
     try {
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const result = await rpcAccountBalance(client, address, { timeoutMs: options.timeoutMs });
       const out: any = {
         address,
@@ -583,7 +584,7 @@ rpcCmd
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; count: number; json?: boolean }) => {
     try {
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const items = await rpcReceivable(client, address, options.count, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
       printJsonOrText({ account: address, blocks: items }, options, () => {
         if (items.length === 0) {
@@ -608,7 +609,7 @@ rpcCmd
   .option('-j, --json', 'Output in JSON format')
   .action(async (address: string, options: { url?: string; xno?: boolean; json?: boolean }) => {
     try {
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const info = await rpcAccountInfo(client, address, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
       if (isRpcError(info)) {
         printJsonOrText({ account: address, opened: false }, options, () => console.log('Account not opened (no blocks published).'));
@@ -645,7 +646,7 @@ rpcCmd
   .action(async (url: string | undefined, options: { timeoutMs: number; json?: boolean }) => {
     try {
       const target = url || config.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0];
-      const client = getNanoClient({ url: target });
+      const client = getNanoClient({ urls: target ? target.split(',').filter(Boolean) : undefined });
       const result = await rpcProbeCaps(client, target, { timeoutMs: options.timeoutMs });
 
       if (options.json) {
@@ -695,7 +696,7 @@ blockCmd
   .option('-j, --json', 'Output JSON with block hex + metadata')
   .action(async (options: { account: string; to: string; amountXno: string; url?: string; json?: boolean }) => {
     try {
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const senderPk = decodeNanoAddress(options.account).publicKey;
       const recipientPk = decodeNanoAddress(options.to).publicKey;
       const info = await rpcAccountInfo(client, options.account, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
@@ -741,7 +742,7 @@ blockCmd
         console.error('Error: specify --amount-raw or --amount-xno, not both.');
         process.exit(1);
       }
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const accountPk = decodeNanoAddress(options.account).publicKey;
       let hash = options.hash;
       let amountRaw = options.amountRaw || (options.amountXno ? nanoToRaw(options.amountXno) : undefined);
@@ -790,7 +791,7 @@ blockCmd
         console.error(`Error: invalid representative address (${rep.error}).`);
         process.exit(1);
       }
-      const client = getNanoClient({ url: options.url });
+      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const info = await rpcAccountInfo(client, options.account, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
       if (isRpcError(info)) {
         console.error(`Error: account not opened (${info.error}). Cannot change representative on an unopened account.`);
@@ -857,11 +858,11 @@ program
     } catch (e) {}
     
     if (options.json) {
-      console.log(JSON.stringify({ ...info, localPowRecommended, effectiveWorkUrl: resolveEffectiveWorkUrl(config) }, null, 2));
+      console.log(JSON.stringify({ ...info, localPowRecommended, effectiveWorkUrls: resolveEffectiveWorkUrls(config) }, null, 2));
     } else {
       console.log(formatSystemInfo(info));
       console.log(`\nLocal PoW Recommended: ${localPowRecommended}`);
-      console.log(`Effective Remote Work URL: ${resolveEffectiveWorkUrl(config)}`);
+      console.log(`Effective Remote Work URLs: ${resolveEffectiveWorkUrls(config).join(', ')}`);
     }
   });
 
