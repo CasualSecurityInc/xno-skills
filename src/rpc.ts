@@ -4,7 +4,7 @@ import { buildHeaders } from '@openrai/nano-core/transport/http';
 import type { NormalizedEndpoint } from '@openrai/nano-core/transport';
 
 export interface NanoRpcErrorResponse {
-  error: string;
+  error: string | number;
 }
 
 export type NanoRpcResponse<T> = T | NanoRpcErrorResponse;
@@ -58,18 +58,15 @@ export async function nanoRpcCall<T>(
         if (!res.ok) {
           throw new Error(`HTTP error ${res.status} ${res.statusText}`);
         }
-        return res.json();
+        const json: any = await res.json();
+        if (json?.error != null && !options.allowRpcError) {
+          throw new Error(`RPC error: ${String(json.error)}`);
+        }
+        return json;
       } finally {
         clearTimeout(timer);
       }
     });
-
-    if (typeof json?.error === 'string') {
-      if (options.allowRpcError) {
-        return json as T;
-      }
-      throw new Error(`RPC error: ${json.error}`);
-    }
     return json as T;
   } catch (e: any) {
     if (options.allowRpcError) {
@@ -97,7 +94,7 @@ export async function rpcAccountBalance(
     { ...options, allowRpcError: true }
   );
   
-  if (typeof (res as any)?.error === 'string') {
+  if ((res as any)?.error != null) {
     return { balance: '0', pending: '0' };
   }
   return res as AccountBalanceResponse;
@@ -230,9 +227,9 @@ export async function rpcAccountHistory(
     { action: 'account_history', account: address, count: String(n) },
     { ...options, allowRpcError: true }
   );
-  if (typeof res?.error === 'string') {
-    if (res.error.toLowerCase().includes('account not found')) return [];
-    throw new Error(res.error);
+  if ((res as any)?.error != null) {
+    if (String((res as any).error).toLowerCase().includes('account not found')) return [];
+    throw new Error(String((res as any).error));
   }
   return res.history || [];
 }
@@ -354,8 +351,8 @@ export async function rpcReceivable(
       { action: 'receivable', account: address, count: String(n), source: 'true' },
       { ...options, allowRpcError: true }
     );
-    if (typeof (res as any)?.error === 'string') {
-      if ((res as any).error.toLowerCase().includes('account not found')) return [];
+    if ((res as any)?.error != null) {
+      if (String((res as any).error).toLowerCase().includes('account not found')) return [];
       throw new Error(String((res as any).error));
     }
     return normalizeReceivableBlocks((res as any).blocks);
@@ -367,8 +364,8 @@ export async function rpcReceivable(
       { action: 'accounts_pending', accounts: [address], count: String(n), source: 'true' },
       { ...options, allowRpcError: true }
     );
-    if (typeof (res as any)?.error === 'string') {
-      if ((res as any).error.toLowerCase().includes('account not found')) return [];
+    if ((res as any)?.error != null) {
+      if (String((res as any).error).toLowerCase().includes('account not found')) return [];
       throw new Error(String((res as any).error));
     }
     const blocksForAccount = (res as any)?.blocks?.[address];

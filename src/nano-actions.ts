@@ -246,7 +246,7 @@ async function signWorkAndProcess(
 }
 
 export function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): resp is NanoRpcErrorResponse {
-  return typeof (resp as any)?.error === 'string';
+  return (resp as any)?.error != null;
 }
 
 async function report(ctx: NanoActionContext, progress: number, total: number, message: string): Promise<void> {
@@ -356,7 +356,7 @@ export async function getNanoAccountInfo(
           pendingXno: '0',
         };
       }
-      throw new Error(info.error);
+      throw new Error(String(info.error));
     }
 
     return {
