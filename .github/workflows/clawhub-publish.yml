@@ -37,17 +37,7 @@ jobs:
       - name: Compute ClawHub version
         id: version
         run: |
-          DESC=$(git describe --tags --always --match 'v*' --dirty)
-          VERSION=$(node -e 'const desc=process.argv[1]; const base=require("./package.json").version; const stripped=desc.replace(/^v+/, ""); process.stdout.write(stripped === desc ? `${base}-0-${stripped}` : stripped);' "$DESC")
-
-          case "$VERSION" in
-            v*)
-              echo "Computed ClawHub version must not start with v: $VERSION"
-              exit 1
-              ;;
-          esac
-
-          echo "desc=$DESC" >> "$GITHUB_OUTPUT"
+          VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Test
@@ -68,7 +58,7 @@ jobs:
             --name "Nano (XNO)" \
             --owner cbrunnkvist \
             --version "${{ steps.version.outputs.version }}" \
-            --changelog "Automated publish from ${GITHUB_SHA} (${{ steps.version.outputs.desc }})" \
+            --changelog "Automated publish from ${GITHUB_SHA}" \
             --tags latest
           # TODO: switch to --owner casualsecurityinc once ClawHub deploys PR #2102
           # npx -y clawhub skill publish ./skills/nano \

@@ -11,9 +11,8 @@ Create a clear commit message for that phase.
 Do not mix unrelated changes in one commit.
 
 3. After every commit phase, verify the repository is still healthy before moving on.
-Run `npm run build`.
 Run `npm test`.
-If either command fails, fix the issue before creating the next commit.
+If the command fails, fix the issue before creating the next commit.
 
 4. When all intended changes are committed and the full test suite passes, decide whether this ship changes the published package.
 Published package in this repository: `xno-skills` on npm.
@@ -25,7 +24,7 @@ If the ship is internal-only (tests, docs, repo config, CI-only maintenance with
 There is no `.changeset/` configuration and no Changesets command in the project.
 Do not invent a Changesets step here.
 For published-package changes, use the local release version command instead: `npm version patch`, `npm version minor`, or `npm version major`.
-`npm version` runs this repo's release hooks, including tests and syncing `src/version.ts`, `README.md`, and `skills/nano/SKILL.md`.
+`npm version` runs this repo's release hooks, including tests and syncing `src/version.ts`, `README.md`, `skills/nano/SKILL.md`, and `mcpb/server-card.json`.
 
 6. Push the completed ship.
 For internal-only changes with no version bump: `git push`.

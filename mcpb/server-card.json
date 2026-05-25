@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "xno-skills",
-    "version": "3.3.4"
+    "version": "3.4.0"
   },
   "authentication": {
     "required": false,
@@ -46,30 +46,76 @@
     },
     {
       "name": "config_set",
-      "description": "Update the xno-mcp configuration. Any provided fields overwrite existing values; omitted fields are preserved.",
+      "description": "Update the xno-mcp configuration. Any provided fields overwrite existing values; omitted fields are preserved. Set a string field to \"\" or null to reset it to default; set a number field to null to reset it to default.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "rpcUrl": {
-            "description": "Primary Nano RPC endpoint URL",
-            "type": "string"
+            "description": "Primary Nano RPC endpoint URL (set to \"\" or null to reset)",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "workUrl": {
+            "description": "Remote PoW endpoint URL (set to \"\" or null to reset)",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "timeoutMs": {
             "description": "Request timeout in milliseconds (default: 15000)",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "powTimeoutMs": {
             "description": "Proof-of-work timeout in milliseconds (default: max(timeoutMs * 4, 30000))",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "defaultRepresentative": {
-            "description": "Default representative nano_ address for new accounts",
-            "type": "string"
+            "description": "Default representative nano_ address for new accounts (set to \"\" or null to reset)",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "maxSendXno": {
-            "description": "Maximum XNO allowed per send transaction (default: 1.0)",
-            "type": "string"
+            "description": "Maximum XNO allowed per send transaction (default: 1.0, set to \"\" or null to reset)",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -222,7 +268,7 @@
     },
     {
       "name": "wallet_send",
-      "description": "Send Nano from an OWS wallet. Signs via OWS, generates PoW, and broadcasts. Max per transaction: 5.0 XNO.",
+      "description": "Send Nano from an OWS wallet. Signs via OWS, generates PoW, and broadcasts. Gated by a configurable per-transaction limit.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
