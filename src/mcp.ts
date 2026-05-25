@@ -4,10 +4,11 @@ import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
 import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProcess, rpcProbeCaps } from './rpc.js';
 import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
-import { getSystemInfo } from './meta.js';
+import { getSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
 import { validateAddress } from './validate.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
+import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { version } from './version.js';
 import { NOMS, NanoClient, WorkProvider } from '@openrai/nano-core';
 import {
@@ -185,7 +186,7 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
       let preferLocal = true;
       try {
         const { recommendLocalPow } = await import('nano-rspow-node');
-        preferLocal = recommendLocalPow();
+        preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
       } catch (e) {
         // ignore
       }
@@ -201,13 +202,14 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
       const startedAt = Date.now();
 
       if (workUrls.length > 0) {
-        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrls.join(',')}`);
+        const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
+        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.join(',')}`);
         try {
           const workClient = getNanoClient(workUrls.join(','));
           const { nanoRpcCall } = await import('./rpc.js');
           const res = await nanoRpcCall<{ work: string }>(
             workClient,
-            { action: 'work_generate', hash, difficulty },
+            { action: 'work_generate', hash, difficulty: difficultyHex },
             { timeoutMs: effectivePowTimeoutMs(cfg) }
           );
           logTiming('xno-mcp', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
@@ -400,7 +402,7 @@ mcpServer.registerTool('system_diag', {
   let localPowRecommended = false;
   try {
     const { recommendLocalPow } = await import('nano-rspow-node');
-    localPowRecommended = recommendLocalPow();
+    localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
   } catch {}
   return toToolSuccess(getSystemInfo({
     localPowRecommended,

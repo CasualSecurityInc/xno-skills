@@ -8,9 +8,10 @@ import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rp
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
+import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
 import { version } from './version.js';
-import { getSystemInfo, formatSystemInfo } from './meta.js';
+import { getSystemInfo, formatSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
 import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import {
   DEFAULT_REPRESENTATIVE,
@@ -83,7 +84,7 @@ function readersFor(options?: { urls?: string[] }) {
       let preferLocal = true;
       try {
         const { recommendLocalPow } = await import('nano-rspow-node');
-        preferLocal = recommendLocalPow();
+        preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
       } catch (e) {
         // ignore
       }
@@ -100,12 +101,13 @@ function readersFor(options?: { urls?: string[] }) {
       const startedAt = Date.now();
 
       if (workUrls.length > 0) {
-        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} remote=${workUrls.join(',')}`);
+        const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
+        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.join(',')}`);
         try {
           const workClient = getNanoClient({ urls: workUrls });
           const res = await nanoRpcCall<{ work: string }>(
             workClient,
-            { action: 'work_generate', hash, difficulty },
+            { action: 'work_generate', hash, difficulty: difficultyHex },
             { timeoutMs: effectivePowTimeoutMs(config) }
           );
           logTiming('xno-cli', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
@@ -857,7 +859,7 @@ program
     let localPowRecommended = false;
     try {
       const { recommendLocalPow } = await import('nano-rspow-node');
-      localPowRecommended = recommendLocalPow();
+      localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
     } catch (e) {}
     const info = getSystemInfo({
       localPowRecommended,

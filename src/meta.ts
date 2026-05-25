@@ -31,12 +31,22 @@ export type SystemInfo = {
     nanoRpcUrl: string | undefined;
     nanoWorkUrl: string | undefined;
     xnoMcpHome: string | undefined;
+    xnoLocalPowRecommended: string | undefined;
   };
   envVars: EnvVarEntry[];
   localPowRecommended: boolean;
   effectiveRpcUrls: string[];
   effectiveWorkUrls: string[];
 };
+
+export function getEffectiveLocalPowRecommended(
+  fallback: () => boolean = () => false,
+): boolean {
+  const raw = process.env.XNO_FORCE_LOCAL_POW?.trim().toLowerCase();
+  if (raw === '1' || raw === 'true') return true;
+  if (raw === '0' || raw === 'false') return false;
+  return fallback();
+}
 
 function detectInvocation(): InvocationMethod {
   const scriptPath = process.argv[1] || '';
@@ -85,6 +95,12 @@ function getEnvVars(): EnvVarEntry[] {
       defaultValue: '(same as RPC URL)',
       effectiveValue: process.env.NANO_WORK_URL,
       description: 'Override remote proof-of-work endpoint',
+    },
+    {
+      name: 'XNO_FORCE_LOCAL_POW',
+      defaultValue: '(from nano-rspow-node recommendLocalPow())',
+      effectiveValue: process.env.XNO_FORCE_LOCAL_POW,
+      description: 'Force Local PoW recommendation true/false (overrides nano-rspow-node recommendation)',
     },
     {
       name: 'XNO_MCP_HOME',
@@ -138,6 +154,7 @@ export function getSystemInfo(overrides?: {
       nanoRpcUrl: process.env.NANO_RPC_URL,
       nanoWorkUrl: process.env.NANO_WORK_URL,
       xnoMcpHome: process.env.XNO_MCP_HOME,
+      xnoLocalPowRecommended: process.env.XNO_FORCE_LOCAL_POW,
     },
     envVars: getEnvVars(),
     localPowRecommended: overrides?.localPowRecommended ?? false,
@@ -164,6 +181,7 @@ export function formatSystemInfo(info: SystemInfo): string {
   if (info.environment.nanoRpcUrl) lines.push(`  NANO_RPC_URL: ${info.environment.nanoRpcUrl}`);
   if (info.environment.nanoWorkUrl) lines.push(`  NANO_WORK_URL: ${info.environment.nanoWorkUrl}`);
   if (info.environment.xnoMcpHome) lines.push(`  XNO_MCP_HOME: ${info.environment.xnoMcpHome}`);
+  if (info.environment.xnoLocalPowRecommended) lines.push(`  XNO_FORCE_LOCAL_POW: ${info.environment.xnoLocalPowRecommended}`);
 
   lines.push('');
   lines.push(`Local PoW Recommended: ${info.localPowRecommended}`);
