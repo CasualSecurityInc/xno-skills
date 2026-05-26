@@ -36,8 +36,7 @@
         "generate-nano-qr-code",
         "nano-wallet-operations",
         "convert-xno-units",
-        "xno-mcp-purse-custody",
-        "check-xno-balance-(rpc)"
+        "xno-mcp-purse-custody"
       ]
     }
   ]
