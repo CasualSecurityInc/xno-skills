@@ -8,36 +8,6 @@
       "skills": [
         "nano"
       ]
-    },
-    {
-      "title": "Deprecated",
-      "description": "These legacy skills were consolidated into the nano omni-skill and are no longer maintained individually.",
-      "skills": [
-        "validate-address",
-        "create-wallet",
-        "check-balance",
-        "generate-qr",
-        "convert-units",
-        "nano-mcp-wallet",
-        "nano-block-lattice-expert",
-        "nano-generate-qr",
-        "nano-sign-message",
-        "nano-convert-units",
-        "nano-check-balance",
-        "nano-request-payment",
-        "nano-create-wallet",
-        "nano-return-funds",
-        "nano-validate-address",
-        "nano-verify-message",
-        "mcp-wallet",
-        "request-payment",
-        "validate-xno-address",
-        "return-funds",
-        "generate-nano-qr-code",
-        "nano-wallet-operations",
-        "convert-xno-units",
-        "xno-mcp-purse-custody"
-      ]
     }
   ]
 }
