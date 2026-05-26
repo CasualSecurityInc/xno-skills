@@ -43,7 +43,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Publish Nano skill to ClawHub
+      - name: Check whether version is already on ClawHub
+        id: clawhub_check
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
         run: |
@@ -52,7 +53,30 @@ jobs:
             exit 1
           fi
 
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Checking ClawHub for nano@$VERSION"
+
           npx -y clawhub login --token "$CLAWHUB_TOKEN"
+
+          if npx -y clawhub inspect nano --version "$VERSION" --json > clawhub-inspect.json 2> clawhub-inspect.err; then
+            EXISTS=$(node -e "const fs=require('fs'); const v=process.argv[1]; const d=JSON.parse(fs.readFileSync('clawhub-inspect.json','utf8')); process.stdout.write(d?.version?.version===v?'true':'false')" "$VERSION")
+          else
+            EXISTS=false
+          fi
+
+          if [ "$EXISTS" = "true" ]; then
+            echo "Version nano@$VERSION already exists on ClawHub; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version nano@$VERSION not found on ClawHub; publish will run."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish Nano skill to ClawHub
+        if: steps.clawhub_check.outputs.should_publish == 'true'
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: |
           npx -y clawhub skill publish ./skills/nano \
             --slug nano \
             --name "Nano (XNO)" \
