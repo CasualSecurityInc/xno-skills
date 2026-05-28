@@ -1,6 +1,6 @@
 # Releasing `xno-skills`
 
-This repo publishes to npm automatically when a **GitHub Release** is published.
+This repo publishes to npm automatically when a `v*` tag is pushed to GitHub.
 
 ## One-time setup (recommended): npm Trusted Publishing (no tokens)
 
