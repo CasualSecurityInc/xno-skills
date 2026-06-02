@@ -3,7 +3,7 @@
  * Generate mcpb/server-card.json by introspecting the MCP tool definitions.
  * Run after the ESM build (needs dist/esm/mcp.js compiled output).
  */
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +77,48 @@ function requestToolList() {
 }
 
 const pkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8'));
+
+// Generate .claude-plugin/marketplace.json (no tool introspection needed)
+const marketplaceDir = resolve(__dirname, '../.claude-plugin');
+mkdirSync(marketplaceDir, { recursive: true });
+
+const marketplace = {
+  $schema: 'https://json.schemastore.org/claude-code-marketplace.json',
+  name: 'casual-security-inc',
+  owner: {
+    name: 'Casual Security Inc',
+  },
+  metadata: {
+    description: 'Nano (XNO) cryptocurrency toolkit for AI agents',
+    version: pkg.version,
+  },
+  plugins: [
+    {
+      name: pkg.name,
+      description:
+        'Nano (XNO) wallet operations, send/receive, balances, payment requests, QR codes, and protocol analysis — without handling private keys.',
+      source: {
+        source: 'github',
+        repo: 'CasualSecurityInc/xno-skills',
+      },
+      version: pkg.version,
+      license: 'MIT',
+      category: 'crypto',
+      keywords: ['nano', 'xno', 'cryptocurrency', 'wallet', 'mcp'],
+      strict: false,
+      mcpServers: {
+        'xno-mcp': {
+          command: 'npx',
+          args: ['xno-mcp'],
+        },
+      },
+    },
+  ],
+};
+
+const marketplacePath = resolve(marketplaceDir, 'marketplace.json');
+writeFileSync(marketplacePath, JSON.stringify(marketplace, null, 2));
+console.log(`[generate-server-card] Wrote marketplace.json to ${marketplacePath}`);
 
 let tools;
 try {

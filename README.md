@@ -21,6 +21,13 @@ npx skills add CasualSecurityInc/xno-skills -g
 npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
+### Claude Code
+
+```
+/plugin marketplace add CasualSecurityInc/xno-skills
+/plugin install xno-skills@casual-security-inc
+```
+
 > [!IMPORTANT]
 > If you installed skills from this repository before May 4, 2026, you have 11 individual `nano-*` skills that have been consolidated into a single `nano` skill. Remove the old ones first:
 > ```bash

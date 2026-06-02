@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "casual-security-inc",
+  "owner": {
+    "name": "Casual Security Inc"
+  },
+  "metadata": {
+    "description": "Nano (XNO) cryptocurrency toolkit for AI agents",
+    "version": "4.2.3"
+  },
+  "plugins": [
+    {
+      "name": "xno-skills",
+      "description": "Nano (XNO) wallet operations, send/receive, balances, payment requests, QR codes, and protocol analysis — without handling private keys.",
+      "source": {
+        "source": "github",
+        "repo": "CasualSecurityInc/xno-skills"
+      },
+      "version": "4.2.3",
+      "license": "MIT",
+      "category": "crypto",
+      "keywords": [
+        "nano",
+        "xno",
+        "cryptocurrency",
+        "wallet",
+        "mcp"
+      ],
+      "strict": false,
+      "mcpServers": {
+        "xno-mcp": {
+          "command": "npx",
+          "args": [
+            "xno-mcp"
+          ]
+        }
+      }
+    }
+  ]
+}
