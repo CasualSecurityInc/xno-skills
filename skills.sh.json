@@ -4,7 +4,7 @@
   "groupings": [
     {
       "title": "Nano",
-      "description": "Unified Nano (XNO) omni-skill for wallet operations, protocol tasks, and troubleshooting.",
+      "description": "Nano (XNO) cryptocurrency wallet operations, protocol tasks, and troubleshooting.",
       "skills": [
         "nano"
       ]
