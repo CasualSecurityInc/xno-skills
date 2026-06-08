@@ -8,6 +8,37 @@
       "skills": [
         "nano"
       ]
+    },
+    {
+      "title": "Obsolete (do not use)",
+      "description": "Legacy skills from before consolidation into the unified nano omni-skill. These entries remain in the skills.sh index but are no longer present in the repository and should not be used.",
+      "skills": [
+        "validate-address",
+        "create-wallet",
+        "check-balance",
+        "generate-qr",
+        "convert-units",
+        "nano-mcp-wallet",
+        "nano-block-lattice-expert",
+        "nano-generate-qr",
+        "nano-sign-message",
+        "nano-convert-units",
+        "nano-check-balance",
+        "nano-request-payment",
+        "nano-create-wallet",
+        "nano-return-funds",
+        "nano-validate-address",
+        "nano-verify-message",
+        "mcp-wallet",
+        "request-payment",
+        "validate-xno-address",
+        "return-funds",
+        "generate-nano-qr-code",
+        "nano-wallet-operations",
+        "convert-xno-units",
+        "xno-mcp-purse-custody",
+        "check-xno-balance-(rpc)"
+      ]
     }
   ]
 }
