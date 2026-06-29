@@ -1,7 +1,7 @@
 # xno-skills mcp
 
 ```
-Usage: cli mcp [options]
+Usage: xno-skills mcp [options]
 
 Start the MCP server or view configuration instructions
 

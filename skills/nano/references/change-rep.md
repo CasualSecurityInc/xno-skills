@@ -1,7 +1,7 @@
 # xno-skills change-rep
 
 ```
-Usage: cli change-rep [options]
+Usage: xno-skills change-rep [options]
 
 Submit a change representative block
 

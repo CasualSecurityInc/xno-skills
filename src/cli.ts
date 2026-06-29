@@ -641,8 +641,8 @@ rpcCmd
 
 rpcCmd
   .command('probe-caps')
-  .description('Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)')
-  .argument('[url]', 'RPC URL to probe (defaults to configured/env URL)')
+  .description('Probe Nano node RPC capabilities (JSON RPC, version, ledger-read, process, remote PoW)')
+  .argument('[url]', 'RPC URL(s) to probe, comma-separated (defaults to configured/env URL)')
   .option('--timeout-ms <ms>', 'Timeout per probe in milliseconds', (v) => parseInt(v, 10), 10000)
   .option('-j, --json', 'Output raw JSON result')
   .action(async (url: string | undefined, options: { timeoutMs: number; json?: boolean }) => {
@@ -658,29 +658,41 @@ rpcCmd
 
       const tick = (ok: boolean) => (ok ? '✓' : '✗');
       const ms = (n: number) => `${n}ms`;
+      const results = result.results ?? [result];
 
-      console.log(`\nProbing: ${result.url}`);
-      console.log(`─────────────────────────────────────────`);
-      console.log(`  Reachable       ${tick(result.reachable)}  (${ms(result.pingMs)})`);
-      if (result.reachable) {
-        console.log(`  Node vendor     ${result.nodeVendor || '(unknown)'}`);
-        console.log(`  Network         ${result.network || '(unknown)'}`);
-        console.log(`  Protocol        ${result.protocolVersion || '(unknown)'}`);
+      for (const item of results) {
+        console.log(`\nProbing: ${item.url}`);
+        console.log(`─────────────────────────────────────────`);
+        console.log(`  Reachable       ${tick(item.reachable)}  (${ms(item.pingMs)})`);
+        console.log(`  JSON RPC        ${tick(item.caps.jsonRpc.ok)}  (${ms(item.caps.jsonRpc.latencyMs)})  ${item.caps.jsonRpc.status}`);
+        if (item.caps.jsonRpc.detail) {
+          console.log(`                  ${item.caps.jsonRpc.detail}`);
+        }
+        if (item.reachable) {
+          console.log(`  Node vendor     ${item.nodeVendor || '(unknown)'}`);
+          console.log(`  Network         ${item.network || '(unknown)'}`);
+          console.log(`  Protocol        ${item.protocolVersion || '(unknown)'}`);
+        }
+        console.log(`─────────────────────────────────────────`);
+        console.log(`  version         ${tick(item.caps.version.ok)}  (${ms(item.caps.version.latencyMs)})  ${item.caps.version.status}`);
+        if (!item.caps.version.ok && item.caps.version.detail) {
+          console.log(`                  ${item.caps.version.detail}`);
+        }
+        console.log(`  block_count     ${tick(item.caps.blockCount.ok)}  (${ms(item.caps.blockCount.latencyMs)})  ${item.caps.blockCount.status}${item.blockCount ? `  count=${item.blockCount} cemented=${item.cementedCount ?? '?'}` : ''}`);
+        if (!item.caps.blockCount.ok && item.caps.blockCount.detail) {
+          console.log(`                  ${item.caps.blockCount.detail}`);
+        }
+        console.log(`  process invalid ${tick(item.caps.processInvalid.ok)}  (${ms(item.caps.processInvalid.latencyMs)})  ${item.caps.processInvalid.status}`);
+        if (item.caps.processInvalid.detail) {
+          console.log(`                  ${item.caps.processInvalid.detail}`);
+        }
+        console.log(`  work_generate   ${tick(item.caps.workGenerate.ok)}  (${ms(item.caps.workGenerate.latencyMs)})  ${item.caps.workGenerate.status}`);
+        if (item.caps.workGenerate.detail) {
+          console.log(`                  ${item.caps.workGenerate.detail}`);
+        }
+        console.log(`─────────────────────────────────────────`);
       }
-      console.log(`─────────────────────────────────────────`);
-      console.log(`  version         ${tick(result.caps.version.ok)}  (${ms(result.caps.version.latencyMs)})`);
-      if (!result.caps.version.ok && result.caps.version.detail) {
-        console.log(`                  ${result.caps.version.detail}`);
-      }
-      console.log(`  block_count     ${tick(result.caps.blockCount.ok)}  (${ms(result.caps.blockCount.latencyMs)})${result.blockCount ? `  count=${result.blockCount} cemented=${result.cementedCount ?? '?'}` : ''}`);
-      if (!result.caps.blockCount.ok && result.caps.blockCount.detail) {
-        console.log(`                  ${result.caps.blockCount.detail}`);
-      }
-      console.log(`  work_generate   ${tick(result.caps.workGenerate.ok)}  (${ms(result.caps.workGenerate.latencyMs)})`);
-      if (!result.caps.workGenerate.ok && result.caps.workGenerate.detail) {
-        console.log(`                  ${result.caps.workGenerate.detail}`);
-      }
-      console.log(`─────────────────────────────────────────\n`);
+      console.log('');
 
       if (!result.reachable) process.exit(1);
     } catch (error) {
@@ -861,10 +873,11 @@ program
       const { recommendLocalPow } = await import('nano-rspow-node');
       localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
     } catch (e) {}
+    const effectiveWorkUrls = resolveEffectiveWorkUrls(config);
     const info = getSystemInfo({
       localPowRecommended,
       effectiveRpcUrls: resolveEffectiveRpcUrls(undefined, config),
-      effectiveWorkUrls: resolveEffectiveWorkUrls(config),
+      effectiveWorkUrls,
     });
     
     if (options.json) {

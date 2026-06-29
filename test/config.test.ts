@@ -16,6 +16,14 @@ describe('resolveEffectiveRpcUrls', () => {
     expect(resolveEffectiveRpcUrls()).toEqual(DEFAULT_RPC_URLS);
   });
 
+  it('uses the public RPC defaults in preferred order', () => {
+    expect(DEFAULT_RPC_URLS).toEqual([
+      'https://rainstorm.city/api',
+      'https://nanoslo.0x.no/proxy',
+      'https://rpc.nano.to',
+    ]);
+  });
+
   it('splits explicit comma-separated string', () => {
     const result = resolveEffectiveRpcUrls('https://a.example/api,https://b.example/api');
     expect(result).toEqual(['https://a.example/api', 'https://b.example/api']);

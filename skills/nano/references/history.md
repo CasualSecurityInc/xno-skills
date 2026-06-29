@@ -1,7 +1,7 @@
 # xno-skills history
 
 ```
-Usage: cli history [options]
+Usage: xno-skills history [options]
 
 Show transaction history
 

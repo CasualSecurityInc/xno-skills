@@ -3,18 +3,18 @@
  * Generate CLI reference docs for each xno-skills subcommand.
  * Writes skills/nano/references/<subcommand>.md for every subcommand.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const refsDir = resolve(__dirname, '../skills/nano/references');
-const cliPath = resolve(__dirname, '../src/cli.ts');
+const cliPath = resolve(__dirname, '../bin/xno-skills');
 
 function runHelp(args) {
   try {
-    return execSync(`npx tsx ${cliPath} ${args} --help`, {
+    return execFileSync(process.execPath, [cliPath, ...args.split(' ').filter(Boolean), '--help'], {
       encoding: 'utf8',
       timeout: 10000,
       stdio: ['pipe', 'pipe', 'ignore'],
@@ -56,6 +56,7 @@ const subcommands = [
   'block send',
   'block receive',
   'block change',
+  'diag',
   'mcp',
 ];
 

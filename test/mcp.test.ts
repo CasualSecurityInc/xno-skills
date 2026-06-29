@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { createServer, type Server } from 'node:http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,6 +15,71 @@ function getText(result: unknown): string {
 describe('MCP Server Integration', () => {
   let client: Client;
   let transport: StdioClientTransport;
+  let rpcServer: Server;
+  let rpcUrl: string;
+
+  function mcpEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      XNO_MCP_MOCK_OWS: "true",
+      NANO_RPC_URL: rpcUrl,
+      NANO_WORK_URL: rpcUrl,
+    };
+  }
+
+  beforeAll(async () => {
+    rpcServer = createServer((req, res) => {
+      if (req.method !== 'POST') {
+        res.writeHead(405).end();
+        return;
+      }
+
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => { body += chunk; });
+      req.on('end', () => {
+        const payload = JSON.parse(body || '{}');
+        const action = payload.action;
+        let response: unknown;
+
+        if (action === 'version') {
+          response = {
+            rpc_version: '1',
+            store_version: '26',
+            protocol_version: '21',
+            node_vendor: 'Nano V26.1',
+            network: 'live',
+          };
+        } else if (action === 'block_count') {
+          response = { count: '100', unchecked: '0', cemented: '90' };
+        } else if (action === 'process') {
+          response = { error: 'Block work is less than threshold' };
+        } else if (action === 'work_generate') {
+          response = { work: 'f'.repeat(16) };
+        } else if (action === 'account_history') {
+          response = { history: [] };
+        } else if (action === 'account_balance') {
+          response = { balance: '0', pending: '0' };
+        } else if (action === 'account_info') {
+          response = { error: 'Account not found' };
+        } else if (action === 'receivable' || action === 'accounts_pending') {
+          response = { blocks: {} };
+        } else {
+          response = { error: `unsupported action: ${action}` };
+        }
+
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(response));
+      });
+    });
+
+    await new Promise<void>((resolve) => {
+      rpcServer.listen(0, '127.0.0.1', resolve);
+    });
+    const address = rpcServer.address();
+    if (!address || typeof address === 'string') throw new Error('failed to start RPC test server');
+    rpcUrl = `http://127.0.0.1:${address.port}`;
+  });
 
   it('should start and connect successfully (Handshake test)', async () => {
     const testClient = new Client(
@@ -24,7 +90,7 @@ describe('MCP Server Integration', () => {
     const testTransport = new StdioClientTransport({
       command: "node",
       args: [MCP_BIN_PATH, "mcp"],
-      env: { ...process.env, XNO_MCP_MOCK_OWS: "true" }
+      env: mcpEnv()
     });
 
     // This is the core "it starts" check
@@ -41,7 +107,7 @@ describe('MCP Server Integration', () => {
     transport = new StdioClientTransport({
       command: "node",
       args: [MCP_BIN_PATH, "mcp"],
-      env: { ...process.env, XNO_MCP_MOCK_OWS: "true" }
+      env: mcpEnv()
     });
 
     await client.connect(transport);
@@ -50,6 +116,9 @@ describe('MCP Server Integration', () => {
   afterAll(async () => {
     if (client) {
       await client.close();
+    }
+    if (rpcServer) {
+      await new Promise<void>((resolve) => rpcServer.close(() => resolve()));
     }
   });
 
@@ -258,20 +327,26 @@ describe('MCP Server Integration', () => {
   it('should probe RPC capabilities including work_generate', async () => {
     const result = await client.callTool({
       name: "rpc_probe_caps",
-      arguments: { rpcUrl: "https://rainstorm.city/api" }
+      arguments: { rpcUrl, timeoutMs: 1000 }
     });
 
     expect(result.isError).toBeFalsy();
     const out = JSON.parse(getText(result));
-    expect(out.url).toBe("https://rainstorm.city/api");
+    expect(out.url).toBe(rpcUrl);
     expect(out.reachable).toBe(true);
+    expect(out.caps.jsonRpc).toBeDefined();
+    expect(out.caps.jsonRpc.ok).toBe(true);
     expect(out.caps.version).toBeDefined();
     expect(out.caps.version.ok).toBe(true);
     expect(out.caps.blockCount).toBeDefined();
     expect(out.caps.blockCount.ok).toBe(true);
+    expect(out.caps.processInvalid).toBeDefined();
+    expect(typeof out.caps.processInvalid.ok).toBe('boolean');
+    expect(typeof out.caps.processInvalid.status).toBe('string');
     expect(out.caps.workGenerate).toBeDefined();
     expect(typeof out.caps.workGenerate.ok).toBe('boolean');
     expect(typeof out.caps.workGenerate.latencyMs).toBe('number');
+    expect(typeof out.caps.workGenerate.status).toBe('string');
   }, 15000);
 
   it('should generate a QR code for an address', async () => {

@@ -3,6 +3,7 @@ import { loadConfig, type XnoConfig } from './state-store.js';
 const DEFAULT_RPC_URLS = [
   'https://rainstorm.city/api',
   'https://nanoslo.0x.no/proxy',
+  'https://rpc.nano.to',
 ];
 
 /**

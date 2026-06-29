@@ -1,7 +1,7 @@
 # xno-skills balance
 
 ```
-Usage: cli balance [options]
+Usage: xno-skills balance [options]
 
 Show balance and pending amount
 

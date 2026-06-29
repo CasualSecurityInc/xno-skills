@@ -1,7 +1,7 @@
 # xno-skills rpc account-balance
 
 ```
-Usage: cli rpc account-balance [options] <address>
+Usage: xno-skills rpc account-balance [options] <address>
 
 Fetch account balance and pending amount
 

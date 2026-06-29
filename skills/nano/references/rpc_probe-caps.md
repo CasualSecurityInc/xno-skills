@@ -1,12 +1,14 @@
 # xno-skills rpc probe-caps
 
 ```
-Usage: cli rpc probe-caps [options] [url]
+Usage: xno-skills rpc probe-caps [options] [url]
 
-Probe a Nano node RPC for capabilities (version, ledger-read, remote PoW)
+Probe Nano node RPC capabilities (JSON RPC, version, ledger-read, process,
+remote PoW)
 
 Arguments:
-  url                RPC URL to probe (defaults to configured/env URL)
+  url                RPC URL(s) to probe, comma-separated (defaults to
+                     configured/env URL)
 
 Options:
   --timeout-ms <ms>  Timeout per probe in milliseconds (default: 10000)

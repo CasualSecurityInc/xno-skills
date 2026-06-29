@@ -1,7 +1,7 @@
 # xno-skills info
 
 ```
-Usage: cli info [options]
+Usage: xno-skills info [options]
 
 Discover the current state and representative of any Nano account
 

@@ -251,9 +251,18 @@ interface BlockCountResponse {
   cemented?: string;
 }
 
+export type ProbeCapStatus =
+  | 'supported'
+  | 'validation_error'
+  | 'rpc_error'
+  | 'permission_or_quota'
+  | 'transport_error'
+  | 'timeout';
+
 export type ProbeCapResult = {
   ok: boolean;
   latencyMs: number;
+  status: ProbeCapStatus;
   detail?: string;
 };
 
@@ -267,13 +276,78 @@ export type RpcProbeResult = {
   blockCount?: string;
   cementedCount?: string;
   caps: {
+    jsonRpc: ProbeCapResult;
     version: ProbeCapResult;
     blockCount: ProbeCapResult;
+    processInvalid: ProbeCapResult;
     workGenerate: ProbeCapResult;
   };
+  results?: RpcProbeResult[];
 };
 
-export async function rpcProbeCaps(
+const RECEIVE_OPEN_DIFFICULTY = 'fffffe0000000000';
+const ZERO_HASH = '0'.repeat(64);
+const ZERO_ACCOUNT = 'nano_1111111111111111111111111111111111111111111111111111hifc8npp';
+
+function initialCap(): ProbeCapResult {
+  return { ok: false, latencyMs: 0, status: 'transport_error' };
+}
+
+function classifyFailure(error: unknown): Pick<ProbeCapResult, 'status' | 'detail'> {
+  const detail = error instanceof Error ? error.message : String(error);
+  const lower = detail.toLowerCase();
+  if (lower.includes('abort') || lower.includes('timeout') || lower.includes('timed out')) {
+    return { status: 'timeout', detail };
+  }
+  if (
+    lower.includes('http error 401') ||
+    lower.includes('http error 403') ||
+    lower.includes('http error 429') ||
+    lower.includes('unauthorized') ||
+    lower.includes('forbidden') ||
+    lower.includes('too many requests') ||
+    lower.includes('rate limit') ||
+    lower.includes('quota')
+  ) {
+    return { status: 'permission_or_quota', detail };
+  }
+  if (lower.includes('rpc error:')) {
+    return { status: 'rpc_error', detail };
+  }
+  return { status: 'transport_error', detail };
+}
+
+function classifyRpcError(error: unknown): ProbeCapStatus {
+  const lower = String(error).toLowerCase();
+  if (
+    lower.includes('unauthorized') ||
+    lower.includes('forbidden') ||
+    lower.includes('too many requests') ||
+    lower.includes('rate limit') ||
+    lower.includes('quota') ||
+    lower.includes('permission') ||
+    lower.includes('disabled')
+  ) {
+    return 'permission_or_quota';
+  }
+  return 'rpc_error';
+}
+
+function invalidStateBlock(): Record<string, string> {
+  return {
+    type: 'state',
+    account: ZERO_ACCOUNT,
+    previous: ZERO_HASH,
+    representative: ZERO_ACCOUNT,
+    balance: '0',
+    link: ZERO_HASH,
+    link_as_account: ZERO_ACCOUNT,
+    signature: '0'.repeat(128),
+    work: '0'.repeat(16),
+  };
+}
+
+async function probeSingleRpcUrl(
   client: NanoClient,
   url: string,
   options: RpcCallOptions = {}
@@ -283,25 +357,31 @@ export async function rpcProbeCaps(
     reachable: false,
     pingMs: 0,
     caps: {
-      version: { ok: false, latencyMs: 0 },
-      blockCount: { ok: false, latencyMs: 0 },
-      workGenerate: { ok: false, latencyMs: 0 },
+      jsonRpc: initialCap(),
+      version: initialCap(),
+      blockCount: initialCap(),
+      processInvalid: initialCap(),
+      workGenerate: initialCap(),
     },
   };
 
-  // 1. version — proves it is a Nano RPC and gives node info + ping
+  // 1. version — fail-fast JSON RPC probe and Nano node metadata.
   const vStart = Date.now();
   try {
     const v = await nanoRpcCall<VersionResponse>(client, { action: 'version' }, options);
     const vMs = Date.now() - vStart;
-    result.caps.version = { ok: true, latencyMs: vMs };
+    result.caps.jsonRpc = { ok: true, latencyMs: vMs, status: 'supported' };
+    result.caps.version = { ok: true, latencyMs: vMs, status: 'supported' };
     result.pingMs = vMs;
     result.reachable = true;
     result.nodeVendor = v.node_vendor;
     result.network = v.network;
     result.protocolVersion = v.protocol_version;
   } catch (e: any) {
-    result.caps.version = { ok: false, latencyMs: Date.now() - vStart, detail: e.message };
+    const failure = classifyFailure(e);
+    const cap = { ok: false, latencyMs: Date.now() - vStart, ...failure };
+    result.caps.jsonRpc = cap;
+    result.caps.version = cap;
     return result;
   }
 
@@ -310,28 +390,95 @@ export async function rpcProbeCaps(
   try {
     const bc = await nanoRpcCall<BlockCountResponse>(client, { action: 'block_count' }, options);
     const bcMs = Date.now() - bcStart;
-    result.caps.blockCount = { ok: true, latencyMs: bcMs };
+    result.caps.blockCount = { ok: true, latencyMs: bcMs, status: 'supported' };
     result.blockCount = bc.count;
     result.cementedCount = bc.cemented;
   } catch (e: any) {
-    result.caps.blockCount = { ok: false, latencyMs: Date.now() - bcStart, detail: e.message };
+    result.caps.blockCount = { ok: false, latencyMs: Date.now() - bcStart, ...classifyFailure(e) };
   }
 
-  // 3. work_generate — remote PoW support
+  // 3. process — submit a syntactically valid but cryptographically invalid block.
+  const piStart = Date.now();
+  try {
+    const pi = await nanoRpcCall<NanoRpcResponse<ProcessResponse>>(
+      client,
+      { action: 'process', json_block: 'true', subtype: 'open', block: invalidStateBlock() },
+      { ...options, allowRpcError: true }
+    );
+    const piMs = Date.now() - piStart;
+    if ((pi as any)?.error != null) {
+      const detail = String((pi as any).error);
+      const status = classifyRpcError(detail);
+      result.caps.processInvalid = {
+        ok: status !== 'permission_or_quota',
+        latencyMs: piMs,
+        status: status === 'permission_or_quota' ? status : 'validation_error',
+        detail,
+      };
+    } else {
+      result.caps.processInvalid = {
+        ok: true,
+        latencyMs: piMs,
+        status: 'supported',
+        detail: 'Unexpectedly accepted invalid block',
+      };
+    }
+  } catch (e: any) {
+    result.caps.processInvalid = { ok: false, latencyMs: Date.now() - piStart, ...classifyFailure(e) };
+  }
+
+  // 4. work_generate — remote PoW support at live receive/open difficulty.
   const wgStart = Date.now();
   try {
-    const wg = await nanoRpcCall<{ work: string }>(
+    const wg = await nanoRpcCall<NanoRpcResponse<{ work: string }>>(
       client,
-      { action: 'work_generate', hash: '0'.repeat(64), difficulty: 'Dev' },
-      options
+      { action: 'work_generate', hash: ZERO_HASH, difficulty: RECEIVE_OPEN_DIFFICULTY },
+      { ...options, allowRpcError: true }
     );
     const wgMs = Date.now() - wgStart;
-    result.caps.workGenerate = { ok: true, latencyMs: wgMs };
+    if ((wg as any)?.error != null) {
+      const detail = String((wg as any).error);
+      result.caps.workGenerate = {
+        ok: false,
+        latencyMs: wgMs,
+        status: classifyRpcError(detail),
+        detail,
+      };
+    } else if (typeof (wg as any).work === 'string' && /^[0-9a-fA-F]{16}$/.test((wg as any).work)) {
+      result.caps.workGenerate = { ok: true, latencyMs: wgMs, status: 'supported' };
+    } else {
+      result.caps.workGenerate = {
+        ok: false,
+        latencyMs: wgMs,
+        status: 'rpc_error',
+        detail: 'work_generate response did not include 16 hex characters of work',
+      };
+    }
   } catch (e: any) {
-    result.caps.workGenerate = { ok: false, latencyMs: Date.now() - wgStart, detail: e.message };
+    result.caps.workGenerate = { ok: false, latencyMs: Date.now() - wgStart, ...classifyFailure(e) };
   }
 
   return result;
+}
+
+export async function rpcProbeCaps(
+  client: NanoClient,
+  url: string,
+  options: RpcCallOptions = {}
+): Promise<RpcProbeResult> {
+  const urls = url.split(',').map((value) => value.trim()).filter(Boolean);
+  if (urls.length <= 1) return probeSingleRpcUrl(client, urls[0] ?? url, options);
+
+  const results = await Promise.all(
+    urls.map((rpcUrl) => probeSingleRpcUrl(NanoClient.initialize({ rpc: [rpcUrl] }), rpcUrl, options))
+  );
+  return {
+    ...results[0],
+    url,
+    reachable: results.every((result) => result.reachable),
+    pingMs: results.reduce((sum, result) => sum + result.pingMs, 0),
+    results,
+  };
 }
 
 export async function rpcReceivable(

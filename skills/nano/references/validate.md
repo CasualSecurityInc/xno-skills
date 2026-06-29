@@ -1,7 +1,7 @@
 # xno-skills validate
 
 ```
-Usage: cli validate [options] <input>
+Usage: xno-skills validate [options] <input>
 
 Validate a Nano address or block hash
 

@@ -1,7 +1,7 @@
 # xno-skills send
 
 ```
-Usage: cli send [options]
+Usage: xno-skills send [options]
 
 Send Nano
 

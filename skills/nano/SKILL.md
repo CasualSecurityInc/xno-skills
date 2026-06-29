@@ -170,6 +170,7 @@ Full options: [balance](references/balance.md), [rpc_account-balance](references
 **Public zero-config RPC nodes** (used automatically by xno-skills defaults):
 - `https://rainstorm.city/api` (primary)
 - `https://nanoslo.0x.no/proxy` (secondary)
+- `https://rpc.nano.to` (tertiary)
 
 **If you see pending funds: receive them immediately** (see Receiving Funds section).
 
@@ -540,7 +541,7 @@ Full options: [change-rep](references/change-rep.md)
 
 **No configuration is required to get started.** Defaults work out of the box:
 
-- Public RPC nodes (`rainstorm.city`, `nanoslo.0x.no/proxy`)
+- Public RPC nodes (`rainstorm.city`, `nanoslo.0x.no/proxy`, `rpc.nano.to`)
 - PoW: local WASM/GPU by default; falls back to remote via the first RPC node when local is not performant
 - Representative: `nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4`
 - Max per send: `1.0 XNO`
@@ -591,8 +592,9 @@ Omitted fields are preserved unchanged.
 | 1 | Wait 5 s. Retry with identical arguments. |
 | 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, retry. |
 | 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry. |
-| 4 | Try any other public node, retry. |
-| 5 | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
+| 4 | `config_set({ rpcUrl: "https://rpc.nano.to" })`, retry. |
+| 5 | Try any other public node, retry. |
+| 6 | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
 
 Calling `config_set` with a new `rpcUrl` creates a fresh `NanoClient`, bypassing the exponential backoff cooldown on default endpoints.
 
@@ -652,6 +654,8 @@ Returns:
 xno-skills diag
 xno-skills diag --json
 ```
+
+`diag` does not make network calls. If `Local PoW Recommended` is `false` or PoW timing looks surprising, run `xno-skills rpc probe-caps <effective-work-url>` to verify remote `work_generate` support.
 
 ### MCP Server Crashes & "Not connected" Errors
 

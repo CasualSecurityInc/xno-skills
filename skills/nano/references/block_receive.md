@@ -1,7 +1,7 @@
 # xno-skills block receive
 
 ```
-Usage: cli block receive [options]
+Usage: xno-skills block receive [options]
 
 Build an unsigned receive block
 

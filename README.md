@@ -87,16 +87,19 @@ npm install -g xno-skills@4.3.0 && npx -y skills add CasualSecurityInc/xno-skill
 | Command | Description |
 |---|---|
 | `rpc` | Query a Nano node RPC |
+| `rpc probe-caps [url]` | Probe one or more comma-separated RPC URLs for JSON RPC, ledger-read, process, and remote PoW support |
 | `block` | Build unsigned Nano state blocks for manual/expert workflows |
 
 ### System
 
 | Command | Description |
 |---|---|
-| `diag` | Show version, environment, and diagnostic info for troubleshooting |
+| `diag` | Show version, environment, effective RPC/work URLs, and local PoW recommendation without network probes |
 | `mcp` | Start the MCP server or view configuration instructions |
 
 All commands support `-j` / `--json` for machine-readable output.
+
+Use `diag` for local configuration diagnostics. Use `rpc probe-caps <effective-work-url>` when you need live endpoint capability checks, including `work_generate` support.
 
 Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://github.com/open-wallet-standard/core). `xno-skills` bundles OWS as a dependency — no separate install needed. See the [OWS quick-start](https://openwallet.sh/#quickstart) for terminal usage, or install OWS agent skills with `npx skills add open-wallet-standard/core@ows`.
 

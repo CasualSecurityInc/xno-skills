@@ -1,7 +1,7 @@
 # xno-skills block change
 
 ```
-Usage: cli block change [options]
+Usage: xno-skills block change [options]
 
 Build an unsigned change block
 

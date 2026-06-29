@@ -1,7 +1,7 @@
 # xno-skills receive
 
 ```
-Usage: cli receive [options]
+Usage: xno-skills receive [options]
 
 Receive pending blocks
 

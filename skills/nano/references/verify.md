@@ -1,7 +1,7 @@
 # xno-skills verify
 
 ```
-Usage: cli verify [options] <address> <message> <signature>
+Usage: xno-skills verify [options] <address> <message> <signature>
 
 Verify a NOMS message signature
 

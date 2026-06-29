@@ -1,7 +1,7 @@
 # xno-skills convert
 
 ```
-Usage: cli convert [options] <amount> <from>
+Usage: xno-skills convert [options] <amount> <from>
 
 Convert between XNO units
 

@@ -37,6 +37,7 @@ export type SystemInfo = {
   localPowRecommended: boolean;
   effectiveRpcUrls: string[];
   effectiveWorkUrls: string[];
+  advisory?: string;
 };
 
 export function getEffectiveLocalPowRecommended(
@@ -141,6 +142,8 @@ export function getSystemInfo(overrides?: {
   effectiveWorkUrls?: string[];
 }): SystemInfo {
   const scriptPath = process.argv[1] || 'unknown';
+  const localPowRecommended = overrides?.localPowRecommended ?? false;
+  const effectiveWorkUrls = overrides?.effectiveWorkUrls ?? [];
 
   return {
     xnoSkills: {
@@ -157,9 +160,12 @@ export function getSystemInfo(overrides?: {
       xnoLocalPowRecommended: process.env.XNO_FORCE_LOCAL_POW,
     },
     envVars: getEnvVars(),
-    localPowRecommended: overrides?.localPowRecommended ?? false,
+    localPowRecommended,
     effectiveRpcUrls: overrides?.effectiveRpcUrls ?? [],
-    effectiveWorkUrls: overrides?.effectiveWorkUrls ?? [],
+    effectiveWorkUrls,
+    advisory: !localPowRecommended && effectiveWorkUrls.length > 0
+      ? `Run \`xno-skills rpc probe-caps ${effectiveWorkUrls[0]}\` to verify remote PoW support.`
+      : undefined,
   };
 }
 
@@ -187,6 +193,10 @@ export function formatSystemInfo(info: SystemInfo): string {
   lines.push(`Local PoW Recommended: ${info.localPowRecommended}`);
   lines.push(`Effective RPC URLs: ${info.effectiveRpcUrls.join(', ')}`);
   lines.push(`Effective Remote Work URLs: ${info.effectiveWorkUrls.join(', ')}`);
+
+  if (info.advisory) {
+    lines.push(`Advisory: ${info.advisory}`);
+  }
 
   lines.push('');
   lines.push('env vars:');

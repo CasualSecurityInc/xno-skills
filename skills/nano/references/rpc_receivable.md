@@ -1,7 +1,7 @@
 # xno-skills rpc receivable
 
 ```
-Usage: cli rpc receivable [options] <address>
+Usage: xno-skills rpc receivable [options] <address>
 
 List receivable blocks for an account
 

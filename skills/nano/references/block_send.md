@@ -1,7 +1,7 @@
 # xno-skills block send
 
 ```
-Usage: cli block send [options]
+Usage: xno-skills block send [options]
 
 Build an unsigned send block
 

@@ -1,7 +1,7 @@
 # xno-skills wallets
 
 ```
-Usage: cli wallets [options]
+Usage: xno-skills wallets [options]
 
 List wallets that have Nano accounts
 

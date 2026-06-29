@@ -1,7 +1,7 @@
 # xno-skills submit-block
 
 ```
-Usage: cli submit-block [options]
+Usage: xno-skills submit-block [options]
 
 Sign and submit a prepared block hex
 

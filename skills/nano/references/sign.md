@@ -1,7 +1,7 @@
 # xno-skills sign
 
 ```
-Usage: cli sign [options] <message>
+Usage: xno-skills sign [options] <message>
 
 Sign a NOMS message with a private key
 

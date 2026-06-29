@@ -1,7 +1,7 @@
 # xno-skills qr
 
 ```
-Usage: cli qr [options] <address>
+Usage: xno-skills qr [options] <address>
 
 Generate a QR code for a Nano address
 

@@ -740,14 +740,18 @@
     },
     {
       "name": "rpc_probe_caps",
-      "description": "Probe a Nano node RPC for capabilities: version, ledger-read, and remote PoW (work_generate) support.",
+      "description": "Probe Nano node RPC capabilities: JSON RPC, version, ledger-read, process, and remote PoW (work_generate) support.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "rpcUrl": {
-            "description": "RPC URL to probe (defaults to configured URL)",
+            "description": "RPC URL(s) to probe, comma-separated (defaults to configured URL)",
             "type": "string"
+          },
+          "timeoutMs": {
+            "description": "Timeout per probe in milliseconds",
+            "type": "number"
           }
         }
       },

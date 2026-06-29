@@ -1,7 +1,7 @@
 # xno-skills rpc account-info
 
 ```
-Usage: cli rpc account-info [options] <address>
+Usage: xno-skills rpc account-info [options] <address>
 
 Fetch account info including frontier and balance
 

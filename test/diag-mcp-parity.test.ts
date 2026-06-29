@@ -16,6 +16,7 @@ type SystemInfo = {
   localPowRecommended: boolean;
   effectiveRpcUrls: string[];
   effectiveWorkUrls: string[];
+  advisory?: string;
 };
 
 function getText(result: unknown): string {
@@ -76,5 +77,10 @@ describe('diag parity: CLI --json vs MCP system_diag', () => {
 
   it('reports same environment.mockOws', () => {
     expect(cliDiag.environment.mockOws).toBe(mcpDiag.environment.mockOws);
+  });
+
+  it('does not include live probe results in diagnostics', () => {
+    expect(cliDiag).not.toHaveProperty('remoteWorkProbe');
+    expect(mcpDiag).not.toHaveProperty('remoteWorkProbe');
   });
 });

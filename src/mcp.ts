@@ -404,10 +404,11 @@ mcpServer.registerTool('system_diag', {
     const { recommendLocalPow } = await import('nano-rspow-node');
     localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
   } catch {}
+  const effectiveWorkUrls = resolveEffectiveWorkUrls(cfg);
   return toToolSuccess(getSystemInfo({
     localPowRecommended,
     effectiveRpcUrls: resolveEffectiveRpcUrls(undefined, cfg),
-    effectiveWorkUrls: resolveEffectiveWorkUrls(cfg),
+    effectiveWorkUrls,
   }));
 });
 
@@ -733,9 +734,10 @@ mcpServer.registerTool('util_qr', {
 // ── rpc ────────────────────────────────────────────────────────────────────
 
 mcpServer.registerTool('rpc_probe_caps', {
-  description: 'Probe a Nano node RPC for capabilities: version, ledger-read, and remote PoW (work_generate) support.',
+  description: 'Probe Nano node RPC capabilities: JSON RPC, version, ledger-read, process, and remote PoW (work_generate) support.',
   inputSchema: {
-    rpcUrl: z.string().optional().describe('RPC URL to probe (defaults to configured URL)'),
+    rpcUrl: z.string().optional().describe('RPC URL(s) to probe, comma-separated (defaults to configured URL)'),
+    timeoutMs: z.number().optional().describe('Timeout per probe in milliseconds'),
   },
   annotations: READONLY_EXTERNAL,
 }, async (args) => {
@@ -743,7 +745,7 @@ mcpServer.registerTool('rpc_probe_caps', {
     const cfg = requireFreshConfig();
     const targetUrl = args.rpcUrl ?? (cfg.rpcUrl || process.env.NANO_RPC_URL || DEFAULT_RPC_URLS[0]);
     const client = getNanoClient(targetUrl);
-    return toToolSuccess(await rpcProbeCaps(client, targetUrl, { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS }));
+    return toToolSuccess(await rpcProbeCaps(client, targetUrl, { timeoutMs: args.timeoutMs ?? cfg.timeoutMs ?? DEFAULT_TIMEOUT_MS }));
   } catch (error) { return toToolError(error); }
 });
 
