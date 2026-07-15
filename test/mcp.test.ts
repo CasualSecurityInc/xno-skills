@@ -215,9 +215,10 @@ describe('MCP Server Integration', () => {
 
     expect(result.isError).toBeFalsy();
     const out = JSON.parse(getText(result));
-    expect(out).toBeInstanceOf(Array);
-    expect(out.length).toBeGreaterThanOrEqual(1);
-    expect(out[0].id).toBeDefined();
+    expect(out.items).toBeInstanceOf(Array);
+    expect(out.items.length).toBeGreaterThanOrEqual(1);
+    expect(out.items[0].id).toBeDefined();
+    expect(out.total).toBeGreaterThanOrEqual(1);
   });
 
   it('should filter payment requests by status', async () => {
@@ -228,7 +229,7 @@ describe('MCP Server Integration', () => {
 
     expect(result.isError).toBeFalsy();
     const out = JSON.parse(getText(result));
-    for (const r of out) {
+    for (const r of out.items) {
       expect(r.status).toBe("pending");
     }
   });
@@ -269,7 +270,7 @@ describe('MCP Server Integration', () => {
 
     expect(result.isError).toBeFalsy();
     const out = JSON.parse(getText(result));
-    expect(out).toBeInstanceOf(Array);
+    expect(out.items).toBeInstanceOf(Array);
   });
 
   it('should set maxSendXno via config_set', async () => {
