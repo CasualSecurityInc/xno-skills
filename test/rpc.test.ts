@@ -18,11 +18,11 @@ function mockRpcFetch(handler: (body: any) => Response | Promise<Response>): voi
 }
 
 describe('rpcAccountBalance', () => {
-  it('accepts valid Nano address', async () => {
+  it('accepts valid Nano address', { timeout: 3000 }, async () => {
     const address = 'nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d';
     const client = NanoClient.initialize({ rpc: ['https://example.invalid'] });
     
-    await expect(rpcAccountBalance(client, address)).rejects.toThrow();
+    await expect(rpcAccountBalance(client, address, { timeoutMs: 1500 })).rejects.toThrow();
   });
 });
 
