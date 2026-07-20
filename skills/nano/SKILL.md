@@ -83,7 +83,7 @@ When the environment provides `xno-mcp` tools (`wallet_list`, `wallet_send`, `wa
 
 If the client supports MCP, set it up as a "stdio" type MCP server:
 
-    npx -y -p xno-skills@4.5.1 -- mcp
+    npx -y -p xno-skills@4.5.2 -- mcp
 
 MCP is the primary execution path because tools, schemas, and results are structured for the client. Use the included CLI script (`xno-skills`) only as a fallback when MCP is unavailable or the client cannot attach MCP servers. MCP and the CLI target EXACTLY the same underlying code paths — two access paths, not two different products.
 
@@ -92,16 +92,16 @@ MCP is the primary execution path because tools, schemas, and results are struct
 If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage, fall back to the `xno-skills` CLI in this priority order:
 
 ```
-1. bunx -y xno-skills@4.5.1 <command>
-2. pnpm dlx xno-skills@4.5.1 <command>
-3. npx -y xno-skills@4.5.1 <command>
+1. bunx -y xno-skills@4.5.2 <command>
+2. pnpm dlx xno-skills@4.5.2 <command>
+3. npx -y xno-skills@4.5.2 <command>
 ```
 
 Do **not** assume `xno-skills` is installed globally. Always use one of the above forms with `@latest` to get critical bugfixes and to prevent interactive prompts from freezing.
 
 Before guessing a subcommand, run `--help`:
 ```bash
-bunx -y xno-skills@4.5.1 --help
+bunx -y xno-skills@4.5.2 --help
 ```
 
 ### 3. Wallet lifecycle → `ows` skill only
@@ -130,7 +130,7 @@ When the user asks for an account, block, transaction, or explorer link, always 
 - **Proactivity on pending funds**: If you see pending funds during any balance check, call `wallet_receive` immediately. Do not wait for the user to ask.
 - **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `wallet_receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
 - **No mnemonic exports**: Never call `ows wallet export` or suggest exporting to a third-party wallet unless the user explicitly commands it.
-- **Supply chain**: Only use `xno-skills@4.5.1` and `@open-wallet-standard/core`. No other npm packages.
+- **Supply chain**: Only use `xno-skills@4.5.2` and `@open-wallet-standard/core`. No other npm packages.
 - **Stop-loss**: If you have made 5 tool calls without completing the operation, stop and report what you tried, what failed, and ask for guidance. Hard limits: max 3 retries of the same failing tool; max 2 `config_set` RPC endpoint switches.
 
 ---
@@ -161,8 +161,8 @@ To **create** a new wallet, delegate to the `ows` skill. Then return here for al
 
 **Via CLI (required flags only):**
 ```bash
-bunx -y xno-skills@4.5.1 balance --wallet "my-wallet"
-bunx -y xno-skills@4.5.1 rpc account-balance <address>
+bunx -y xno-skills@4.5.2 balance --wallet "my-wallet"
+bunx -y xno-skills@4.5.2 rpc account-balance <address>
 ```
 
 Full options: [balance](references/balance.md), [rpc_account-balance](references/rpc_account-balance.md)
@@ -193,7 +193,7 @@ A Nano transfer shows as **pending** until the recipient publishes a receive blo
 
 **Via CLI (required flags only):**
 ```bash
-bunx -y xno-skills@4.5.1 receive --wallet "my-wallet"
+bunx -y xno-skills@4.5.2 receive --wallet "my-wallet"
 ```
 
 Full options: [receive](references/receive.md)
@@ -225,7 +225,7 @@ The account must be opened (have a receive block) and have sufficient balance.
 
 **Via CLI (required flags only):**
 ```bash
-bunx -y xno-skills@4.5.1 send --wallet "my-wallet" --to "nano_..." --amount-xno 0.01
+bunx -y xno-skills@4.5.2 send --wallet "my-wallet" --to "nano_..." --amount-xno 0.01
 ```
 
 Full options: [send](references/send.md)
@@ -341,7 +341,7 @@ Generates a terminal-friendly ASCII QR code for a Nano address, optionally with 
 
 **Via CLI (required args only):**
 ```bash
-bunx -y xno-skills@4.5.1 qr nano_1abc...
+bunx -y xno-skills@4.5.2 qr nano_1abc...
 ```
 
 Full options: [qr](references/qr.md)
@@ -368,7 +368,7 @@ All validation is **offline** — no network required.
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@4.5.1 validate nano_1abc...
+bunx -y xno-skills@4.5.2 validate nano_1abc...
 ```
 
 Full options: [validate](references/validate.md)
@@ -395,10 +395,10 @@ XNO uses **30 decimal places**. Floating-point arithmetic is unsafe. Always use 
 
 **Via CLI:**
 ```bash
-bunx -y xno-skills@4.5.1 convert 1 xno       # all units
-bunx -y xno-skills@4.5.1 convert 1 knano
-bunx -y xno-skills@4.5.1 convert 1000000000000000000000000000000 raw
-bunx -y xno-skills@4.5.1 convert 1 xno --json
+bunx -y xno-skills@4.5.2 convert 1 xno       # all units
+bunx -y xno-skills@4.5.2 convert 1 knano
+bunx -y xno-skills@4.5.2 convert 1000000000000000000000000000000 raw
+bunx -y xno-skills@4.5.2 convert 1 xno --json
 ```
 
 Full options: [convert](references/convert.md)
@@ -424,20 +424,20 @@ Present the user with this command to run locally:
 
 ```bash
 # Sign — run this yourself, replacing the placeholder with your actual key
-bunx -y xno-skills@4.5.1 sign "<message>" --key YOUR_PRIVATE_KEY_HEX
+bunx -y xno-skills@4.5.2 sign "<message>" --key YOUR_PRIVATE_KEY_HEX
 
 # Sign with JSON output
-bunx -y xno-skills@4.5.1 sign "<message>" --key YOUR_PRIVATE_KEY_HEX --json
+bunx -y xno-skills@4.5.2 sign "<message>" --key YOUR_PRIVATE_KEY_HEX --json
 ```
 
 For verify, the agent *can* run this directly (no secret material involved):
 
 ```bash
 # Verify
-bunx -y xno-skills@4.5.1 verify <nano_address> "<message>" <signature-hex>
+bunx -y xno-skills@4.5.2 verify <nano_address> "<message>" <signature-hex>
 
 # Verify with JSON output
-bunx -y xno-skills@4.5.1 verify <nano_address> "<message>" <signature-hex> --json
+bunx -y xno-skills@4.5.2 verify <nano_address> "<message>" <signature-hex> --json
 ```
 
 **NOMS standard (ORIS-001)**: Signatures are computed over a binary payload with a magic header, ensuring a valid signature cannot be misinterpreted as a Nano transaction block.
@@ -512,7 +512,7 @@ PoW input:
 { "name": "wallet_change_rep", "arguments": { "wallet": "my-wallet", "representative": "nano_..." } }
 ```
 ```bash
-bunx -y xno-skills@4.5.1 change-rep --wallet "my-wallet" --representative "nano_..."
+bunx -y xno-skills@4.5.2 change-rep --wallet "my-wallet" --representative "nano_..."
 ```
 
 Full options: [change-rep](references/change-rep.md)
