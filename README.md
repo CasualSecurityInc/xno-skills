@@ -107,6 +107,25 @@ Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://gi
 
 Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Codex, etc.). MCP resources (`xno-wallet://` URIs) are served but require client-side `resources/read` support — not yet available in OpenCode ([#15535](https://github.com/anomalyco/opencode/issues/15535)).
 
+**Preferred** (global install — avoids `npx` concurrency handshake failures):
+
+```bash
+npm install -g xno-skills@4.5.2
+```
+
+```json
+{
+  "mcpServers": {
+    "nano": {
+      "command": "xno-skills",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**Fallback** (if global install is not possible):
+
 ```json
 {
   "mcpServers": {
@@ -125,6 +144,13 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 <summary>Codex</summary>
 
 ```bash
+# Preferred (after npm install -g xno-skills@4.5.2):
+codex mcp add nano \
+  -c sandbox_mode="danger-full-access" \
+  -c 'sandbox_permissions=["network-access"]' \
+  -- xno-skills mcp
+
+# Fallback:
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
@@ -139,8 +165,8 @@ codex mcp add nano \
 {
   "mcpServers": {
     "nano": {
-      "command": "npx",
-      "args": ["-y", "-p", "xno-skills@4.5.2", "xno-mcp"]
+      "command": "xno-skills",
+      "args": ["mcp"]
     }
   }
 }
@@ -156,7 +182,7 @@ codex mcp add nano \
   "mcp": {
     "nano": {
       "type": "local",
-      "command": ["npx", "-y", "-p", "xno-skills@4.5.2", "xno-mcp"],
+      "command": ["xno-skills", "mcp"],
       "enabled": true
     }
   }
@@ -171,8 +197,8 @@ codex mcp add nano \
 {
   "mcpServers": {
     "nano": {
-      "command": "npx",
-      "args": ["-y", "-p", "xno-skills@4.5.2", "xno-mcp"]
+      "command": "xno-skills",
+      "args": ["mcp"]
     }
   }
 }
@@ -186,8 +212,8 @@ codex mcp add nano \
 {
   "mcpServers": {
     "nano": {
-      "command": "npx",
-      "args": ["-y", "-p", "xno-skills@4.5.2", "xno-mcp"]
+      "command": "xno-skills",
+      "args": ["mcp"]
     }
   }
 }
@@ -202,8 +228,8 @@ codex mcp add nano \
   "servers": {
     "nano": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "-p", "xno-skills@4.5.2", "xno-mcp"]
+      "command": "xno-skills",
+      "args": ["mcp"]
     }
   }
 }

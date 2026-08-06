@@ -831,24 +831,47 @@ blockCmd
 const mcpHelp = `
 Configuration for popular AI agent harnesses:
 
+Preferred (global install — avoids npx concurrency handshake failures):
+
+  npm install -g xno-skills@4.5.2
+
 1. Claude Desktop / Cursor / Roo Code (in config.json):
 {
   "mcpServers": {
     "xno": {
-      "command": "npx",
-      "args": ["-y", "xno-skills@latest", "mcp"]
+      "command": "xno-skills",
+      "args": ["mcp"]
     }
   }
 }
 
 2. Gemini CLI:
-  gemini mcp add xno npx -y xno-skills@latest mcp
+  gemini mcp add xno xno-skills mcp
 
 3. Claude Code:
-  claude mcp add xno npx -y xno-skills@latest mcp
+  claude mcp add xno xno-skills mcp
+
+Fallback (if global install is not possible):
+
+1. Claude Desktop / Cursor / Roo Code (in config.json):
+{
+  "mcpServers": {
+    "xno": {
+      "command": "npx",
+      "args": ["-y", "xno-skills@4.5.2", "mcp"]
+    }
+  }
+}
+
+2. Gemini CLI:
+  gemini mcp add xno npx -y xno-skills@4.5.2 mcp
+
+3. Claude Code:
+  claude mcp add xno npx -y xno-skills@4.5.2 mcp
 
 To run the MCP server directly in this terminal:
-  npx -y xno-skills mcp
+  xno-skills mcp        (if globally installed)
+  npx -y xno-skills mcp (fallback)
 `;
 
 program

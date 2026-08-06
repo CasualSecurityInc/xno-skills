@@ -19,7 +19,7 @@ if (existing !== content) {
 // Pin xno-skills@latest / xno-skills@x.y.z to current version in SKILL.md and README.md
 const versionPin = (src) => src.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
 
-for (const rel of ['skills/nano/SKILL.md', 'README.md']) {
+for (const rel of ['skills/nano/SKILL.md', 'README.md', 'src/cli.ts']) {
   const filePath = resolve(__dirname, '..', rel);
   const src = readFileSync(filePath, 'utf8');
   const pinned = versionPin(src);

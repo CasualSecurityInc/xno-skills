@@ -81,27 +81,37 @@ This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: 
 
 When the environment provides `xno-mcp` tools (`wallet_list`, `wallet_send`, `wallet_receive`, `wallet_balance`, `util_convert`, `util_qr`, `util_validate`, `rpc_account_balance`, `payment_create`, etc.) — **always use them first**. They handle signing, PoW, and broadcast automatically via OWS.
 
-If the client supports MCP, set it up as a "stdio" type MCP server:
+If the client supports MCP, set it up as a "stdio" type MCP server.
 
-    npx -y -p xno-skills@4.5.2 -- mcp
+**Preferred — global install** (avoids `npx` concurrency issues that cause handshake failures):
+
+    npm install -g xno-skills@4.5.2
+    xno-skills mcp
+
+**Fallback** (only if global install is not possible):
+
+    npx -y xno-skills@4.5.2 mcp
+
+> **Why not `npx` by default?** When multiple agent sessions start concurrently, `npx` can fail during package resolution — the second process exits before the MCP handshake completes. A global install eliminates this race.
 
 MCP is the primary execution path because tools, schemas, and results are structured for the client. Use the included CLI script (`xno-skills`) only as a fallback when MCP is unavailable or the client cannot attach MCP servers. MCP and the CLI target EXACTLY the same underlying code paths — two access paths, not two different products.
 
 ### 2. Fall back to CLI only when MCP is unavailable
 
-If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage, fall back to the `xno-skills` CLI in this priority order:
+If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage, use the `xno-skills` CLI in this priority order:
 
 ```
-1. bunx -y xno-skills@4.5.2 <command>
-2. pnpm dlx xno-skills@4.5.2 <command>
-3. npx -y xno-skills@4.5.2 <command>
+1. xno-skills <command>              (global install — preferred)
+2. bunx -y xno-skills@4.5.2 <command>
+3. pnpm dlx xno-skills@4.5.2 <command>
+4. npx -y xno-skills@4.5.2 <command>
 ```
 
-Do **not** assume `xno-skills` is installed globally. Always use one of the above forms with `@latest` to get critical bugfixes and to prevent interactive prompts from freezing.
+If the global `xno-skills` binary is not available, fall through to the next option. Always pin the version (`@4.5.2`) with `bunx`/`pnpm dlx`/`npx` to prevent interactive prompts from freezing.
 
 Before guessing a subcommand, run `--help`:
 ```bash
-bunx -y xno-skills@4.5.2 --help
+xno-skills --help              # or: bunx -y xno-skills@4.5.2 --help
 ```
 
 ### 3. Wallet lifecycle → `ows` skill only
