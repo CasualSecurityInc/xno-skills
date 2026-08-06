@@ -1,7 +1,7 @@
 {
   "serverInfo": {
     "name": "xno-skills",
-    "version": "4.5.2"
+    "version": "4.6.0"
   },
   "authentication": {
     "required": false,
