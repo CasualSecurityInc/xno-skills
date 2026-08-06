@@ -8,6 +8,28 @@ A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on t
 
 ![xno-skills CLI preview](assets/xno-skills-cli.png)
 
+## Design Overview
+
+```text
+CLI/MCP transaction command
+        ↓
+build unsigned Nano state block
+        ↓
+OWS signs the block hash
+        ↓
+choose work root + threshold
+        ↓
+local PoW, or remote work_generate → local fallback
+        ↓
+attach signature + work
+        ↓
+RPC process
+```
+
+xno-skills separates block construction, signing, proof of work, and publication. The CLI and MCP server use the same transaction code. The transaction code reads the account frontier and balance, builds the state block, and asks OWS to sign it without exposing wallet keys. It selects the Nano work root and threshold from the block subtype.
+
+PoW runs locally through `nano-rspow-node` when recommended. Otherwise, xno-skills tries the configured `work_generate` endpoints and falls back to local generation if they fail. It then attaches the signature and work nonce and publishes the block with RPC `process`. Send and representative-change blocks use the send threshold. Receive and open blocks use the lower receive threshold. Open blocks use the account public key as their work root.
+
 ## Agent Skills
 
 [![smithery badge](https://smithery.ai/badge/casualsecurityinc/xno-skills)](https://smithery.ai/servers/casualsecurityinc/xno-skills)

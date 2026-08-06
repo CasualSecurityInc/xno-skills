@@ -199,7 +199,7 @@ async function signWorkAndProcess(
     wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
   }
 
-  // 2. Generate PoW via WorkProvider (local-first: WebGPU → WebGL → WASM → remote)
+  // 2. Generate PoW via the injected provider (local nano-rspow-node, or remote with local fallback)
   const difficulty = (subtype === 'open' || subtype === 'receive') ? WorkType.Receive : WorkType.Send;
   const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
 
