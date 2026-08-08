@@ -9,4 +9,8 @@ coverage/
 *.tsbuildinfo
 .playwright-mcp/
 server.mcpb
+smithery-*.tgz
+.antigravitycli/
+.sisyphus/
+.kilo/plans/
 interview/

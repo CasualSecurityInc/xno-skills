@@ -2,8 +2,8 @@ name: Publish Skill (ClawHub)
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
