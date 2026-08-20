@@ -137,7 +137,7 @@ When the user asks for an account, block, transaction, or explorer link, always 
 
 - **State verification**: Always fetch balance and frontier via RPC before manually building a block. Never hallucinate previous hashes.
 - **PoW is automatic**: MCP tools and the CLI both handle PoW internally. Never attempt to supply or generate PoW manually.
-- **Proactivity on pending funds**: If you see pending funds during any balance check, call `wallet_receive` immediately. Do not wait for the user to ask.
+- **Pre-send state**: Before `wallet_send`, inspect the source wallet's confirmed balance and total receivable amount with `wallet_balance`. If confirmed funds cannot cover the requested send and receivables are needed, call `wallet_receive`, then recheck. Do not submit receive blocks merely because unrelated funds are pending.
 - **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `wallet_receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
 - **No mnemonic exports**: Never call `ows wallet export` or suggest exporting to a third-party wallet unless the user explicitly commands it.
 - **Supply chain**: Only use `xno-skills@4.7.0` and `@open-wallet-standard/core`. No other npm packages.
@@ -182,7 +182,7 @@ Full options: [balance](references/balance.md), [rpc_account-balance](references
 - `https://nanoslo.0x.no/proxy` (secondary)
 - `https://rpc.nano.to` (tertiary)
 
-**If you see pending funds: receive them immediately** (see Receiving Funds section).
+Pending funds are not spendable. Receive them only when the user asks to claim them or they are needed for the requested operation (see Receiving Funds section).
 
 ---
 
@@ -194,7 +194,7 @@ A Nano transfer shows as **pending** until the recipient publishes a receive blo
 
 > **OWS DOES support Nano block signing.** Never assume otherwise.
 
-**Mandate**: When funds are pending, call `wallet_receive`. Do not analyze whether the account "exists" first. Just call it.
+When receipt is requested or needed to fund a send, call `wallet_receive`. Do not treat an unopened account as a blocker: `wallet_receive` handles the open block.
 
 **Via MCP:**
 ```json
@@ -227,6 +227,8 @@ If no `defaultRepresentative` is configured via `config_set`, pass `representati
 ## Sending Funds
 
 The account must be opened (have a receive block) and have sufficient balance.
+
+**Preflight**: Call `wallet_balance` for the source wallet before each send. If its confirmed balance is insufficient but its receivable amount can cover the requested send, call `wallet_receive` and recheck before sending. Do not receive unrelated pending funds solely because they exist.
 
 **Via MCP:**
 ```json
@@ -697,6 +699,6 @@ On first use, the system probes local backends to build a local-first execution 
 ```
 1. wallet_list: {}                    → discover "my-wallet" exists
 2. wallet_balance: { wallet: "my-wallet" }    → check balance / pending
-3. wallet_receive: { wallet: "my-wallet" }    → pocket any pending funds
+3. wallet_receive: { wallet: "my-wallet" }    → only if receipt was requested or pending funds are needed
 4. wallet_send: { wallet: "my-wallet", destination: "nano_...", amountXno: "0.01" }
 ```
