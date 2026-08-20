@@ -12,7 +12,7 @@ Configuration for popular AI agent harnesses:
 
 Preferred (global install — avoids npx concurrency handshake failures):
 
-  npm install -g xno-skills@4.6.1
+  npm install -g xno-skills@4.7.0
 
 1. Claude Desktop / Cursor / Roo Code (in config.json):
 {
@@ -37,16 +37,16 @@ Fallback (if global install is not possible):
   "mcpServers": {
     "xno": {
       "command": "npx",
-      "args": ["-y", "xno-skills@4.6.1", "mcp"]
+      "args": ["-y", "xno-skills@4.7.0", "mcp"]
     }
   }
 }
 
 2. Gemini CLI:
-  gemini mcp add xno npx -y xno-skills@4.6.1 mcp
+  gemini mcp add xno npx -y xno-skills@4.7.0 mcp
 
 3. Claude Code:
-  claude mcp add xno npx -y xno-skills@4.6.1 mcp
+  claude mcp add xno npx -y xno-skills@4.7.0 mcp
 
 To run the MCP server directly in this terminal:
   xno-skills mcp        (if globally installed)
