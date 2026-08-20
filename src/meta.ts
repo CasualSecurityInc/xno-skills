@@ -99,9 +99,9 @@ function getEnvVars(): EnvVarEntry[] {
     },
     {
       name: 'XNO_FORCE_LOCAL_POW',
-      defaultValue: '(from nano-rspow-node recommendLocalPow())',
+      defaultValue: '(from nano-core recommendLocalPow())',
       effectiveValue: process.env.XNO_FORCE_LOCAL_POW,
-      description: 'Force Local PoW recommendation true/false (overrides nano-rspow-node recommendation)',
+      description: 'Force Local PoW recommendation true/false (overrides nano-core recommendation)',
     },
     {
       name: 'XNO_MCP_HOME',

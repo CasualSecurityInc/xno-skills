@@ -28,7 +28,7 @@ RPC process
 
 xno-skills separates block construction, signing, proof of work, and publication. The CLI and MCP server use the same transaction code. The transaction code reads the account frontier and balance, builds the state block, and asks OWS to sign it without exposing wallet keys. It selects the Nano work root and threshold from the block subtype.
 
-PoW runs locally through `nano-rspow-node` when recommended. Otherwise, xno-skills tries the configured `work_generate` endpoints and falls back to local generation if they fail. It then attaches the signature and work nonce and publishes the block with RPC `process`. Send and representative-change blocks use the send threshold. Receive and open blocks use the lower receive threshold. Open blocks use the account public key as their work root.
+PoW runs locally through the `nano-core` work provider when recommended. Otherwise, xno-skills tries the configured `work_generate` endpoints and falls back to local generation if they fail. It then attaches the signature and work nonce and publishes the block with RPC `process`. Send and representative-change blocks use the send threshold. Receive and open blocks use the lower receive threshold. Open blocks use the account public key as their work root.
 
 ## Agent Skills
 

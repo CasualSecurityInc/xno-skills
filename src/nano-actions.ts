@@ -172,7 +172,7 @@ function wrapError(error: unknown, code: string, step: NanoActionStep, message: 
 }
 
 /**
- * Sign a block with OWS, generate PoW via the configured WorkProvider (local-first),
+ * Sign a block with OWS, generate PoW via the selected local/remote provider,
  * then broadcast via rpcProcess. This replaces the monolithic OWS signAndSend which
  * uses a hardcoded rpc.nano.to endpoint for PoW regardless of config.
  */
@@ -199,7 +199,7 @@ async function signWorkAndProcess(
     wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
   }
 
-  // 2. Generate PoW via the injected provider (local nano-rspow-node, or remote with local fallback)
+  // 2. Generate PoW via the injected provider (local nano-core provider, or remote with local fallback)
   const difficulty = (subtype === 'open' || subtype === 'receive') ? WorkType.Receive : WorkType.Send;
   const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
 

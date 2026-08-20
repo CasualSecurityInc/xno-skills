@@ -502,7 +502,11 @@ Full options: [sign](references/sign.md), [verify](references/verify.md)
 ### PoW Thresholds (Epoch v2, 2026)
 
 - Send / Change: `fffffff800000000`
-- Receive / Open: `fffffe0000000000`
+- Receive / Open / Epoch: `fffffe0000000000`
+
+Epoch blocks use the receive/open threshold above. The historical epoch-1
+threshold `ffffffc000000000` is legacy-only and must not be selected for
+current mainnet blocks.
 
 PoW input:
 - Open block (height 1): `blake2b(nonce || public_key)`

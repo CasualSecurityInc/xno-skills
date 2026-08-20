@@ -9,7 +9,7 @@ import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
-import { NanoClient, WorkProvider, NOMS } from '@openrai/nano-core';
+import { clearPowTuningCache, NanoClient, WorkProvider, NOMS, recommendLocalPow } from '@openrai/nano-core';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
 import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
@@ -63,10 +63,7 @@ function getNanoClient(options?: { urls?: string[] }): NanoClient {
   );
   return NanoClient.initialize({
     rpc: rpcUrls.length > 0 ? rpcUrls : DEFAULT_RPC_URLS,
-    workProvider: WorkProvider.auto({
-      localTimeoutMs: powTimeoutMs,
-      profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
-    }),
+    workProvider: WorkProvider.local({ localTimeoutMs: powTimeoutMs }),
   });
 }
 
@@ -83,7 +80,6 @@ function readersFor(options?: { urls?: string[] }) {
     workGenerate: async (hash: string, difficulty: string) => {
       let preferLocal = true;
       try {
-        const { recommendLocalPow } = await import('nano-rspow-node');
         preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
       } catch (e) {
         // ignore
@@ -883,7 +879,6 @@ program
   .action(async (options: { json?: boolean, retune?: boolean }) => {
     if (options.retune) {
       try {
-        const { clearPowTuningCache, recommendLocalPow } = await import('nano-rspow-node');
         clearPowTuningCache();
         recommendLocalPow(); // repopulates cache
         console.log('PoW tuning cache cleared and retuned.');
@@ -893,7 +888,6 @@ program
     }
     let localPowRecommended = false;
     try {
-      const { recommendLocalPow } = await import('nano-rspow-node');
       localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
     } catch (e) {}
     const effectiveWorkUrls = resolveEffectiveWorkUrls(config);

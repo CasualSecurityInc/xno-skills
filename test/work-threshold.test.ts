@@ -5,6 +5,7 @@ describe('normalizeRemoteWorkDifficulty', () => {
   it('maps symbolic work types to authoritative hex thresholds', () => {
     expect(normalizeRemoteWorkDifficulty('Send')).toBe('fffffff800000000');
     expect(normalizeRemoteWorkDifficulty('Receive')).toBe('fffffe0000000000');
+    expect(normalizeRemoteWorkDifficulty('LegacyEpoch1')).toBe('ffffffc000000000');
     expect(normalizeRemoteWorkDifficulty('Epoch1')).toBe('ffffffc000000000');
     expect(normalizeRemoteWorkDifficulty('Dev')).toBe('fe00000000000000');
   });

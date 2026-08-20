@@ -5,7 +5,7 @@ export enum WorkType {
   Receive = 'Receive',
 }
 
-const workProvider = WorkProvider.auto();
+const workProvider = WorkProvider.local();
 
 export function validateWork(work: string): void {
   if (!work || !/^[0-9A-F]{16}$/.test(work)) {
@@ -39,4 +39,3 @@ export async function localWorkGenerate(
 export function getThresholdForSubtype(subtype: 'send' | 'receive' | 'open' | 'change'): WorkType {
   return subtype === 'open' || subtype === 'receive' ? WorkType.Receive : WorkType.Send;
 }
-

@@ -10,7 +10,7 @@ import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { version } from './version.js';
-import { NOMS, NanoClient, WorkProvider } from '@openrai/nano-core';
+import { NOMS, NanoClient, WorkProvider, recommendLocalPow } from '@openrai/nano-core';
 import {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_REPRESENTATIVE,
@@ -154,10 +154,7 @@ function getNanoClient(explicitRpc?: string): NanoClient {
 
   const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
 
-  const workProvider = WorkProvider.auto({
-    localTimeoutMs: powTimeoutMs,
-    profiler: { mode: 'auto', preferLocalAboveMhs: 0, cacheStrategy: 'memory' },
-  });
+  const workProvider = WorkProvider.local({ localTimeoutMs: powTimeoutMs });
 
   const client = NanoClient.initialize({
     rpc: effectiveRpc,
@@ -186,7 +183,6 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
     workGenerate: async (hash: string, difficulty: string) => {
       let preferLocal = true;
       try {
-        const { recommendLocalPow } = await import('nano-rspow-node');
         preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
       } catch (e) {
         // ignore
@@ -412,7 +408,6 @@ mcpServer.registerTool('system_diag', {
   const cfg = requireFreshConfig();
   let localPowRecommended = false;
   try {
-    const { recommendLocalPow } = await import('nano-rspow-node');
     localPowRecommended = getEffectiveLocalPowRecommended(recommendLocalPow);
   } catch {}
   const effectiveWorkUrls = resolveEffectiveWorkUrls(cfg);
