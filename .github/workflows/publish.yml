@@ -61,6 +61,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Verify generated files are committed
+        run: npm run check:generated
+
       - name: Publish
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -86,5 +89,4 @@ jobs:
         env:
           SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}
         run: npx @smithery/cli@latest mcp publish ./server.mcpb -n casualsecurityinc/xno-skills
-
 

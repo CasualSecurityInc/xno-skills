@@ -15,7 +15,7 @@
 - Relative imports in source must include `.js` extensions.
 
 ## Generated Artifacts
-- `scripts/update-version.js` syncs `src/version.ts`, `README.md`, and `skills/nano/SKILL.md` from `package.json`.
+- `scripts/update-version.js` syncs `src/version.ts`, `README.md`, `src/cli.ts`, and `skills/nano/SKILL.md` from `package.json`.
 - `npm run build` / `npm run build:esm` also regenerate `mcpb/server-card.json`, `.claude-plugin/marketplace.json`, and `skills/nano/references/*.md`.
 
 ## Nano / OWS Constraints
