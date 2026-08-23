@@ -1,11 +1,11 @@
-import { WorkProvider } from '@openrai/nano-core';
+import { createNodePowEngine, WorkProvider } from '@openrai/nano-core/node';
 
 export enum WorkType {
   Send = 'Send',
   Receive = 'Receive',
 }
 
-const workProvider = WorkProvider.local();
+const workProvider = WorkProvider.local({ localEngine: createNodePowEngine() });
 
 export function validateWork(work: string): void {
   if (!work || !/^[0-9A-F]{16}$/.test(work)) {

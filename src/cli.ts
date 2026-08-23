@@ -9,10 +9,11 @@ import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
-import { clearPowTuningCache, NanoClient, WorkProvider, NOMS, recommendLocalPow } from '@openrai/nano-core';
+import { clearPowTuningCache, createNodePowEngine, NanoClient, WorkProvider, NOMS, recommendLocalPow } from '@openrai/nano-core/node';
+import type { NanoClient as CoreNanoClient } from '@openrai/nano-core';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
-import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -29,13 +30,12 @@ import {
   toToolError,
   verifyNanoMessage,
 } from './nano-actions.js';
-import { loadConfig, loadTransactions, type XnoConfig } from './state-store.js';
+import { loadConfig, type XnoConfig } from './state-store.js';
 
 import { getAsciiArtBanner } from './banner.js';
 
 const program = new Command();
 const config: XnoConfig = loadConfig();
-const transactions = loadTransactions();
 
 function logTiming(scope: string, message: string): void {
   process.stderr.write(`[${scope}] ${message}\n`);
@@ -53,21 +53,21 @@ function effectivePowTimeoutMs(config: XnoConfig): number {
   return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
 }
 
-function getNanoClient(options?: { urls?: string[] }): NanoClient {
+function getNanoClient(options?: { urls?: string[] }): CoreNanoClient {
   const rpcUrls = options?.urls?.length ? options.urls : resolveEffectiveRpcUrls(undefined, config);
   const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
   const powTimeoutMs = effectivePowTimeoutMs(config);
   logTiming(
     'xno-cli',
-    `NanoClient init rpc=[${rpcUrls.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    `NanoClient init rpc=[${rpcUrls.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
   return NanoClient.initialize({
     rpc: rpcUrls.length > 0 ? rpcUrls : DEFAULT_RPC_URLS,
-    workProvider: WorkProvider.local({ localTimeoutMs: powTimeoutMs }),
+    workProvider: WorkProvider.local({ localEngine: createNodePowEngine(), localTimeoutMs: powTimeoutMs }),
   });
 }
 
-let gpuProbeLogged = false;
+let localPowRecommendationLogged = false;
 
 function readersFor(options?: { urls?: string[] }) {
   const client = getNanoClient(options);
@@ -88,17 +88,17 @@ function readersFor(options?: { urls?: string[] }) {
       const workUrls = !preferLocal ? resolveEffectiveWorkUrls(config) : [];
 
 
-      if (!gpuProbeLogged) {
-        gpuProbeLogged = true;
+      if (!localPowRecommendationLogged) {
+        localPowRecommendationLogged = true;
         if (preferLocal) {
-          logTiming('xno-cli', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+          logTiming('xno-cli', '(cached) Local PoW recommended');
         }
       }
       const startedAt = Date.now();
 
       if (workUrls.length > 0) {
         const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
-        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.join(',')}`);
+        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`);
         try {
           const workClient = getNanoClient({ urls: workUrls });
           const res = await nanoRpcCall<{ work: string }>(
@@ -223,7 +223,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; hash?: string; count: number; json?: boolean }) => {
     try {
-      const result = await executeReceive(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), {
+      const result = await executeReceive(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), {
         index: 0,
         count: options.count,
         onlyHash: options.hash,
@@ -254,7 +254,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; to: string; amountXno: string; json?: boolean }) => {
     try {
-      const result = await executeSend(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.to, options.amountXno, { index: 0 });
+      const result = await executeSend(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.to, options.amountXno, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`From: ${result.from}`);
@@ -276,7 +276,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; representative: string; json?: boolean }) => {
     try {
-      const result = await executeChange(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.representative, { index: 0 });
+      const result = await executeChange(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.representative, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -298,7 +298,7 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; json?: boolean }) => {
     try {
-      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config }, readersFor(), options.txHex, options.subtype, { index: 0 });
+      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.txHex, options.subtype, { index: 0 });
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);

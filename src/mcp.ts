@@ -10,7 +10,8 @@ import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { version } from './version.js';
-import { NOMS, NanoClient, WorkProvider, recommendLocalPow } from '@openrai/nano-core';
+import { createNodePowEngine, NOMS, NanoClient, WorkProvider, recommendLocalPow } from '@openrai/nano-core/node';
+import type { NanoClient as CoreNanoClient } from '@openrai/nano-core';
 import {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_REPRESENTATIVE,
@@ -42,7 +43,7 @@ import {
   type TransactionRecord,
   type XnoConfig,
 } from './state-store.js';
-import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import { listWalletsProxy } from './ows.js';
 
 // ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ type McpState = {
   config: XnoConfig;
   paymentRequests: Map<string, PaymentRequest>;
   transactions: TransactionRecord[];
-  nanoClient?: NanoClient;
+  nanoClient?: CoreNanoClient;
 };
 
 const state: McpState = {
@@ -135,7 +136,7 @@ function requireFreshConfig(): XnoConfig {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getNanoClient(explicitRpc?: string): NanoClient {
+function getNanoClient(explicitRpc?: string): CoreNanoClient {
   const cfg = requireFreshConfig();
   const rpc = explicitRpc
     ? explicitRpc.split(',').filter(Boolean)
@@ -149,12 +150,12 @@ function getNanoClient(explicitRpc?: string): NanoClient {
   const powTimeoutMs = effectivePowTimeoutMs(cfg);
   logTiming(
     'xno-mcp',
-    `NanoClient init rpc=[${rpc.join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    `NanoClient init rpc=[${rpc.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
   );
 
   const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
 
-  const workProvider = WorkProvider.local({ localTimeoutMs: powTimeoutMs });
+  const workProvider = WorkProvider.local({ localEngine: createNodePowEngine(), localTimeoutMs: powTimeoutMs });
 
   const client = NanoClient.initialize({
     rpc: effectiveRpc,
@@ -168,7 +169,7 @@ function getNanoClient(explicitRpc?: string): NanoClient {
   return client;
 }
 
-let gpuProbeLogged = false;
+let localPowRecommendationLogged = false;
 
 function readersFor(explicitRpcUrl?: string): NanoReaders {
   const cfg = requireFreshConfig();
@@ -190,17 +191,17 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
 
       const workUrls = !preferLocal ? resolveEffectiveWorkUrls(cfg) : [];
 
-      if (!gpuProbeLogged) {
-        gpuProbeLogged = true;
+      if (!localPowRecommendationLogged) {
+        localPowRecommendationLogged = true;
         if (preferLocal) {
-          logTiming('xno-mcp', 'Probing for GPU acceleration (OpenCL warning on systems without GPU is expected)...');
+          logTiming('xno-mcp', '(cached) Local PoW recommended');
         }
       }
       const startedAt = Date.now();
 
       if (workUrls.length > 0) {
         const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
-        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.join(',')}`);
+        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`);
         try {
           const workClient = getNanoClient(workUrls.join(','));
           const { nanoRpcCall } = await import('./rpc.js');

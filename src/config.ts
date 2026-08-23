@@ -36,4 +36,14 @@ export function resolveEffectiveRpcUrls(explicitRpc?: string, config?: XnoConfig
   return DEFAULT_RPC_URLS;
 }
 
+/** Format an endpoint for diagnostics without exposing credentials or query values. */
+export function redactUrlForLog(value: string): string {
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${url.host}${url.pathname}${url.search ? '?…' : ''}`;
+  } catch {
+    return '(invalid URL)';
+  }
+}
+
 export { DEFAULT_RPC_URLS };

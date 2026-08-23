@@ -13,8 +13,8 @@ export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7j
 const ZERO_32_HEX = '0'.repeat(64);
 const MOCK_TX_HASH = '0'.repeat(64);
 
-function logNanoAction(message: string): void {
-  process.stderr.write(`[xno-mcp] ${message}\n`);
+function logNanoAction(scope: string, message: string): void {
+  process.stderr.write(`[${scope}] ${message}\n`);
 }
 
 function elapsedMs(startedAt: number): number {
@@ -23,6 +23,10 @@ function elapsedMs(startedAt: number): number {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function getLogScope(ctx: NanoActionContext): string {
+  return ctx.logScope ?? 'xno-mcp';
 }
 
 type NanoActionStep =
@@ -61,6 +65,7 @@ export type NanoActionContext = {
   config: XnoConfig;
   appendTransaction?: (record: TransactionRecord) => void;
   reportProgress?: ProgressReporter;
+  logScope?: string;
 };
 
 export type NanoReaders = {
@@ -183,19 +188,20 @@ async function signWorkAndProcess(
   subtype: 'send' | 'receive' | 'open' | 'change',
   index: number,
   readers: NanoReaders,
+  logScope: string,
 ): Promise<{ txHash: string }> {
   const blockHex = buildNanoStateBlockHex(blockInput);
-  const blockHash = hashNanoStateBlockHex(blockInput);
+  const blockHash = hashNanoStateBlockHex(blockInput).toUpperCase();
 
   // 1. Sign with OWS (key custody only — no PoW, no broadcast)
   let signResult: { signature: string };
   const signStartedAt = Date.now();
-  logNanoAction(`sign_with_ows start subtype=${subtype} wallet=${walletName} blockHash=${blockHash}`);
+  logNanoAction(logScope, `sign_with_ows start subtype=${subtype} wallet=${walletName} blockHash=${blockHash}`);
   try {
     signResult = await signTransactionProxy(walletName, chainId, blockHex, undefined, index);
-    logNanoAction(`sign_with_ows ok subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)}`);
+    logNanoAction(logScope, `sign_with_ows ok subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)}`);
   } catch (error) {
-    logNanoAction(`sign_with_ows fail subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)} error=${describeError(error)}`);
+    logNanoAction(logScope, `sign_with_ows fail subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)} error=${describeError(error)}`);
     wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
   }
 
@@ -250,7 +256,7 @@ export function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): re
 }
 
 async function report(ctx: NanoActionContext, progress: number, total: number, message: string): Promise<void> {
-  process.stderr.write(`[xno-mcp] ${message}\n`);
+  process.stderr.write(`[${getLogScope(ctx)}] ${message}\n`);
   if (ctx.reportProgress) {
     await ctx.reportProgress(progress, total, message);
   }
@@ -439,7 +445,7 @@ export async function executeReceive(
     await report(ctx, 4, 5, `receive: submitting ${subtype} block ${i + 1}/${pending.length} for ${account.address}`);
     let submitted;
     try {
-      submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
+      submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers, getLogScope(ctx));
     } catch (error) {
       wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${subtype} block for ${account.address}`, {
         walletName,
@@ -466,7 +472,7 @@ export async function executeReceive(
     });
   }
 
-  await report(ctx, 5, 5, `receive: persisted ${received.length} block(s)`);
+  await report(ctx, 5, 5, `receive: submitted ${received.length} block(s)`);
 
   return {
     address: account.address,
@@ -488,7 +494,7 @@ export async function executeSend(
   const index = options.index ?? 0;
   const account = await resolveNanoWalletAccount(walletName, index);
   const amountRaw = nanoToRaw(amountXno);
-  logNanoAction(`send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`);
+  logNanoAction(getLogScope(ctx), `send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`);
 
   await report(ctx, 1, 4, `send: account_info for ${account.address}`);
   let info: AccountInfoResponse | NanoRpcErrorResponse;
@@ -535,7 +541,7 @@ export async function executeSend(
   await report(ctx, 3, 4, `send: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers);
+    submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers, getLogScope(ctx));
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
     const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
@@ -547,7 +553,7 @@ export async function executeSend(
       if (!isRpcError(info)) {
         sendBlockInput.previous = info.frontier;
         sendBlockInput.balanceRaw = (BigInt(info.balance) - BigInt(amountRaw)).toString();
-        submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers);
+        submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers, getLogScope(ctx));
       } else {
         throw error;
       }
@@ -560,8 +566,8 @@ export async function executeSend(
     }
   }
 
-  await report(ctx, 4, 4, `send: persisted ${submitted.txHash}`);
-  logNanoAction(`send ok wallet=${walletName} address=${account.address} destination=${destination} hash=${submitted.txHash}`);
+  await report(ctx, 4, 4, `send: submitted ${submitted.txHash}`);
+  logNanoAction(getLogScope(ctx), `send ok wallet=${walletName} address=${account.address} destination=${destination} hash=${submitted.txHash}`);
   ctx.appendTransaction?.({
     id: generateId(),
     owsWalletId: walletName,
@@ -616,7 +622,7 @@ export async function executeChange(
   await report(ctx, 3, 4, `change: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers);
+    submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers, getLogScope(ctx));
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
     const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
@@ -628,7 +634,7 @@ export async function executeChange(
       if (!isRpcError(info)) {
         changeBlockInput.previous = info.frontier;
         changeBlockInput.balanceRaw = info.balance;
-        submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers);
+        submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers, getLogScope(ctx));
       } else {
         throw error;
       }
@@ -641,7 +647,7 @@ export async function executeChange(
     }
   }
 
-  await report(ctx, 4, 4, `change: persisted ${submitted.txHash}`);
+  await report(ctx, 4, 4, `change: submitted ${submitted.txHash}`);
   ctx.appendTransaction?.({
     id: generateId(),
     owsWalletId: walletName,
@@ -673,7 +679,7 @@ export async function submitPreparedBlock(
   const blockInput = parseNanoStateBlockHex(txHex);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers);
+    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers, getLogScope(ctx));
   } catch (error) {
     wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit prepared ${subtype} block for ${account.address}`, {
       walletName,
@@ -682,7 +688,7 @@ export async function submitPreparedBlock(
     }, true);
   }
 
-  await report(ctx, 2, 2, `submit-block: persisted ${submitted.txHash}`);
+  await report(ctx, 2, 2, `submit-block: submitted ${submitted.txHash}`);
   return { hash: submitted.txHash, address: account.address, subtype };
 }
 

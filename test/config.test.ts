@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { resolveEffectiveRpcUrls, resolveEffectiveWorkUrls, DEFAULT_RPC_URLS } from '../src/config.js';
+import { redactUrlForLog, resolveEffectiveRpcUrls, resolveEffectiveWorkUrls, DEFAULT_RPC_URLS } from '../src/config.js';
 import type { XnoConfig } from '../src/state-store.js';
 
 const ENV_KEYS = ['NANO_RPC_URL', 'NANO_WORK_URL'];
@@ -108,6 +108,16 @@ describe('resolveEffectiveWorkUrls', () => {
       'https://a.example/api',
       'https://b.example/api',
     ]);
+  });
+});
+
+describe('redactUrlForLog', () => {
+  it('removes credentials and query values from an endpoint', () => {
+    expect(redactUrlForLog('https://user:secret@rpc.example/api?api_key=token')).toBe('https://rpc.example/api?…');
+  });
+
+  it('does not log invalid endpoint input', () => {
+    expect(redactUrlForLog('not a URL')).toBe('(invalid URL)');
   });
 });
 
