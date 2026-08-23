@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "preversion": "node scripts/assert-clean-worktree.js --all && npm test && node scripts/assert-clean-worktree.js --all",
-    "version": "node scripts/update-version.js && node scripts/generate-server-card.js && node scripts/generate-cli-refs.js && node scripts/assert-clean-worktree.js --untracked-only && git add --update",
+    "version": "npm run build:esm && node scripts/assert-clean-worktree.js --untracked-only && git add --update",
     "check:generated": "node scripts/assert-clean-worktree.js --all",
     "postversion": "node -e \"const v=require('./package.json').version; console.log('Created tag v'+v+'. Next: git push --follow-tags (GitHub Actions will publish to npm + create the GitHub Release).');\"",
     "prebuild": "node scripts/update-version.js",
