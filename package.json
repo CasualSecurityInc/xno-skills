@@ -19,6 +19,8 @@
   },
   "files": [
     "dist",
+    "!dist/**/.xno-mcp",
+    "!dist/**/.xno-mcp/**",
     "assets",
     "skills"
   ],
