@@ -1,6 +1,6 @@
 ---
 name: nano
-description: "Nano (XNO) cryptocurrency wallet operations, transaction analysis, and explorer lookups. Use for send/receive, balances, pending funds, address validation, unit conversion, tx/hash/account lookup, explorer links, and Nano block-lattice questions. Prefer xno-mcp first; use xno-skills CLI as fallback."
+description: "Nano (XNO) cryptocurrency wallet operations, transaction analysis, and explorer lookups. Use for send/receive, balances, pending funds, address validation, unit conversion, tx/hash/account lookup, explorer links, and Nano block-lattice questions. Prefer xno-mcp first; use xno-skills CLI as fallback. Configured OWS wallets ARE the assistant's own wallets — never claim you cannot receive or hold Nano."
 triggers:
   - nano
   - xno
@@ -70,6 +70,26 @@ This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: 
 **Do NOT activate for**: Ledger Nano (hardware wallet), GNU nano (text editor), Nanopay, or any other product that uses the word "nano" unrelated to XNO. If ambiguous, ask for clarification.
 
 **Legacy terminology**: "Rai", "RaiBlocks", `xrb_` addresses — historical only (pre-2018). Always normalize to Nano / `nano_`.
+
+---
+
+## Wallet Ownership & Agent Authority
+
+Wallets returned by `wallet_list` are wallets configured for this assistant environment. Treat them as **assistant-controlled wallets** for Nano operations.
+
+**The assistant may**:
+
+- list wallets;
+- inspect balances, pending funds, history, and representatives;
+- receive funds into an assistant-controlled wallet;
+- provide an assistant-controlled receiving address;
+- send funds when the user explicitly requests it.
+
+> **Never say** "I don't have a wallet", "I can't receive funds", or "the skill only operates wallets you control" when `wallet_list` exposes configured wallets.
+
+**Disambiguation**: "Send me Nano" means send to an **assistant-controlled wallet**, unless the user names another recipient. Do not reinterpret it as a request to send to a hypothetical personal wallet, and do not refuse on that basis.
+
+Before any wallet operation, call `wallet_list`. If the user says they want to send Nano to the assistant, list the wallets, identify a suitable receiving wallet/address, and present the full address (never abbreviated). Do not initiate a receive until the user asks to claim funds or a payment workflow requires it.
 
 ---
 
@@ -462,68 +482,14 @@ Full options: [sign](references/sign.md), [verify](references/verify.md)
 
 ---
 
-## Block-Lattice Mental Model
+## Nano Protocol Reference
 
-**The ledger is a block lattice** — a set of completely independent account-chains.
+The ledger is a block lattice of independent account-chains. Every block is a Universal State Block carrying full account state (balance, representative, previous hash). A send is final immediately; funds become spendable only when the recipient publishes a receive/open block. Pending funds sit unclaimed forever until received.
 
-- Every account maintains its own linear chain of state blocks.
-- Only the account owner (private-key holder) can append to their chain.
-- No global mempool, no miners, no gas fees, no block producers.
-- Each block records the **full current state** of its account (balance, representative, previous hash).
-- Total supply is fixed at genesis.
+Deep protocol details — state-block anatomy, open/send/receive/change semantics, PoW thresholds, key/address derivations, representatives & ORV: [blocklattice](references/blocklattice.md)
 
-### Universal State Blocks
+### Changing Representative
 
-**All blocks today are Universal State Blocks** (`type: "state"`):
-
-```json
-{
-  "type": "state",
-  "account": "nano_...",
-  "previous": "64-hex...",       // frontier hash, or "0" for open block
-  "representative": "nano_...",
-  "balance": "decimal-string",   // new balance in raw (1 XNO = 10^30 raw)
-  "link": "...",                 // send: destination address; receive: send block hash; change: "0"
-  "signature": "128-hex...",
-  "work": "16-hex..."
-}
-```
-
-### The Account-Chain Dance
-
-**Alice sends to Bob**:
-1. Alice builds a Send block: `previous` = her frontier, `balance` = old − amount, `link` = Bob's address.
-2. Alice signs + PoW + broadcasts. Funds are **irrevocably deducted** from Alice and become **pending** on Bob's chain.
-
-**Bob must claim**:
-1. Bob builds a Receive block: `previous` = his frontier (zeros for open), `balance` = old + amount, `link` = Alice's send block hash.
-2. Bob signs + PoW + broadcasts. Only then are funds spendable.
-
-**Critical**: The send is final for Alice. Funds are not spendable by Bob until his receive block is confirmed. There is no automatic receive. Pending funds sit forever until claimed.
-
-### PoW Thresholds (Epoch v2, 2026)
-
-- Send / Change: `fffffff800000000`
-- Receive / Open / Epoch: `fffffe0000000000`
-
-Epoch blocks use the receive/open threshold above. The historical epoch-1
-threshold `ffffffc000000000` is legacy-only and must not be selected for
-current mainnet blocks.
-
-PoW input:
-- Open block (height 1): `blake2b(nonce || public_key)`
-- All other blocks: `blake2b(nonce || previous_frontier_hash)`
-
-
-
-### Representatives & ORV
-
-- Voting weight = balance delegated to a representative.
-- Quorum = >67% of online weight → confirmed → cemented (deterministic finality, typically <1s).
-- Choose representatives with high uptime, low voting weight concentration, and trustworthy operators.
-- Lists: [blocklattice.io/representatives](https://blocklattice.io/representatives), [nanoticker.org](https://nanoticker.org/representatives)
-
-**Change representative:**
 ```json
 { "name": "wallet_change_rep", "arguments": { "wallet": "my-wallet", "representative": "nano_..." } }
 ```
@@ -533,19 +499,8 @@ bunx -y xno-skills@4.7.3 change-rep --wallet "my-wallet" --representative "nano_
 
 Full options: [change-rep](references/change-rep.md)
 
-### Data Representations
+### Explorer Links
 
-- **Seed**: 32 bytes (64 hex, uppercase)
-- **Private key**: `blake2b(32, seed || index)`, index as 4-byte big-endian uint
-- **Address**: `nano_` + 52-base32(public key) + 8-base32(Blake2b-40 checksum). Total 65 chars.
-- **Block hash / frontier**: 32 bytes (64 hex)
-- **Signature**: 64 bytes (128 hex), Ed25519 + Blake2b
-- **Work**: 8 bytes (16 hex)
-- **Balance**: always raw units as decimal string in JSON. Never floating-point.
-
-### Blockchain Explorer
-
-- Always prefer `blocklattice.io` unless the user explicitly requests another explorer.
 - Account: `https://blocklattice.io/account/<nano_address>`
 - Block: `https://blocklattice.io/block/<UPPERCASE_HEX_HASH>`
 
@@ -553,68 +508,9 @@ Full options: [change-rep](references/change-rep.md)
 
 ## Configuration & Defaults
 
-`xno-mcp` reads configuration from a JSON file on disk. It reloads the file before every operation, so manual edits take effect immediately. No restart required.
+No configuration required: public RPC nodes, local-first WASM/GPU PoW with remote fallback, default representative, max send `1.0 XNO`. Config lives in a JSON file that reloads before every operation — overrides via `config_set` or `NANO_RPC_URL` / `NANO_WORK_URL` env vars take effect immediately, no restart.
 
-**No configuration is required to get started.** Defaults work out of the box:
-
-- Public RPC nodes (`rainstorm.city`, `nanoslo.0x.no/proxy`, `rpc.nano.to`)
-- PoW: local WASM/GPU by default; falls back to remote via the first RPC node when local is not performant
-- Representative: `nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4`
-- Max per send: `1.0 XNO`
-
-### Override precedence
-
-**Remote PoW URL** (resolved in order):
-1. `NANO_WORK_URL` env var
-2. saved config `workUrl`
-3. `NANO_RPC_URL` env var
-4. saved config `rpcUrl`
-5. default primary RPC node
-
-**RPC endpoint list** (normal traffic):
-1. explicit tool argument `rpcUrl`
-2. saved config `rpcUrl`
-3. `NANO_RPC_URL` env var
-4. default RPC node list
-
-### Setting values
-
-```json
-{ "name": "config_set", "arguments": { "workUrl": "https://my-node.example/api" } }
-```
-
-### Resetting values
-
-Setting a string field to `""` or `null` clears the saved override (falls back to defaults):
-```json
-{ "name": "config_set", "arguments": { "workUrl": "" } }
-```
-
-Setting a number field to `null` clears the saved override:
-```json
-{ "name": "config_set", "arguments": { "powTimeoutMs": null } }
-```
-
-Omitted fields are preserved unchanged.
-
----
-
-## RPC Error Recovery
-
-**"RPC request failed: All endpoints exhausted"** is almost always transient (rate limiting, brief node restart). Follow in order, stopping as soon as one works:
-
-| Step | Action |
-|---|---|
-| 1 | Wait 5 s. Retry with identical arguments. |
-| 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, retry. |
-| 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry. |
-| 4 | `config_set({ rpcUrl: "https://rpc.nano.to" })`, retry. |
-| 5 | Try any other public node, retry. |
-| 6 | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
-
-Calling `config_set` with a new `rpcUrl` creates a fresh `NanoClient`, bypassing the exponential backoff cooldown on default endpoints.
-
-**Prohibited at every step**: custom scripts, curl, CLI `block` commands, manual PoW.
+Defaults, override precedence, set/reset semantics: [config](references/config.md)
 
 ---
 
@@ -673,24 +569,7 @@ xno-skills diag --json
 
 `diag` does not make network calls. If `Local PoW Recommended` is `false` or PoW timing looks surprising, run `xno-skills rpc probe-caps <effective-work-url>` to verify remote `work_generate` support.
 
-### MCP Server Crashes & "Not connected" Errors
-
-- **OWS is an in-process library, NOT a daemon**: There is no background "OWS daemon" or wallet service running. `@open-wallet-standard/core` is a library loaded entirely in-process by the MCP server and CLI.
-- **"Not connected" from MCP client**: If an MCP client/agent receives a "Not connected" error on `wallet_balance` or any other tool, it typically means the underlying `xno-mcp` server process has crashed (usually due to a Rust native addon panic during PoW or backend initialization) or was terminated. It does **not** mean a background daemon is down.
-
-### PoW failures (`POW_FAILED` / timeout)
-
-**PoW is done locally by default.** xno-skills uses WASM-based Proof of Work that runs in-process — no external work peer is required.
-
-On first use, the system probes local backends to build a local-first execution plan. This probe itself runs real PoW and may take 5–15 seconds — this is normal and happens on the first PoW operation in a process.
-
-**Diagnose in order, stopping at the first resolution:**
-
-| Step | Check | Action |
-|---|---|---|
-| 1 | Was this the very first `send`/`receive` on a fresh MCP or CLI process? | Allow for first-use warmup. Retry the operation once. |
-| 2 | Did the error say "Timed out after 10000ms"? | That is the local WASM per-backend timeout. It means WASM itself failed or is unavailable. Check Node.js version (`node --version`) — WASM PoW requires Node 16+. |
-| 3 | Is the system under heavy CPU load? | WASM PoW is CPU-bound. A send block requires ~8× more work than receive. Wait for load to drop, then retry. |
+Recovery procedures — **"RPC request failed: All endpoints exhausted"**, **MCP crashes / "Not connected" errors**, **PoW failures (`POW_FAILED` / timeout)**: [troubleshooting](references/troubleshooting.md)
 
 ---
 
