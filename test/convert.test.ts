@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { execSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { nanoToRaw, rawToNano, formatNano, convertUnits } from '../src/convert';
 
 describe('nanoToRaw', () => {
@@ -120,5 +124,45 @@ describe('convertUnits', () => {
 
   it('rejects unsupported units', () => {
     expect(() => convertUnits('1', 'btc', 'xno')).toThrow('Unsupported unit: btc');
+  });
+});
+describe('fractional raw input (regression: silent truncation)', () => {
+  it('rawToNano must not silently ignore a fractional raw part', () => {
+    // raw is the smallest indivisible unit; 1.5 raw is not a valid amount.
+    // Either throw, or do not return a value computed from the integer part alone.
+    expect(() => rawToNano('1.5')).toThrow();
+  });
+
+  it('a fractional raw input must not produce a self-inconsistent pair', () => {
+    // Reproducer of the CLI shape: raw: "1.5" while xno is computed from 1.
+    let threw = false;
+    let xno = '';
+    try {
+      xno = rawToNano('1.5');
+    } catch {
+      threw = true;
+    }
+    if (!threw) {
+      // If it does not throw, the returned xno must not be the value for plain "1".
+      expect(xno).not.toBe(rawToNano('1'));
+    }
+  });
+});
+
+describe('CLI error handling for convert (regression: uncaught throw)', () => {
+  it('converts errors to a clean one-line message, not a Node stack trace', () => {
+    const cli = path.resolve(__dirname, '../bin/xno-skills');
+    let out = '';
+    let code = 0;
+    try {
+      execSync(`node ${cli} convert "-1" xno`, { stdio: 'pipe' });
+    } catch (e: any) {
+      out = String(e.stdout || '') + String(e.stderr || '');
+      code = e.status ?? 1;
+    }
+    expect(code).not.toBe(0);
+    expect(out).toContain('negative values not supported');
+    expect(out).not.toContain('at Object.<anonymous>');
+    expect(out).not.toMatch(/file:\/\/.*\.js:\d+/);
   });
 });

@@ -76,9 +76,14 @@ export function nanoToRaw(nano: string): string {
 export function rawToNano(raw: string, decimals: number = 30): string {
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
-
-  const { integer: intPart } = parseDecimal(raw);
-
+  
+  const { integer: intPart, decimal: rawDecPart } = parseDecimal(raw);
+  // raw is the smallest indivisible unit: a fractional raw value is not a valid amount.
+  // Rejecting it prevents a silent, self-inconsistent result (raw echoed as "1.5" while
+  // the XNO amount is computed from the integer part alone).
+  if (rawDecPart.length > 0 && /[1-9]/.test(rawDecPart))
+    throw new Error('rawToNano: raw amounts must be integers (raw is the smallest indivisible unit)');
+  
   // Convert to BigInt first to handle the raw value
   const rawBigInt = BigInt(intPart);
 
