@@ -51,6 +51,17 @@ describe('nanoToRaw', () => {
   it('rejects nonzero input that truncates to zero', () => {
     expect(() => nanoToRaw('0.0000000000000000000000000000009')).toThrow('nanoToRaw: nonzero value rounds to 0 raw');
   });
+
+  it('rejects a malformed decimal instead of silently reading a smaller amount', () => {
+    // split('.') was read at its first two slots only, so '1.2.3' converted as
+    // 1.2 XNO, '1..5' as 1 XNO and '1.5.7.9' as 1.5 XNO, with no error.
+    expect(() => nanoToRaw('1.2.3')).toThrow();
+    expect(() => nanoToRaw('1..5')).toThrow();
+    expect(() => nanoToRaw('1.5.7.9')).toThrow();
+    expect(() => nanoToRaw('.')).toThrow();
+    expect(() => nanoToRaw('1,5')).toThrow();
+    expect(() => nanoToRaw('abc')).toThrow();
+  });
 });
 
 describe('rawToNano', () => {
@@ -107,6 +118,15 @@ describe('formatNano', () => {
 
   it('handles empty string', () => {
     expect(formatNano('')).toBe('0');
+  });
+
+  it('rejects negative values like rawToNano does', () => {
+    // Without a guard, the minus sign survived into the fractional string and
+    // the result was unparseable: '-1' rendered as '0.0000000000000000000000000000-1'
+    // and '-1500000000000000000000000000000' as '-1.-5'.
+    expect(() => formatNano('-1')).toThrow('formatNano: negative values not supported');
+    expect(() => formatNano('-999')).toThrow('formatNano: negative values not supported');
+    expect(() => formatNano('-1500000000000000000000000000000')).toThrow('formatNano: negative values not supported');
   });
 });
 
