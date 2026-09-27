@@ -23,13 +23,23 @@ function stripLeadingZeros(str: string): string {
 }
 
 /**
- * Removes decimal point and returns { integer, decimal } parts
+ * Removes decimal point and returns { integer, decimal } parts.
+ *
+ * Rejects anything that is not a plain decimal number (an optional leading
+ * '-' followed by digits with at most one '.'), so a malformed string cannot
+ * be silently read as a smaller amount: without this, "1.2.3" parsed as 1.2
+ * and "1..5" as 1, because split('.') was read only at its first two slots.
  */
 function parseDecimal(value: string): { integer: string; decimal: string } {
-  const isNegative = value.startsWith('-');
-  if (isNegative) value = value.slice(1);
+  let body = value;
+  const isNegative = body.startsWith('-');
+  if (isNegative) body = body.slice(1);
 
-  const parts = value.split('.');
+  if (!/^\d*\.?\d*$/.test(body) || body === '' || body === '.') {
+    throw new Error(`not a decimal number: ${value}`);
+  }
+
+  const parts = body.split('.');
   const integer = parts[0] || '0';
   const decimal = parts[1] || '';
 
@@ -105,6 +115,7 @@ export function rawToNano(raw: string, decimals: number = 30): string {
  */
 export function formatNano(raw: string): string {
   if (!raw || raw === '') return '0';
+  if (raw.startsWith('-')) throw new Error('formatNano: negative values not supported');
 
   const { integer: intPart } = parseDecimal(raw);
   const rawBigInt = BigInt(intPart);
