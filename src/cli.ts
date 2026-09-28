@@ -417,6 +417,13 @@ program
       console.error(`Invalid address: ${validation.error}`);
       process.exit(1);
     }
+    // A QR code is an address. A bare 64-hex value may be a public key, a block hash, a seed
+    // or a private key, and the caller cannot tell from the printed QR which it scanned; a
+    // refund or a sale "pay me at this code" then points at nothing. Refuse it here.
+    if (validation.kind !== 'address') {
+      console.error(`Invalid address: a QR code is a Nano address (nano_.../xrb_...); ${address} is 64 hex, which is the shape of a public key, a block hash or a seed, not an address.`);
+      process.exit(1);
+    }
     try {
       const content = buildNanoUri(address, options.amountXno);
       const format = options.format === 'svg' ? 'svg' : 'ascii';
@@ -441,10 +448,17 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action((input: string, options: { json?: boolean }) => {
     const result = validateAddress(input);
-    const out = { address: input, ...result };
+    // Only call it an address when it is one. A bare 64-hex input is reported as a public
+    // key, not echoed into `address` (the command's own help says it accepts "a Nano address
+    // or block hash", and a block hash is not an address either).
+    const out = { input, ...result };
     printJsonOrText(out, options, () => {
       if (result.valid) {
-        console.log('Valid Nano address');
+        if (result.kind === 'address') {
+          console.log('Valid Nano address');
+        } else {
+          console.log('Valid 32-byte value (64 hex) — not an address: this is the shape of a public key, a block hash, a seed or a private key, and the three cannot be told apart from the value alone.');
+        }
         if (result.publicKey) console.log(`Public Key: ${result.publicKey}`);
       } else {
         console.error(`Invalid: ${result.error}`);
