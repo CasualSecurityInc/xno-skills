@@ -41,6 +41,27 @@ describe('verifyNanoMessage — NOMS verification', () => {
     expect(result.valid).toBe(false);
   });
 
+  it('rejects a valid signature from a different key', () => {
+    // The forgery case that matters: a wrapper verifying against the wrong field would still
+    // pass every other case here, because the signature is well formed and the message matches.
+    // Only key substitution catches that.
+    const otherPub = nanoGetPublicKeyFromPrivateKey('0000000000000000000000000000000000000000000000000000000000000002');
+    const result = verifyNanoMessage(otherPub, MESSAGE, NOMS.signMessage(MESSAGE, PRIVATE_KEY));
+    expect(result.valid).toBe(false);
+  });
+
+  it('rejects a mixed-case signature so valid:true implies a canonical encoding', () => {
+    // The hex decoder accepts mixed case and the ed25519 check runs on decoded bytes, so this
+    // input would otherwise verify. Rejected on purpose: a caller comparing signature strings
+    // must be able to read `valid: true` as "canonical".
+    const publicKey = nanoGetPublicKeyFromPrivateKey(PRIVATE_KEY);
+    const signature = NOMS.signMessage(MESSAGE, PRIVATE_KEY);
+    const mixed = signature.toUpperCase();
+    expect(mixed).not.toBe(signature);
+    expect(() => verifyNanoMessage(publicKey, MESSAGE, mixed)).toThrow(/128 lowercase hex/i);
+    expect(verifyNanoMessage(publicKey, MESSAGE, signature).valid).toBe(true);
+  });
+
   it('does not claim to be unable to verify — no MESSAGE_VERIFY_UNSUPPORTED for a valid input', () => {
     const publicKey = nanoGetPublicKeyFromPrivateKey(PRIVATE_KEY);
     const signature = NOMS.signMessage(MESSAGE, PRIVATE_KEY);
@@ -50,7 +71,7 @@ describe('verifyNanoMessage — NOMS verification', () => {
 
   it('rejects a signature that is not 128 hex', () => {
     const publicKey = nanoGetPublicKeyFromPrivateKey(PRIVATE_KEY);
-    expect(() => verifyNanoMessage(publicKey, MESSAGE, 'abc')).toThrow(/128 hex/i);
+    expect(() => verifyNanoMessage(publicKey, MESSAGE, 'abc')).toThrow(/128 lowercase hex/i);
   });
 
   it('still rejects a bad address', () => {

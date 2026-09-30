@@ -713,8 +713,12 @@ export function verifyNanoMessage(address: string, message: string, signature: s
   // dependency (@openrai/nano-core), and `sign` in this same toolkit produces NOMS signatures.
   // Verifying them is therefore possible; refusing with "no canonical standard exists" left
   // the tool unable to check a signature it had just produced.
-  if (typeof signature !== 'string' || !/^[0-9a-fA-F]{128}$/.test(signature)) {
-    throw new NanoActionError('INVALID_SIGNATURE', 'verify_message', 'Signature must be 128 hex characters (64 bytes).', { details: { length: typeof signature === 'string' ? signature.length : 0 } });
+  // Lowercase only: the hex decoder accepts mixed case, so a mixed-case input would still
+  // verify (authenticity is decided on the decoded bytes). Accepting it here would make
+  // `valid: true` fail to imply a canonical encoding, which is a footgun for any caller that
+  // compares signature strings. `signMessage` emits lowercase, so no working input is lost.
+  if (typeof signature !== 'string' || !/^[0-9a-f]{128}$/.test(signature)) {
+    throw new NanoActionError('INVALID_SIGNATURE', 'verify_message', 'Signature must be 128 lowercase hex characters (64 bytes).', { details: { length: typeof signature === 'string' ? signature.length : 0 } });
   }
 
   return { valid: NOMS.verifyMessage(message, signature, validation.publicKey) };
