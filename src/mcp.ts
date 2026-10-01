@@ -47,7 +47,7 @@ import {
 } from './state-store.js';
 import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import { listWalletsProxy } from './ows.js';
-import { applyPaymentReceive, paymentMissingSourceRaw, paymentReceivedRaw, recordPaymentRefund, refundCandidates } from './payment-state.js';
+import { applyPaymentReceive, paymentMissingSourceRaw, paymentReceivedRaw, recordPaymentRefund, refundCandidates, selectPaymentReceiveHash } from './payment-state.js';
 
 // ---------------------------------------------------------------------------
 // Annotation helpers
@@ -703,6 +703,7 @@ mcpServer.registerTool('payment_receive', {
   description: 'Receive pending funds associated with a payment request. Updates the request status.',
   inputSchema: {
     id: z.string().describe('Payment request ID'),
+    sendHash: z.string().optional().describe('Optional Nano send block hash to bind this receive when multiple receivables are pending'),
   },
   annotations: WRITE,
 }, async (args, extra) => {
@@ -710,8 +711,12 @@ mcpServer.registerTool('payment_receive', {
     const rec = getPaymentRequest(args.id);
     if (!rec) throw new Error('Not found');
     const cfg = requireFreshConfig();
+    const readers = readersFor();
+    const paymentAddress = await getNanoAddress(rec.owsWalletId, rec.accountIndex);
+    const pending = await readers.receivable(paymentAddress.address, 10);
+    const onlyHash = selectPaymentReceiveHash(pending, args.sendHash);
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
-    const result = await executeReceive(rec.owsWalletId, undefined, ctx, readersFor(), { index: rec.accountIndex, count: 10 });
+    const result = await executeReceive(rec.owsWalletId, undefined, ctx, readers, { index: rec.accountIndex, count: 10, ...(onlyHash ? { onlyHash } : {}) });
     applyPaymentReceive(rec, result.received);
     persistPaymentRequests();
     const receivedRaw = paymentReceivedRaw(rec);

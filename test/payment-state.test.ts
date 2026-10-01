@@ -6,6 +6,7 @@ import {
   paymentReceivedRaw,
   recordPaymentRefund,
   refundCandidates,
+  selectPaymentReceiveHash,
 } from '../src/payment-state.js';
 
 function request(amountRaw: string): PaymentRequest {
@@ -23,6 +24,15 @@ function request(amountRaw: string): PaymentRequest {
   };
 }
 
+describe('payment receive selection', () => {
+  it('never guesses between multiple pending Nano sends', () => {
+    expect(selectPaymentReceiveHash([])).toBeUndefined();
+    expect(selectPaymentReceiveHash([{ hash: 'a' }])).toBe('a');
+    expect(() => selectPaymentReceiveHash([{ hash: 'a' }, { hash: 'b' }])).toThrow(/Refusing to guess/i);
+    expect(selectPaymentReceiveHash([{ hash: 'a' }, { hash: 'b' }], 'b')).toBe('b');
+    expect(() => selectPaymentReceiveHash([{ hash: 'a' }], 'b')).toThrow(/not currently receivable/i);
+  });
+});
 describe('tracked payment state', () => {
   it('records receive provenance once and advances partial to received', () => {
     const rec = request('100');

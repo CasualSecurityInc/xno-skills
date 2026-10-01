@@ -8,6 +8,20 @@ export type PaymentReceiveBlock = {
   amountRaw: string;
 };
 
+export function selectPaymentReceiveHash(
+  pending: Array<{ hash: string }>,
+  requestedHash?: string,
+): string | undefined {
+  if (requestedHash) {
+    if (!pending.some((block) => block.hash === requestedHash)) {
+      throw new Error('sendHash is not currently receivable for this payment wallet.');
+    }
+    return requestedHash;
+  }
+  if (pending.length === 0) return undefined;
+  if (pending.length === 1) return pending[0].hash;
+  throw new Error('Multiple receivable blocks are pending for this wallet. Refusing to guess which payment request they belong to; retry with sendHash from rpc_receivable.');
+}
 export function paymentReceivedRaw(rec: PaymentRequest): bigint {
   return (rec.receivedBlocks || []).reduce((sum, block) => sum + BigInt(block.amountRaw), 0n);
 }
