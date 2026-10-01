@@ -417,13 +417,10 @@ program
       console.error(`Invalid address: ${validation.error}`);
       process.exit(1);
     }
-    // A QR code is an address. A bare 64-hex value may be a public key, a block hash, a seed
-    // or a private key, and the caller cannot tell from the printed QR which it scanned; a
-    // refund or a sale "pay me at this code" then points at nothing. Refuse it here.
-    if (validation.kind !== 'address') {
-      console.error(`Invalid address: a QR code is a Nano address (nano_.../xrb_...); ${address} is 64 hex, which is the shape of a public key, a block hash or a seed, not an address.`);
-      process.exit(1);
-    }
+    // The kind check lives in formatNanoUri (src/qr.ts) now: the QR is built by
+    // buildNanoUri/generateAsciiQr/generateSvgQr, so one check there covers the CLI,
+    // the MCP tool and anyone importing buildNanoUri. Anything it refuses is caught by
+    // the try/catch below and routed through exitWithError.
     try {
       const content = buildNanoUri(address, options.amountXno);
       const format = options.format === 'svg' ? 'svg' : 'ascii';
