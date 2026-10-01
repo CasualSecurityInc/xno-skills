@@ -47,6 +47,7 @@ import {
 } from './state-store.js';
 import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
 import { listWalletsProxy } from './ows.js';
+import { applyPaymentReceive, paymentMissingSourceRaw, paymentReceivedRaw, recordPaymentRefund, refundCandidates } from './payment-state.js';
 
 // ---------------------------------------------------------------------------
 // Annotation helpers
@@ -710,27 +711,42 @@ mcpServer.registerTool('payment_receive', {
     if (!rec) throw new Error('Not found');
     const cfg = requireFreshConfig();
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
-    return toToolSuccess(await executeReceive(rec.owsWalletId, undefined, ctx, readersFor(), { index: rec.accountIndex, count: 10 }));
+    const result = await executeReceive(rec.owsWalletId, undefined, ctx, readersFor(), { index: rec.accountIndex, count: 10 });
+    applyPaymentReceive(rec, result.received);
+    persistPaymentRequests();
+    const receivedRaw = paymentReceivedRaw(rec);
+    return toToolSuccess({ ...result, paymentRequest: { id: rec.id, status: rec.status, receivedRaw: receivedRaw.toString(), receivedXno: rawToNano(receivedRaw.toString()), remainingRaw: receivedRaw >= BigInt(rec.amountRaw) ? '0' : (BigInt(rec.amountRaw) - receivedRaw).toString() } });
   } catch (error) { return toToolError(error); }
 });
 
 mcpServer.registerTool('payment_refund', {
   title: 'Refund Payment',
-  description: 'Refund a payment request by sending funds back to the original payer. Requires confirmation with execute: true.',
+  description: 'Refund a payment request by sending received funds back to their recorded original source. Requires confirmation with execute: true.',
   inputSchema: {
     id: z.string().describe('Payment request ID'),
     execute: z.boolean().default(false).describe('Set to true to execute the refund (dry-run otherwise)'),
-    confirmAddress: z.string().optional().describe('Destination address for the refund (must match original source)'),
+    confirmAddress: z.string().optional().describe('Destination address for the refund (must match a recorded original source)'),
   },
   annotations: DESTRUCTIVE,
 }, async (args, extra) => {
   try {
     const rec = getPaymentRequest(args.id);
     if (!rec) throw new Error('Not found');
-    if (!args.execute) return { content: [{ type: 'text' as const, text: 'Set execute: true to refund.' }] };
+    const candidates = refundCandidates(rec);
+    const missingSourceRaw = paymentMissingSourceRaw(rec);
+    if (!args.execute) {
+      if (!candidates.length) throw new Error(missingSourceRaw > 0n ? 'Received funds exist but their original source address is unavailable; refusing to guess a refund destination.' : 'No refundable received funds are recorded for this payment request. Call payment_receive after the payer sends funds.');
+      return toToolSuccess({ id: rec.id, execute: false, status: rec.status, candidates, ...(missingSourceRaw > 0n ? { missingSourceRaw: missingSourceRaw.toString(), missingSourceXno: rawToNano(missingSourceRaw.toString()) } : {}) });
+    }
+    if (!args.confirmAddress) throw new Error('confirmAddress is required when execute is true.');
+    const candidate = candidates.find((item) => item.address === args.confirmAddress);
+    if (!candidate) throw new Error('confirmAddress does not match a recorded original source with refundable funds. Refusing to send.');
     const cfg = requireFreshConfig();
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
-    return toToolSuccess(await executeSend(rec.owsWalletId, undefined, ctx, readersFor(), String(args.confirmAddress), rawToNano(rec.amountRaw), { index: rec.accountIndex }));
+    const result = await executeSend(rec.owsWalletId, undefined, ctx, readersFor(), candidate.address, candidate.amountXno, { index: rec.accountIndex });
+    recordPaymentRefund(rec, candidate.address, candidate.amountRaw, result.hash);
+    persistPaymentRequests();
+    return toToolSuccess({ ...result, paymentRequest: { id: rec.id, status: rec.status, refundedRaw: candidate.amountRaw, refundedXno: candidate.amountXno } });
   } catch (error) { return toToolError(error); }
 });
 

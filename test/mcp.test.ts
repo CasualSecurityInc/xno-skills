@@ -17,6 +17,9 @@ describe('MCP Server Integration', () => {
   let transport: StdioClientTransport;
   let rpcServer: Server;
   let rpcUrl: string;
+  let mockAccountInfo: any = { error: 'Account not found' };
+  let mockReceivableBlocks: Record<string, { amount: string; source?: string }> = {};
+  let mockProcessResponse: any = { error: 'Block work is less than threshold' };
 
   function mcpEnv(): NodeJS.ProcessEnv {
     return {
@@ -53,7 +56,7 @@ describe('MCP Server Integration', () => {
         } else if (action === 'block_count') {
           response = { count: '100', unchecked: '0', cemented: '90' };
         } else if (action === 'process') {
-          response = { error: 'Block work is less than threshold' };
+          response = mockProcessResponse;
         } else if (action === 'work_generate') {
           response = { work: 'f'.repeat(16) };
         } else if (action === 'account_history') {
@@ -61,9 +64,9 @@ describe('MCP Server Integration', () => {
         } else if (action === 'account_balance') {
           response = { balance: '0', pending: '0' };
         } else if (action === 'account_info') {
-          response = { error: 'Account not found' };
+          response = mockAccountInfo;
         } else if (action === 'receivable' || action === 'accounts_pending') {
-          response = { blocks: {} };
+          response = { blocks: mockReceivableBlocks };
         } else {
           response = { error: `unsupported action: ${action}` };
         }
@@ -251,6 +254,58 @@ describe('MCP Server Integration', () => {
     expect(out.id).toBe(created.id);
     expect(out.status).toBe("pending");
     expect(out.amountRaw).toBe("500000000000000000000000000000");
+  });
+
+  it('tracks payment source and refuses a substituted refund address', async () => {
+    const source = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
+    const wrong = 'nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d';
+    const amountRaw = '500000000000000000000000000000';
+    const sendHash = 'a'.repeat(64);
+    const receiveHash = 'b'.repeat(64);
+    const refundHash = 'c'.repeat(64);
+
+    const createResult = await client.callTool({
+      name: 'payment_create',
+      arguments: { walletName: 'A', amountXno: '0.5', reason: 'refund provenance regression' },
+    });
+    const created = JSON.parse(getText(createResult));
+    mockReceivableBlocks = { [sendHash]: { amount: amountRaw, source } };
+    mockProcessResponse = { hash: receiveHash };
+
+    const receiveResult = await client.callTool({ name: 'payment_receive', arguments: { id: created.id } });
+    expect(receiveResult.isError).toBeFalsy();
+    const received = JSON.parse(getText(receiveResult));
+    expect(received.paymentRequest.status).toBe('received');
+    expect(received.paymentRequest.receivedRaw).toBe(amountRaw);
+
+    const statusResult = await client.callTool({ name: 'payment_status', arguments: { id: created.id } });
+    const status = JSON.parse(getText(statusResult));
+    expect(status.receivedBlocks).toEqual([{ sendHash, source, amountRaw, receiveHash }]);
+
+    const dryRun = await client.callTool({ name: 'payment_refund', arguments: { id: created.id, execute: false } });
+    expect(dryRun.isError).toBeFalsy();
+    expect(JSON.parse(getText(dryRun)).candidates).toEqual([{ address: source, amountRaw, amountXno: '0.5' }]);
+
+    const wrongRefund = await client.callTool({ name: 'payment_refund', arguments: { id: created.id, execute: true, confirmAddress: wrong } });
+    expect(wrongRefund.isError).toBeTruthy();
+    expect(getText(wrongRefund)).toMatch(/does not match a recorded original source/i);
+
+    mockReceivableBlocks = {};
+    mockAccountInfo = { frontier: receiveHash, balance: amountRaw, representative: source, block_count: '1' };
+    mockProcessResponse = { hash: refundHash };
+    const refund = await client.callTool({ name: 'payment_refund', arguments: { id: created.id, execute: true, confirmAddress: source } });
+    expect(refund.isError).toBeFalsy();
+    const refunded = JSON.parse(getText(refund));
+    expect(refunded.paymentRequest.status).toBe('refunded');
+    expect(refunded.paymentRequest.refundedRaw).toBe(amountRaw);
+
+    const second = await client.callTool({ name: 'payment_refund', arguments: { id: created.id, execute: false } });
+    expect(second.isError).toBeTruthy();
+    expect(getText(second)).toMatch(/No refundable received funds/i);
+
+    mockAccountInfo = { error: 'Account not found' };
+    mockReceivableBlocks = {};
+    mockProcessResponse = { error: 'Block work is less than threshold' };
   });
 
   it('should error for unknown payment request', async () => {
