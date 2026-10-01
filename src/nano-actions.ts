@@ -703,17 +703,25 @@ export async function signWalletMessage(walletName: string, message: string, opt
   }
 }
 
-export function verifyNanoMessage(address: string, _message: string, _signature: string): VerifyMessageResult {
+export function verifyNanoMessage(address: string, message: string, signature: string): VerifyMessageResult {
   const validation = validateAddress(address);
   if (!validation.valid || !validation.publicKey) {
     throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, { details: { address } });
   }
-  throw new NanoActionError(
-    'MESSAGE_VERIFY_UNSUPPORTED',
-    'verify_message',
-    'Nano off-chain message verification is not supported: no canonical standard exists. Define an ecosystem convention before enabling this.',
-    { details: { address } },
-  );
+
+  // NOMS (Nano Off-chain Message Signing) is specified and implemented in this repo's own
+  // dependency (@openrai/nano-core), and `sign` in this same toolkit produces NOMS signatures.
+  // Verifying them is therefore possible; refusing with "no canonical standard exists" left
+  // the tool unable to check a signature it had just produced.
+  // Lowercase only: the hex decoder accepts mixed case, so a mixed-case input would still
+  // verify (authenticity is decided on the decoded bytes). Accepting it here would make
+  // `valid: true` fail to imply a canonical encoding, which is a footgun for any caller that
+  // compares signature strings. `signMessage` emits lowercase, so no working input is lost.
+  if (typeof signature !== 'string' || !/^[0-9a-f]{128}$/.test(signature)) {
+    throw new NanoActionError('INVALID_SIGNATURE', 'verify_message', 'Signature must be 128 lowercase hex characters (64 bytes).', { details: { length: typeof signature === 'string' ? signature.length : 0 } });
+  }
+
+  return { valid: NOMS.verifyMessage(message, signature, validation.publicKey) };
 }
 
 export function toToolSuccess(result: unknown, structuredContent?: Record<string, unknown>) {
