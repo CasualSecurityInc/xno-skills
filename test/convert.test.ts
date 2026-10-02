@@ -166,3 +166,54 @@ describe('CLI error handling for convert (regression: uncaught throw)', () => {
     expect(out).not.toMatch(/file:\/\/.*\.js:\d+/);
   });
 });
+
+describe('numeric input (a caller may pass Number or String)', () => {
+  it('nanoToRaw accepts a number and agrees with the string form', () => {
+    // A double carries ~16 significant digits, well under the 1e-30 XNO quantum,
+    // so the number and the string must convert to the same raw amount.
+    expect(nanoToRaw(1.5)).toBe(nanoToRaw('1.5'));
+    expect(nanoToRaw(0.1)).toBe(nanoToRaw('0.1'));
+    expect(nanoToRaw(42)).toBe(nanoToRaw('42'));
+    expect(nanoToRaw(1.5)).toBe('1500000000000000000000000000000');
+  });
+
+  it('nanoToRaw expands integers past the exponent-notation threshold', () => {
+    // String(1e21) is "1e+21", which the scientific-notation guard rejects.
+    expect(nanoToRaw(1e21)).toBe('1' + '0'.repeat(51));
+    expect(() => nanoToRaw(1e21)).not.toThrow();
+  });
+
+  it('nanoToRaw rejects non-finite and negative numbers', () => {
+    expect(() => nanoToRaw(NaN)).toThrow(/finite/);
+    expect(() => nanoToRaw(Infinity)).toThrow(/finite/);
+    expect(() => nanoToRaw(-Infinity)).toThrow(/finite/);
+    expect(() => nanoToRaw(-1)).toThrow('nanoToRaw: negative values not supported');
+  });
+
+  it('rawToNano accepts a safe integer', () => {
+    expect(rawToNano(1)).toBe(rawToNano('1'));
+    expect(rawToNano(0)).toBe('0');
+  });
+
+  it('rawToNano rejects a raw amount a double cannot hold exactly', () => {
+    // 1e30 raw is exactly 1 XNO, but 1e30 > 2^53, so the number is already a
+    // rounded approximation of the amount it claims to be.
+    expect(() => rawToNano(1e30)).toThrow(/MAX_SAFE_INTEGER/);
+    expect(() => rawToNano(1.5)).toThrow(/whole number/);
+    expect(() => rawToNano(NaN)).toThrow(/finite/);
+    expect(() => rawToNano(-1)).toThrow('rawToNano: negative values not supported');
+  });
+
+  it('formatNano applies the same raw-side rule', () => {
+    expect(formatNano(1)).toBe(formatNano('1'));
+    expect(() => formatNano(1e30)).toThrow(/MAX_SAFE_INTEGER/);
+    expect(() => formatNano(1.5)).toThrow(/whole number/);
+  });
+
+  it('convertUnits coerces numbers on both sides', () => {
+    expect(convertUnits(1.5, 'xno', 'raw')).toBe(convertUnits('1.5', 'xno', 'raw'));
+    expect(convertUnits(5, 'raw', 'xno')).toBe(convertUnits('5', 'raw', 'xno'));
+    // raw -> raw is a pass-through, so it must still return a string.
+    expect(convertUnits(5, 'raw', 'raw')).toBe('5');
+  });
+});
