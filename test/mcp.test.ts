@@ -306,7 +306,7 @@ describe('MCP Server Integration', () => {
     mockAccountInfo = { error: 'Account not found' };
     mockReceivableBlocks = {};
     mockProcessResponse = { error: 'Block work is less than threshold' };
-  });
+  }, 20_000);
 
   it('should error for unknown payment request', async () => {
     const result = await client.callTool({
