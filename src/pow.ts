@@ -1,4 +1,5 @@
 import { createNodePowEngine, WorkProvider } from '@openrai/nano-core/node';
+import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 
 export enum WorkType {
   Send = 'Send',
@@ -21,7 +22,9 @@ export async function localWorkGenerate(
     throw new Error('work root/hash must be 32-byte hex (64 hex characters)');
   }
 
-  const proofOfWork = await workProvider.generate(rootOrHash.toLowerCase(), threshold);
+  // The engine contract takes canonical 16-hex, not the WorkType spelling:
+  // generate(root, "Send") fails with "Invalid threshold hex: invalid digit found in string".
+  const proofOfWork = await workProvider.generate(rootOrHash.toLowerCase(), normalizeRemoteWorkDifficulty(threshold));
 
   if (!proofOfWork || typeof proofOfWork !== 'string') {
     throw new Error('Local PoW generation failed');
