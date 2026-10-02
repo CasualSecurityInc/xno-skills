@@ -128,7 +128,7 @@ export type SubmitBlockResult = {
 
 export type ReceiveResult = {
   address: string;
-  received: Array<{ hash: string; amountRaw: string }>;
+  received: Array<{ hash: string; sendHash: string; source?: string; amountRaw: string }>;
   balanceRaw: string;
   balanceXno: string;
 };
@@ -423,7 +423,7 @@ export async function executeReceive(
     return { address: account.address, received: [], balanceRaw: bal, balanceXno: rawToNano(bal) };
   }
 
-  const received: Array<{ hash: string; amountRaw: string }> = [];
+  const received: Array<{ hash: string; sendHash: string; source?: string; amountRaw: string }> = [];
   let currentFrontier = opened ? (info as AccountInfoResponse).frontier : ZERO_32_HEX;
   let currentBalance = opened ? BigInt((info as AccountInfoResponse).balance) : 0n;
   let isOpened = opened;
@@ -454,7 +454,7 @@ export async function executeReceive(
       }, true);
     }
 
-    received.push({ hash: submitted.txHash, amountRaw: item.amount });
+    received.push({ hash: submitted.txHash, sendHash: item.hash, source: item.source, amountRaw: item.amount });
     currentFrontier = submitted.txHash;
     currentBalance = BigInt(newBalance);
     isOpened = true;

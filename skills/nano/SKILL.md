@@ -299,7 +299,7 @@ After the user says funds are sent:
 ```json
 { "name": "payment_receive", "arguments": { "id": "<request-id>" } }
 ```
-Returns status: `pending`, `partial`, `funded`, or `received`. If `partial`, tell the user how much more is needed.
+Returns status: `pending`, `partial`, `funded`, or `received`. If `partial`, tell the user how much more is needed. If multiple Nano sends are pending on the wallet address, inspect `rpc_receivable` and retry `payment_receive` with the intended `sendHash`; never guess which tracked request owns a pending send.
 
 ### Step 5 — Confirm
 Report the received amount, updated balance, and that funds are ready.

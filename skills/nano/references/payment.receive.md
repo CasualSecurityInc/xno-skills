@@ -6,6 +6,8 @@ Claim inbound funds for a tracked payment request and report status.
 { "name": "payment_receive", "arguments": { "id": "<request-id>" } }
 ```
 
+If more than one Nano send is pending on the shared wallet address, first inspect `rpc_receivable` and retry with `sendHash` so the tool never guesses which request a send belongs to.
+
 Returns status: `pending`, `partial`, `funded`, or `received`.
 
 - `pending` / `partial`: tell the user how much more is needed (for `partial`).

@@ -24,7 +24,8 @@ export type PaymentRequest = {
   status: PaymentRequestStatus;
   createdAt: string;
   updatedAt: string;
-  receivedBlocks: { sendHash: string; source: string; amountRaw: string; receiveHash?: string }[];
+  receivedBlocks: { sendHash: string; source?: string; amountRaw: string; receiveHash?: string }[];
+  refundedBlocks?: { source: string; amountRaw: string; sendHash: string; timestamp: string }[];
 };
 
 export type TransactionRecord = {
