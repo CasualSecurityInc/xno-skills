@@ -710,8 +710,22 @@ export async function executeSend(
         /* keep old info */
       }
       if (!isRpcError(info)) {
+        const refreshedBalance = BigInt(info.balance);
+        if (BigInt(amountRaw) > refreshedBalance) {
+          throw new NanoActionError(
+            'INSUFFICIENT_BALANCE',
+            'build_block',
+            'Insufficient balance after refreshing stale account state.',
+            {
+              details: { address: account.address, currentBalance: info.balance, amountRaw },
+            },
+          );
+        }
         sendBlockInput.previous = info.frontier;
-        sendBlockInput.balanceRaw = (BigInt(info.balance) - BigInt(amountRaw)).toString();
+        sendBlockInput.representativePublicKey = decodeNanoAddress(
+          info.representative || DEFAULT_REPRESENTATIVE,
+        ).publicKey;
+        sendBlockInput.balanceRaw = (refreshedBalance - BigInt(amountRaw)).toString();
         submitted = await signWorkAndProcess(
           walletName,
           account.chainId,
