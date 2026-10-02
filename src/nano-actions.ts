@@ -494,6 +494,11 @@ export async function executeSend(
   const index = options.index ?? 0;
   const account = await resolveNanoWalletAccount(walletName, index);
   const amountRaw = nanoToRaw(amountXno);
+  if (BigInt(amountRaw) <= 0n) {
+    throw new NanoActionError('INVALID_SEND_AMOUNT', 'build_block', 'Amount must be greater than 0 XNO.', {
+      details: { amountXno, amountRaw },
+    });
+  }
   logNanoAction(getLogScope(ctx), `send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`);
 
   await report(ctx, 1, 4, `send: account_info for ${account.address}`);
