@@ -103,5 +103,9 @@
     "*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml,css}": [
       "prettier --write"
     ]
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
   }
 }
