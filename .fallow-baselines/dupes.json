@@ -1,0 +1,22 @@
+{
+  "clone_groups": [
+    "src/cli.ts:306-316|src/cli.ts:430-440",
+    "src/cli.ts:618-624|src/cli.ts:711-723",
+    "src/convert.ts:111-122|src/convert.ts:80-90",
+    "src/mcp.ts:375-388|src/mcp.ts:399-407|src/mcp.ts:417-425|src/mcp.ts:436-444",
+    "src/mcp.ts:688-697|src/mcp.ts:704-713",
+    "src/nano-actions.ts:396-402|src/nano-actions.ts:504-510|src/nano-actions.ts:606-612",
+    "src/nano-actions.ts:445-455|src/nano-actions.ts:684-694",
+    "src/nano-actions.ts:504-514|src/nano-actions.ts:606-616",
+    "src/nano-actions.ts:549-562|src/nano-actions.ts:630-643",
+    "src/rpc.ts:132-139|src/rpc.ts:149-156",
+    "src/rpc.ts:227-234|src/rpc.ts:498-505",
+    "src/rpc.ts:498-504|src/rpc.ts:511-517",
+    "src/state-block.ts:45-56|src/state-block.ts:77-88",
+    "test/mcp.test.ts:334-342|test/mcp.test.ts:356-364",
+    "test/receive-provenance.test.ts:2-17|test/send.test.ts:2-17",
+    "test/receive.test.ts:5-20|test/send.test.ts:4-19",
+    "test/receive.test.ts:104-109|test/receive.test.ts:148-153",
+    "test/rpc.test.ts:108-115|test/rpc.test.ts:121-128"
+  ]
+}

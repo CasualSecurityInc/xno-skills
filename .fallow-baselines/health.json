@@ -1,0 +1,84 @@
+{
+  "finding_counts": {
+    "scripts/generate-server-card.js": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/cli.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 5
+      }
+    },
+    "src/mcp.ts": {
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/meta.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/nano-actions.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "complexity_moderate": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/nano-runtime.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/rpc.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/state-store.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "test/mcp.test.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": []
+}

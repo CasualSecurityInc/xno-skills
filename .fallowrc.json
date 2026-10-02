@@ -1,0 +1,34 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": ["src/cli.ts", "src/mcp.ts", "src/index.ts"],
+  "ignorePatterns": [
+    "dist/**",
+    "mcpb/**",
+    "package/**",
+    "scripts/eval-*.mjs",
+    "src/version.ts"
+  ],
+  "rules": {
+    "unused-exports": "warn"
+  },
+  "regression": {
+    "baseline": {
+      "totalIssues": 2,
+      "unusedFiles": 0,
+      "unusedExports": 2,
+      "unusedTypes": 0,
+      "unusedDependencies": 0,
+      "unusedDevDependencies": 0,
+      "unusedOptionalDependencies": 0,
+      "unusedEnumMembers": 0,
+      "unusedClassMembers": 0,
+      "unresolvedImports": 0,
+      "unlistedDependencies": 0,
+      "duplicateExports": 0,
+      "circularDependencies": 0,
+      "typeOnlyDependencies": 0,
+      "testOnlyDependencies": 0,
+      "boundaryViolations": 0
+    }
+  }
+}
