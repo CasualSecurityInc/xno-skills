@@ -3,11 +3,11 @@ name: Publish (npm)
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (e.g. v0.3.0). If empty, uses the release tag."
+        description: 'Tag to publish (e.g. v0.3.0). If empty, uses the release tag.'
         required: false
         type: string
 
@@ -89,4 +89,3 @@ jobs:
         env:
           SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}
         run: npx @smithery/cli@latest mcp publish ./server.mcpb -n casualsecurityinc/xno-skills
-

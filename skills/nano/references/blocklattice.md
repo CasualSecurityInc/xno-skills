@@ -20,10 +20,10 @@ On-demand protocol reference for the Nano skill. Load this when you need block a
 {
   "type": "state",
   "account": "nano_...",
-  "previous": "64-hex...",       // frontier hash, or "0" for open block
+  "previous": "64-hex...", // frontier hash, or "0" for open block
   "representative": "nano_...",
-  "balance": "decimal-string",   // new balance in raw (1 XNO = 10^30 raw)
-  "link": "...",                 // send: destination address; receive: send block hash; change: "0"
+  "balance": "decimal-string", // new balance in raw (1 XNO = 10^30 raw)
+  "link": "...", // send: destination address; receive: send block hash; change: "0"
   "signature": "128-hex...",
   "work": "16-hex..."
 }
@@ -32,10 +32,12 @@ On-demand protocol reference for the Nano skill. Load this when you need block a
 ### The Account-Chain Dance
 
 **Alice sends to Bob**:
+
 1. Alice builds a Send block: `previous` = her frontier, `balance` = old − amount, `link` = Bob's address.
 2. Alice signs + PoW + broadcasts. Funds are **irrevocably deducted** from Alice and become **pending** on Bob's chain.
 
 **Bob must claim**:
+
 1. Bob builds a Receive block: `previous` = his frontier (zeros for open), `balance` = old + amount, `link` = Alice's send block hash.
 2. Bob signs + PoW + broadcasts. Only then are funds spendable.
 
@@ -51,6 +53,7 @@ threshold `ffffffc000000000` is legacy-only and must not be selected for
 current mainnet blocks.
 
 PoW input:
+
 - Open block (height 1): `blake2b(nonce || public_key)`
 - All other blocks: `blake2b(nonce || previous_frontier_hash)`
 

@@ -4,7 +4,17 @@ import { Command } from 'commander';
 import { validateAddress } from './validate.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { generateAsciiQr, buildNanoUri, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProbeCaps, rpcProcess, nanoRpcCall, type AccountInfoResponse, type NanoRpcErrorResponse } from './rpc.js';
+import {
+  rpcAccountBalance,
+  rpcAccountInfo,
+  rpcReceivable,
+  rpcAccountHistory,
+  rpcProbeCaps,
+  rpcProcess,
+  nanoRpcCall,
+  type AccountInfoResponse,
+  type NanoRpcErrorResponse,
+} from './rpc.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
@@ -56,10 +66,7 @@ function exitWithError(error: unknown): never {
   process.exit(1);
 }
 
-program
-  .version(version)
-  .description(getAsciiArtBanner())
-  .option('-q, --quiet', 'Suppress non-essential output');
+program.version(version).description(getAsciiArtBanner()).option('-q, --quiet', 'Suppress non-essential output');
 
 program.on('--help', () => {
   // kept for subcommand compat
@@ -126,11 +133,17 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; hash?: string; count: number; json?: boolean }) => {
     try {
-      const result = await executeReceive(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), {
-        index: 0,
-        count: options.count,
-        onlyHash: options.hash,
-      });
+      const result = await executeReceive(
+        options.wallet,
+        config.rpcUrl || process.env.NANO_RPC_URL,
+        { config, logScope: 'xno-cli' },
+        readersFor(),
+        {
+          index: 0,
+          count: options.count,
+          onlyHash: options.hash,
+        },
+      );
       printJsonOrText(result, options, () => {
         if (result.received.length === 0) {
           console.log('No pending blocks.');
@@ -157,7 +170,15 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; to: string; amountXno: string; json?: boolean }) => {
     try {
-      const result = await executeSend(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.to, options.amountXno, { index: 0 });
+      const result = await executeSend(
+        options.wallet,
+        config.rpcUrl || process.env.NANO_RPC_URL,
+        { config, logScope: 'xno-cli' },
+        readersFor(),
+        options.to,
+        options.amountXno,
+        { index: 0 },
+      );
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`From: ${result.from}`);
@@ -179,7 +200,14 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; representative: string; json?: boolean }) => {
     try {
-      const result = await executeChange(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.representative, { index: 0 });
+      const result = await executeChange(
+        options.wallet,
+        config.rpcUrl || process.env.NANO_RPC_URL,
+        { config, logScope: 'xno-cli' },
+        readersFor(),
+        options.representative,
+        { index: 0 },
+      );
       printJsonOrText(result, options, () => {
         console.log(`Hash: ${result.hash}`);
         console.log(`Address: ${result.address}`);
@@ -199,18 +227,33 @@ program
   .requiredOption('--subtype <type>', 'Block subtype: send, receive, open, or change')
   // .option('--index <n>', 'Nano account index', (value) => parseInt(value, 10), 0)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; txHex: string; subtype: 'send' | 'receive' | 'open' | 'change'; json?: boolean }) => {
-    try {
-      const result = await submitPreparedBlock(options.wallet, config.rpcUrl || process.env.NANO_RPC_URL, { config, logScope: 'xno-cli' }, readersFor(), options.txHex, options.subtype, { index: 0 });
-      printJsonOrText(result, options, () => {
-        console.log(`Hash: ${result.hash}`);
-        console.log(`Address: ${result.address}`);
-        console.log(`Subtype: ${result.subtype}`);
-      });
-    } catch (error) {
-      exitWithError(error);
-    }
-  });
+  .action(
+    async (options: {
+      wallet: string;
+      txHex: string;
+      subtype: 'send' | 'receive' | 'open' | 'change';
+      json?: boolean;
+    }) => {
+      try {
+        const result = await submitPreparedBlock(
+          options.wallet,
+          config.rpcUrl || process.env.NANO_RPC_URL,
+          { config, logScope: 'xno-cli' },
+          readersFor(),
+          options.txHex,
+          options.subtype,
+          { index: 0 },
+        );
+        printJsonOrText(result, options, () => {
+          console.log(`Hash: ${result.hash}`);
+          console.log(`Address: ${result.address}`);
+          console.log(`Subtype: ${result.subtype}`);
+        });
+      } catch (error) {
+        exitWithError(error);
+      }
+    },
+  );
 
 program
   .command('history')
@@ -221,7 +264,12 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action(async (options: { wallet: string; limit: number; json?: boolean }) => {
     try {
-      const history = await getNanoHistory(options.wallet, readersFor(), { config }, { index: 0, count: options.limit });
+      const history = await getNanoHistory(
+        options.wallet,
+        readersFor(),
+        { config },
+        { index: 0, count: options.limit },
+      );
       printJsonOrText(history, options, () => {
         if (history.length === 0) {
           console.log('No transactions found.');
@@ -255,7 +303,9 @@ program
       process.exit(1);
     }
     try {
-      const info = await getNanoAccountInfo({ wallet: options.wallet, address: options.address }, readersFor(), { config });
+      const info = await getNanoAccountInfo({ wallet: options.wallet, address: options.address }, readersFor(), {
+        config,
+      });
       printJsonOrText(info, options, () => {
         console.log(`Address:        ${info.address}`);
         console.log(`Balance:        ${info.balanceXno} XNO`);
@@ -334,8 +384,12 @@ program
 
     let rawValue: string;
     switch (fromUnit) {
-      case 'xno': rawValue = nanoToRaw(amount); break;
-      case 'raw': rawValue = amount; break;
+      case 'xno':
+        rawValue = nanoToRaw(amount);
+        break;
+      case 'raw':
+        rawValue = amount;
+        break;
       default:
         console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
         process.exit(1);
@@ -366,7 +420,10 @@ program
     try {
       const content = buildNanoUri(address, options.amountXno);
       const format = options.format === 'svg' ? 'svg' : 'ascii';
-      const qr = format === 'svg' ? generateSvgQr(address, options.amountXno) : await generateAsciiQr(address, options.amountXno);
+      const qr =
+        format === 'svg'
+          ? generateSvgQr(address, options.amountXno)
+          : await generateAsciiQr(address, options.amountXno);
       printJsonOrText({ address, amountXno: options.amountXno ?? null, content, format, qr }, options, () => {
         console.log(qr);
       });
@@ -486,7 +543,9 @@ rpcCmd
   .action(async (address: string, options: { url?: string; count: number; json?: boolean }) => {
     try {
       const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
-      const items = await rpcReceivable(client, address, options.count, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
+      const items = await rpcReceivable(client, address, options.count, {
+        timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
+      });
       printJsonOrText({ account: address, blocks: items }, options, () => {
         if (items.length === 0) {
           console.log('No receivable blocks.');
@@ -513,7 +572,9 @@ rpcCmd
       const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const info = await rpcAccountInfo(client, address, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
       if (isRpcError(info)) {
-        printJsonOrText({ account: address, opened: false }, options, () => console.log('Account not opened (no blocks published).'));
+        printJsonOrText({ account: address, opened: false }, options, () =>
+          console.log('Account not opened (no blocks published).'),
+        );
         return;
       }
       const out: any = {
@@ -563,7 +624,9 @@ rpcCmd
         console.log(`\nProbing: ${item.url}`);
         console.log(`─────────────────────────────────────────`);
         console.log(`  Reachable       ${tick(item.reachable)}  (${ms(item.pingMs)})`);
-        console.log(`  JSON RPC        ${tick(item.caps.jsonRpc.ok)}  (${ms(item.caps.jsonRpc.latencyMs)})  ${item.caps.jsonRpc.status}`);
+        console.log(
+          `  JSON RPC        ${tick(item.caps.jsonRpc.ok)}  (${ms(item.caps.jsonRpc.latencyMs)})  ${item.caps.jsonRpc.status}`,
+        );
         if (item.caps.jsonRpc.detail) {
           console.log(`                  ${item.caps.jsonRpc.detail}`);
         }
@@ -573,19 +636,27 @@ rpcCmd
           console.log(`  Protocol        ${item.protocolVersion || '(unknown)'}`);
         }
         console.log(`─────────────────────────────────────────`);
-        console.log(`  version         ${tick(item.caps.version.ok)}  (${ms(item.caps.version.latencyMs)})  ${item.caps.version.status}`);
+        console.log(
+          `  version         ${tick(item.caps.version.ok)}  (${ms(item.caps.version.latencyMs)})  ${item.caps.version.status}`,
+        );
         if (!item.caps.version.ok && item.caps.version.detail) {
           console.log(`                  ${item.caps.version.detail}`);
         }
-        console.log(`  block_count     ${tick(item.caps.blockCount.ok)}  (${ms(item.caps.blockCount.latencyMs)})  ${item.caps.blockCount.status}${item.blockCount ? `  count=${item.blockCount} cemented=${item.cementedCount ?? '?'}` : ''}`);
+        console.log(
+          `  block_count     ${tick(item.caps.blockCount.ok)}  (${ms(item.caps.blockCount.latencyMs)})  ${item.caps.blockCount.status}${item.blockCount ? `  count=${item.blockCount} cemented=${item.cementedCount ?? '?'}` : ''}`,
+        );
         if (!item.caps.blockCount.ok && item.caps.blockCount.detail) {
           console.log(`                  ${item.caps.blockCount.detail}`);
         }
-        console.log(`  process invalid ${tick(item.caps.processInvalid.ok)}  (${ms(item.caps.processInvalid.latencyMs)})  ${item.caps.processInvalid.status}`);
+        console.log(
+          `  process invalid ${tick(item.caps.processInvalid.ok)}  (${ms(item.caps.processInvalid.latencyMs)})  ${item.caps.processInvalid.status}`,
+        );
         if (item.caps.processInvalid.detail) {
           console.log(`                  ${item.caps.processInvalid.detail}`);
         }
-        console.log(`  work_generate   ${tick(item.caps.workGenerate.ok)}  (${ms(item.caps.workGenerate.latencyMs)})  ${item.caps.workGenerate.status}`);
+        console.log(
+          `  work_generate   ${tick(item.caps.workGenerate.ok)}  (${ms(item.caps.workGenerate.latencyMs)})  ${item.caps.workGenerate.status}`,
+        );
         if (item.caps.workGenerate.detail) {
           console.log(`                  ${item.caps.workGenerate.detail}`);
         }
@@ -599,7 +670,10 @@ rpcCmd
     }
   });
 
-const blockCmd = program.command('block').helpGroup('Advanced & RPC').description('Build unsigned Nano state blocks for manual/expert workflows');
+const blockCmd = program
+  .command('block')
+  .helpGroup('Advanced & RPC')
+  .description('Build unsigned Nano state blocks for manual/expert workflows');
 
 const ZERO_HASH = '0'.repeat(64);
 
@@ -628,7 +702,9 @@ blockCmd
         process.exit(1);
       }
       if (sendRaw > currentBalance) {
-        console.error(`Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amountXno} XNO.`);
+        console.error(
+          `Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amountXno} XNO.`,
+        );
         process.exit(1);
       }
       const blockHex = buildNanoStateBlockHex({
@@ -638,7 +714,11 @@ blockCmd
         balanceRaw: (currentBalance - sendRaw).toString(),
         link: recipientPk,
       });
-      printJsonOrText({ blockHex, account: options.account, to: options.to, amountRaw: sendRaw.toString(), previous: info.frontier }, options, () => console.log(blockHex));
+      printJsonOrText(
+        { blockHex, account: options.account, to: options.to, amountRaw: sendRaw.toString(), previous: info.frontier },
+        options,
+        () => console.log(blockHex),
+      );
     } catch (error) {
       exitWithError(error);
     }
@@ -653,46 +733,72 @@ blockCmd
   .option('--amount-xno <xno>', 'Amount in XNO')
   .option('--url <url>', 'RPC URL override')
   .option('-j, --json', 'Output JSON with block hex + metadata')
-  .action(async (options: { account: string; hash?: string; amountRaw?: string; amountXno?: string; url?: string; json?: boolean }) => {
-    try {
-      if (options.amountRaw && options.amountXno) {
-        console.error('Error: specify --amount-raw or --amount-xno, not both.');
-        process.exit(1);
-      }
-      const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
-      const accountPk = decodeNanoAddress(options.account).publicKey;
-      let hash = options.hash;
-      let amountRaw = options.amountRaw || (options.amountXno ? nanoToRaw(options.amountXno) : undefined);
-      if (hash && !amountRaw) {
-        console.error('Error: when --hash is provided, --amount-raw or --amount-xno is also required.');
-        process.exit(1);
-      }
-      if (!hash) {
-        const pending = await rpcReceivable(client, options.account, 1, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
-        if (pending.length === 0) {
-          console.error('Error: no receivable blocks found for this account.');
+  .action(
+    async (options: {
+      account: string;
+      hash?: string;
+      amountRaw?: string;
+      amountXno?: string;
+      url?: string;
+      json?: boolean;
+    }) => {
+      try {
+        if (options.amountRaw && options.amountXno) {
+          console.error('Error: specify --amount-raw or --amount-xno, not both.');
           process.exit(1);
         }
-        hash = pending[0].hash;
-        amountRaw = amountRaw || pending[0].amount;
-        console.error(`Auto-detected pending block: ${hash} (${rawToNano(amountRaw)} XNO)`);
+        const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
+        const accountPk = decodeNanoAddress(options.account).publicKey;
+        let hash = options.hash;
+        let amountRaw = options.amountRaw || (options.amountXno ? nanoToRaw(options.amountXno) : undefined);
+        if (hash && !amountRaw) {
+          console.error('Error: when --hash is provided, --amount-raw or --amount-xno is also required.');
+          process.exit(1);
+        }
+        if (!hash) {
+          const pending = await rpcReceivable(client, options.account, 1, {
+            timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
+          });
+          if (pending.length === 0) {
+            console.error('Error: no receivable blocks found for this account.');
+            process.exit(1);
+          }
+          hash = pending[0].hash;
+          amountRaw = amountRaw || pending[0].amount;
+          console.error(`Auto-detected pending block: ${hash} (${rawToNano(amountRaw)} XNO)`);
+        }
+        let info = await rpcAccountInfo(client, options.account, {
+          timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
+        }).catch(() => ({ error: 'Account not found' }) as NanoRpcErrorResponse);
+        const opened = !isRpcError(info);
+        const previous = opened ? info.frontier : ZERO_HASH;
+        const currentBalance = opened ? BigInt(info.balance) : 0n;
+        const blockHex = buildNanoStateBlockHex({
+          accountPublicKey: accountPk,
+          previous,
+          representativePublicKey: decodeNanoAddress(
+            opened ? info.representative || DEFAULT_REPRESENTATIVE : DEFAULT_REPRESENTATIVE,
+          ).publicKey,
+          balanceRaw: (currentBalance + BigInt(amountRaw!)).toString(),
+          link: hash!,
+        });
+        printJsonOrText(
+          {
+            blockHex,
+            account: options.account,
+            sendBlockHash: hash,
+            amountRaw,
+            previous,
+            subtype: opened ? 'receive' : 'open',
+          },
+          options,
+          () => console.log(blockHex),
+        );
+      } catch (error) {
+        exitWithError(error);
       }
-      let info = await rpcAccountInfo(client, options.account, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS }).catch(() => ({ error: 'Account not found' } as NanoRpcErrorResponse));
-      const opened = !isRpcError(info);
-      const previous = opened ? info.frontier : ZERO_HASH;
-      const currentBalance = opened ? BigInt(info.balance) : 0n;
-      const blockHex = buildNanoStateBlockHex({
-        accountPublicKey: accountPk,
-        previous,
-        representativePublicKey: decodeNanoAddress(opened ? info.representative || DEFAULT_REPRESENTATIVE : DEFAULT_REPRESENTATIVE).publicKey,
-        balanceRaw: (currentBalance + BigInt(amountRaw!)).toString(),
-        link: hash!,
-      });
-      printJsonOrText({ blockHex, account: options.account, sendBlockHash: hash, amountRaw, previous, subtype: opened ? 'receive' : 'open' }, options, () => console.log(blockHex));
-    } catch (error) {
-      exitWithError(error);
-    }
-  });
+    },
+  );
 
 blockCmd
   .command('change')
@@ -711,7 +817,9 @@ blockCmd
       const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
       const info = await rpcAccountInfo(client, options.account, { timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS });
       if (isRpcError(info)) {
-        console.error(`Error: account not opened (${info.error}). Cannot change representative on an unopened account.`);
+        console.error(
+          `Error: account not opened (${info.error}). Cannot change representative on an unopened account.`,
+        );
         process.exit(1);
       }
       const blockHex = buildNanoStateBlockHex({
@@ -721,7 +829,11 @@ blockCmd
         balanceRaw: info.balance,
         link: ZERO_HASH,
       });
-      printJsonOrText({ blockHex, account: options.account, representative: options.representative, previous: info.frontier }, options, () => console.log(blockHex));
+      printJsonOrText(
+        { blockHex, account: options.account, representative: options.representative, previous: info.frontier },
+        options,
+        () => console.log(blockHex),
+      );
     } catch (error) {
       exitWithError(error);
     }
@@ -779,7 +891,7 @@ program
   .description('Show diagnostics and system information')
   .option('-j, --json', 'Output in JSON format')
   .option('--retune', 'Rerun PoW profiling and overwrite cached tuning')
-  .action(async (options: { json?: boolean, retune?: boolean }) => {
+  .action(async (options: { json?: boolean; retune?: boolean }) => {
     if (options.retune) {
       try {
         clearPowTuningCache();
@@ -799,7 +911,7 @@ program
       effectiveRpcUrls: resolveEffectiveRpcUrls(undefined, config),
       effectiveWorkUrls,
     });
-    
+
     if (options.json) {
       console.log(JSON.stringify(info, null, 2));
     } else {

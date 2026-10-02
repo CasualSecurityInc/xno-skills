@@ -11,7 +11,11 @@ const untrackedOnly = process.argv.includes('--untracked-only');
 const invalidChanges = allChanges ? changes : untrackedOnly ? untrackedChanges : trackedChanges;
 
 if (invalidChanges.length > 0) {
-  const requirement = allChanges ? 'a clean worktree' : untrackedOnly ? 'no non-ignored untracked files' : 'a clean tracked worktree';
+  const requirement = allChanges
+    ? 'a clean worktree'
+    : untrackedOnly
+      ? 'no non-ignored untracked files'
+      : 'a clean tracked worktree';
   console.error(`Release requires ${requirement}. Commit or stash these changes first:`);
   console.error(invalidChanges.join('\n'));
   process.exit(1);

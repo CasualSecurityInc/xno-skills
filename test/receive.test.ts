@@ -7,11 +7,13 @@ vi.mock('../src/ows.js', () => ({
     id: 'mock-wallet-a',
     name: 'A',
     createdAt: new Date().toISOString(),
-    accounts: [{
-      address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
-      chainId: 'nano',
-      derivationPath: "m/44'/165'/0'/0/0",
-    }],
+    accounts: [
+      {
+        address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
+        chainId: 'nano',
+        derivationPath: "m/44'/165'/0'/0/0",
+      },
+    ],
   }),
   signTransactionProxy: vi.fn().mockResolvedValue({ signature: '0'.repeat(128) }),
   listWalletsProxy: vi.fn().mockResolvedValue([]),
@@ -21,11 +23,13 @@ vi.mock('../src/ows.js', () => ({
 
 const ZERO_HASH = '0'.repeat(64);
 
-function makeMockReaders(opts: {
-  accountInfo?: AccountInfoResponse | NanoRpcErrorResponse;
-  receivable?: ReceivableItem[];
-  processHashes?: string[];
-} = {}): NanoReaders {
+function makeMockReaders(
+  opts: {
+    accountInfo?: AccountInfoResponse | NanoRpcErrorResponse;
+    receivable?: ReceivableItem[];
+    processHashes?: string[];
+  } = {},
+): NanoReaders {
   const processHashes = opts.processHashes ?? ['a'.repeat(64), 'b'.repeat(64), 'c'.repeat(64)];
   let processIdx = 0;
   return {
@@ -34,7 +38,11 @@ function makeMockReaders(opts: {
     receivable: vi.fn().mockResolvedValue(opts.receivable ?? []),
     accountHistory: vi.fn().mockResolvedValue([]),
     workGenerate: vi.fn().mockResolvedValue('0000000000000000'),
-    process: vi.fn().mockImplementation(() => Promise.resolve({ hash: processHashes[processIdx++] || processHashes[processHashes.length - 1] })),
+    process: vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve({ hash: processHashes[processIdx++] || processHashes[processHashes.length - 1] }),
+      ),
     powTimeoutMs: 60_000,
   };
 }

@@ -6,15 +6,7 @@ import { version } from './version.js';
 const require = createRequire(import.meta.url);
 
 type InvocationMethod =
-  | 'npm-global'
-  | 'npm-local'
-  | 'npx'
-  | 'bun-global'
-  | 'bunx'
-  | 'pnpm-global'
-  | 'pnpm-dlx'
-  | 'source'
-  | 'unknown';
+  'npm-global' | 'npm-local' | 'npx' | 'bun-global' | 'bunx' | 'pnpm-global' | 'pnpm-dlx' | 'source' | 'unknown';
 
 export type EnvVarEntry = {
   name: string;
@@ -40,9 +32,7 @@ export type SystemInfo = {
   advisory?: string;
 };
 
-export function getEffectiveLocalPowRecommended(
-  fallback: () => boolean = () => false,
-): boolean {
+export function getEffectiveLocalPowRecommended(fallback: () => boolean = () => false): boolean {
   const raw = process.env.XNO_FORCE_LOCAL_POW?.trim().toLowerCase();
   if (raw === '1' || raw === 'true') return true;
   if (raw === '0' || raw === 'false') return false;
@@ -59,9 +49,12 @@ function detectInvocation(): InvocationMethod {
   if (scriptPath.includes('pnpm-store') || scriptPath.includes('.pnpm')) {
     return scriptPath.includes('_npx') ? 'pnpm-dlx' : 'pnpm-global';
   }
-  if (scriptPath.includes('/usr/local/lib/node_modules') ||
-      scriptPath.includes('/opt/homebrew/lib/node_modules') ||
-      scriptPath.includes('/usr/lib/node_modules')) return 'npm-global';
+  if (
+    scriptPath.includes('/usr/local/lib/node_modules') ||
+    scriptPath.includes('/opt/homebrew/lib/node_modules') ||
+    scriptPath.includes('/usr/lib/node_modules')
+  )
+    return 'npm-global';
   if (scriptPath.includes('/node_modules/.bin/')) return 'npm-local';
   if (scriptPath.endsWith('.ts') || scriptPath.includes('/src/')) return 'source';
   return 'unknown';
@@ -163,9 +156,10 @@ export function getSystemInfo(overrides?: {
     localPowRecommended,
     effectiveRpcUrls: overrides?.effectiveRpcUrls ?? [],
     effectiveWorkUrls,
-    advisory: !localPowRecommended && effectiveWorkUrls.length > 0
-      ? `Run \`xno-skills rpc probe-caps ${effectiveWorkUrls[0]}\` to verify remote PoW support.`
-      : undefined,
+    advisory:
+      !localPowRecommended && effectiveWorkUrls.length > 0
+        ? `Run \`xno-skills rpc probe-caps ${effectiveWorkUrls[0]}\` to verify remote PoW support.`
+        : undefined,
   };
 }
 
@@ -187,7 +181,8 @@ export function formatSystemInfo(info: SystemInfo): string {
   if (info.environment.nanoRpcUrl) lines.push(`  NANO_RPC_URL: ${info.environment.nanoRpcUrl}`);
   if (info.environment.nanoWorkUrl) lines.push(`  NANO_WORK_URL: ${info.environment.nanoWorkUrl}`);
   if (info.environment.xnoMcpHome) lines.push(`  XNO_MCP_HOME: ${info.environment.xnoMcpHome}`);
-  if (info.environment.xnoLocalPowRecommended) lines.push(`  XNO_FORCE_LOCAL_POW: ${info.environment.xnoLocalPowRecommended}`);
+  if (info.environment.xnoLocalPowRecommended)
+    lines.push(`  XNO_FORCE_LOCAL_POW: ${info.environment.xnoLocalPowRecommended}`);
 
   lines.push('');
   lines.push(`Local PoW Recommended: ${info.localPowRecommended}`);

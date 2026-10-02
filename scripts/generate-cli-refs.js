@@ -62,15 +62,38 @@ const subcommands = [
 
 if (!existsSync(refsDir)) mkdirSync(refsDir, { recursive: true });
 
+// Formatting here rather than leaving it to a pre-commit hook: these files are
+// rewritten on every build, so if the generator emitted unformatted markdown a
+// hook would reformat it, the next build would revert it, and
+// assert-clean-worktree --all (which preversion runs) would fail every release.
+function format(markdown, parser) {
+  try {
+    return execFileSync(
+      process.execPath,
+      [resolve(__dirname, '../node_modules/prettier/bin/prettier.cjs'), '--parser', parser],
+      { input: markdown, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'] },
+    );
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      console.warn('[generate-cli-refs] prettier not installed, writing unformatted');
+      return markdown;
+    }
+    throw error;
+  }
+}
+
 for (const cmd of subcommands) {
   const help = runHelp(cmd);
   const filename = cmd.replace(/ /g, '_') + '.md';
-  const content = `# xno-skills ${cmd}
+  const content = format(
+    `# xno-skills ${cmd}
 
 \`\`\`
 ${help.trim()}
 \`\`\`
-`;
+`,
+    'markdown',
+  );
   writeFileSync(resolve(refsDir, filename), content);
   console.log(`[generate-cli-refs] Wrote ${filename}`);
 }

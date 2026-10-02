@@ -81,7 +81,5 @@
     }
   },
   "runtime_coverage_findings": [],
-  "target_keys": [
-    "src/ows.ts:high impact"
-  ]
+  "target_keys": ["src/ows.ts:high impact"]
 }

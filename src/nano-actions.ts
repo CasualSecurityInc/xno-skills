@@ -1,12 +1,22 @@
 import { NOMS } from '@openrai/nano-core';
-import { buildNanoStateBlockHex, hashNanoStateBlockHex, parseNanoStateBlockHex, type StateBlockHashInput } from './state-block.js';
+import {
+  buildNanoStateBlockHex,
+  hashNanoStateBlockHex,
+  parseNanoStateBlockHex,
+  type StateBlockHashInput,
+} from './state-block.js';
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
 import { WorkType } from './pow.js';
-import { type ReceivableItem, type NanoRpcErrorResponse, type AccountInfoResponse, type AccountHistoryEntry } from './rpc.js';
+import {
+  type ReceivableItem,
+  type NanoRpcErrorResponse,
+  type AccountInfoResponse,
+  type AccountHistoryEntry,
+} from './rpc.js';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
 export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
@@ -49,7 +59,12 @@ class NanoActionError extends Error {
   retriable: boolean;
   details?: Record<string, unknown>;
 
-  constructor(code: string, step: NanoActionStep, message: string, options: { retriable?: boolean; details?: Record<string, unknown> } = {}) {
+  constructor(
+    code: string,
+    step: NanoActionStep,
+    message: string,
+    options: { retriable?: boolean; details?: Record<string, unknown> } = {},
+  ) {
     super(message);
     this.name = 'NanoActionError';
     this.code = code;
@@ -74,7 +89,10 @@ export type NanoReaders = {
   receivable: (address: string, count: number) => Promise<ReceivableItem[]>;
   accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
   workGenerate?: (hash: string, difficulty: string) => Promise<string>;
-  process?: (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => Promise<{ hash: string }>;
+  process?: (
+    block: Record<string, unknown>,
+    subtype: 'send' | 'receive' | 'open' | 'change',
+  ) => Promise<{ hash: string }>;
 };
 
 type NanoWalletAccount = {
@@ -165,12 +183,24 @@ function requireRepresentativeAddress(config: XnoConfig, explicit?: string): str
   if (!rep) return DEFAULT_REPRESENTATIVE;
   const validation = validateAddress(rep);
   if (!validation.valid) {
-    throw new NanoActionError('INVALID_REPRESENTATIVE', 'build_block', `Invalid representative address: ${validation.error}`, { details: { representative: rep } });
+    throw new NanoActionError(
+      'INVALID_REPRESENTATIVE',
+      'build_block',
+      `Invalid representative address: ${validation.error}`,
+      { details: { representative: rep } },
+    );
   }
   return rep;
 }
 
-function wrapError(error: unknown, code: string, step: NanoActionStep, message: string, details?: Record<string, unknown>, retriable = false): never {
+function wrapError(
+  error: unknown,
+  code: string,
+  step: NanoActionStep,
+  message: string,
+  details?: Record<string, unknown>,
+  retriable = false,
+): never {
   if (error instanceof NanoActionError) throw error;
   const inner = error instanceof Error ? error.message : String(error);
   throw new NanoActionError(code, step, `${message}: ${inner}`, { retriable, details: { ...details, cause: inner } });
@@ -199,14 +229,20 @@ async function signWorkAndProcess(
   logNanoAction(logScope, `sign_with_ows start subtype=${subtype} wallet=${walletName} blockHash=${blockHash}`);
   try {
     signResult = await signTransactionProxy(walletName, chainId, blockHex, undefined, index);
-    logNanoAction(logScope, `sign_with_ows ok subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)}`);
+    logNanoAction(
+      logScope,
+      `sign_with_ows ok subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)}`,
+    );
   } catch (error) {
-    logNanoAction(logScope, `sign_with_ows fail subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)} error=${describeError(error)}`);
+    logNanoAction(
+      logScope,
+      `sign_with_ows fail subtype=${subtype} wallet=${walletName} elapsedMs=${elapsedMs(signStartedAt)} error=${describeError(error)}`,
+    );
     wrapError(error, 'BLOCK_SIGN_FAILED', 'sign_with_ows', `OWS failed to sign ${subtype} block`, { walletName });
   }
 
   // 2. Generate PoW via the injected provider (local nano-core provider, or remote with local fallback)
-  const difficulty = (subtype === 'open' || subtype === 'receive') ? WorkType.Receive : WorkType.Send;
+  const difficulty = subtype === 'open' || subtype === 'receive' ? WorkType.Receive : WorkType.Send;
   const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
 
   let work: string;
@@ -219,12 +255,22 @@ async function signWorkAndProcess(
       // We already signed above; this path signals misconfiguration — raise loudly
       void result;
     } catch (_) {}
-    throw new NanoActionError('POW_UNAVAILABLE', 'submit_block', 'workGenerate not provided in readers — cannot generate PoW independently of OWS', { details: { subtype } });
+    throw new NanoActionError(
+      'POW_UNAVAILABLE',
+      'submit_block',
+      'workGenerate not provided in readers — cannot generate PoW independently of OWS',
+      { details: { subtype } },
+    );
   }
 
   // 3. Broadcast via rpcProcess
   if (!readers.process) {
-    throw new NanoActionError('PROCESS_UNAVAILABLE', 'submit_block', 'process not provided in readers — cannot broadcast block', { details: { subtype } });
+    throw new NanoActionError(
+      'PROCESS_UNAVAILABLE',
+      'submit_block',
+      'process not provided in readers — cannot broadcast block',
+      { details: { subtype } },
+    );
   }
 
   const accountPublicKey = blockInput.accountPublicKey;
@@ -275,18 +321,26 @@ export async function listNanoWallets(): Promise<NanoWalletSummary[]> {
 async function resolveNanoWalletAccount(walletName: string, index = 0): Promise<NanoWalletAccount> {
   const wallet = await getWalletProxy(walletName);
   if (!wallet) {
-    throw new NanoActionError('OWS_WALLET_NOT_FOUND', 'resolve_wallet', `OWS wallet not found: ${walletName}`, { details: { walletName } });
+    throw new NanoActionError('OWS_WALLET_NOT_FOUND', 'resolve_wallet', `OWS wallet not found: ${walletName}`, {
+      details: { walletName },
+    });
   }
 
-  const account = wallet.accounts.find((entry) =>
-    (entry.chainId === 'nano' || entry.chainId.startsWith('nano:')) &&
-    entry.derivationPath.endsWith(`/${index}`)
-  ) || wallet.accounts.filter((entry) => entry.address.startsWith('nano_'))[index];
+  const account =
+    wallet.accounts.find(
+      (entry) =>
+        (entry.chainId === 'nano' || entry.chainId.startsWith('nano:')) && entry.derivationPath.endsWith(`/${index}`),
+    ) || wallet.accounts.filter((entry) => entry.address.startsWith('nano_'))[index];
 
   if (!account) {
-    throw new NanoActionError('NANO_ACCOUNT_NOT_FOUND', 'resolve_account', `Nano account at index ${index} not found in OWS wallet ${walletName}`, {
-      details: { walletName, index },
-    });
+    throw new NanoActionError(
+      'NANO_ACCOUNT_NOT_FOUND',
+      'resolve_account',
+      `Nano account at index ${index} not found in OWS wallet ${walletName}`,
+      {
+        details: { walletName, index },
+      },
+    );
   }
 
   return {
@@ -302,7 +356,13 @@ export async function getNanoAddress(walletName: string, index = 0): Promise<Add
   return { wallet: walletName, address: account.address };
 }
 
-export async function getNanoBalance(walletName: string, readers: NanoReaders, ctx: NanoActionContext, index = 0, count = 10): Promise<BalanceSummary> {
+export async function getNanoBalance(
+  walletName: string,
+  readers: NanoReaders,
+  ctx: NanoActionContext,
+  index = 0,
+  count = 10,
+): Promise<BalanceSummary> {
   const account = await resolveNanoWalletAccount(walletName, index);
   try {
     const balance = await readers.accountBalance(account.address);
@@ -319,11 +379,23 @@ export async function getNanoBalance(walletName: string, readers: NanoReaders, c
       pendingBlocks,
     };
   } catch (error) {
-    wrapError(error, 'BALANCE_LOOKUP_FAILED', 'fetch_balance', `Failed to fetch balance for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'BALANCE_LOOKUP_FAILED',
+      'fetch_balance',
+      `Failed to fetch balance for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 }
 
-export async function getNanoHistory(walletName: string, readers: NanoReaders, ctx: NanoActionContext, options: { index?: number; count?: number } = {}): Promise<HistorySummary> {
+export async function getNanoHistory(
+  walletName: string,
+  readers: NanoReaders,
+  ctx: NanoActionContext,
+  options: { index?: number; count?: number } = {},
+): Promise<HistorySummary> {
   const index = options.index ?? 0;
   const count = options.count ?? 10;
   const account = await resolveNanoWalletAccount(walletName, index);
@@ -331,14 +403,21 @@ export async function getNanoHistory(walletName: string, readers: NanoReaders, c
     const history = await readers.accountHistory(account.address, count);
     return history;
   } catch (error) {
-    wrapError(error, 'HISTORY_LOOKUP_FAILED', 'fetch_history', `Failed to fetch history for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'HISTORY_LOOKUP_FAILED',
+      'fetch_history',
+      `Failed to fetch history for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 }
 
 export async function getNanoAccountInfo(
   options: { wallet?: string; address?: string; index?: number },
   readers: NanoReaders,
-  ctx: NanoActionContext
+  ctx: NanoActionContext,
 ): Promise<AccountInfoSummary> {
   let targetAddress = options.address;
   if (!targetAddress) {
@@ -378,7 +457,14 @@ export async function getNanoAccountInfo(
       weightXno: info.weight ? rawToNano(info.weight) : undefined,
     };
   } catch (error) {
-    wrapError(error, 'INFO_LOOKUP_FAILED', 'fetch_info', `Failed to fetch info for ${targetAddress}`, { address: targetAddress }, true);
+    wrapError(
+      error,
+      'INFO_LOOKUP_FAILED',
+      'fetch_info',
+      `Failed to fetch info for ${targetAddress}`,
+      { address: targetAddress },
+      true,
+    );
   }
 }
 
@@ -398,15 +484,29 @@ export async function executeReceive(
   try {
     info = await readers.accountInfo(account.address);
   } catch (error) {
-    wrapError(error, 'ACCOUNT_INFO_LOOKUP_FAILED', 'fetch_account_info', `Failed to fetch account info for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'ACCOUNT_INFO_LOOKUP_FAILED',
+      'fetch_account_info',
+      `Failed to fetch account info for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 
   const opened = !isRpcError(info);
-  const representative = opened ? (info as AccountInfoResponse).representative : requireRepresentativeAddress(ctx.config, options.representative);
+  const representative = opened
+    ? (info as AccountInfoResponse).representative
+    : requireRepresentativeAddress(ctx.config, options.representative);
   if (!representative) {
-    throw new NanoActionError('REPRESENTATIVE_REQUIRED', 'build_block', `Representative address missing for account ${account.address}`, {
-      details: { walletName, address: account.address },
-    });
+    throw new NanoActionError(
+      'REPRESENTATIVE_REQUIRED',
+      'build_block',
+      `Representative address missing for account ${account.address}`,
+      {
+        details: { walletName, address: account.address },
+      },
+    );
   }
 
   await report(ctx, 2, 5, `receive: receivable for ${account.address}`);
@@ -414,7 +514,14 @@ export async function executeReceive(
   try {
     receivable = await readers.receivable(account.address, count);
   } catch (error) {
-    wrapError(error, 'RECEIVABLE_LOOKUP_FAILED', 'fetch_receivable', `Failed to fetch pending blocks for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'RECEIVABLE_LOOKUP_FAILED',
+      'fetch_receivable',
+      `Failed to fetch pending blocks for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 
   const pending = options.onlyHash ? receivable.filter((item) => item.hash === options.onlyHash) : receivable;
@@ -445,13 +552,28 @@ export async function executeReceive(
     await report(ctx, 4, 5, `receive: submitting ${subtype} block ${i + 1}/${pending.length} for ${account.address}`);
     let submitted;
     try {
-      submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers, getLogScope(ctx));
-    } catch (error) {
-      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit ${subtype} block for ${account.address}`, {
+      submitted = await signWorkAndProcess(
         walletName,
-        address: account.address,
+        account.chainId,
+        blockInput,
         subtype,
-      }, true);
+        index,
+        readers,
+        getLogScope(ctx),
+      );
+    } catch (error) {
+      wrapError(
+        error,
+        'BLOCK_SUBMIT_FAILED',
+        'submit_block',
+        `Failed to submit ${subtype} block for ${account.address}`,
+        {
+          walletName,
+          address: account.address,
+          subtype,
+        },
+        true,
+      );
     }
 
     received.push({ hash: submitted.txHash, sendHash: item.hash, source: item.source, amountRaw: item.amount });
@@ -499,32 +621,54 @@ export async function executeSend(
       details: { amountXno, amountRaw },
     });
   }
-  logNanoAction(getLogScope(ctx), `send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`);
+  logNanoAction(
+    getLogScope(ctx),
+    `send start wallet=${walletName} address=${account.address} destination=${destination} amountRaw=${amountRaw}`,
+  );
 
   await report(ctx, 1, 4, `send: account_info for ${account.address}`);
   let info: AccountInfoResponse | NanoRpcErrorResponse;
   try {
     info = await readers.accountInfo(account.address);
   } catch (error) {
-    wrapError(error, 'ACCOUNT_INFO_LOOKUP_FAILED', 'fetch_account_info', `Failed to fetch account info for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'ACCOUNT_INFO_LOOKUP_FAILED',
+      'fetch_account_info',
+      `Failed to fetch account info for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 
   if (isRpcError(info)) {
-    throw new NanoActionError('ACCOUNT_UNOPENED', 'fetch_account_info', 'Account unopened.', { details: { walletName, address: account.address } });
+    throw new NanoActionError('ACCOUNT_UNOPENED', 'fetch_account_info', 'Account unopened.', {
+      details: { walletName, address: account.address },
+    });
   }
 
   const destinationValidation = validateAddress(destination);
   if (!destinationValidation.valid || !destinationValidation.publicKey) {
-    throw new NanoActionError('INVALID_DESTINATION', 'build_block', `Invalid destination address: ${destinationValidation.error}`, { details: { destination } });
+    throw new NanoActionError(
+      'INVALID_DESTINATION',
+      'build_block',
+      `Invalid destination address: ${destinationValidation.error}`,
+      { details: { destination } },
+    );
   }
 
   const sendLimitStr = ctx.config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
   const sendLimitRaw = nanoToRaw(sendLimitStr);
   if (BigInt(amountRaw) > BigInt(sendLimitRaw)) {
-    throw new NanoActionError('MAX_SEND_EXCEEDED', 'build_block', `Amount ${amountXno} XNO exceeds the per-transaction limit of ${sendLimitStr} XNO.`, {
-      details: { amountXno, amountRaw, maxSendXno: sendLimitStr, maxSendRaw: sendLimitRaw },
-      retriable: false,
-    });
+    throw new NanoActionError(
+      'MAX_SEND_EXCEEDED',
+      'build_block',
+      `Amount ${amountXno} XNO exceeds the per-transaction limit of ${sendLimitStr} XNO.`,
+      {
+        details: { amountXno, amountRaw, maxSendXno: sendLimitStr, maxSendRaw: sendLimitRaw },
+        retriable: false,
+      },
+    );
   }
 
   const currentBalance = BigInt(info.balance);
@@ -546,7 +690,15 @@ export async function executeSend(
   await report(ctx, 3, 4, `send: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers, getLogScope(ctx));
+    submitted = await signWorkAndProcess(
+      walletName,
+      account.chainId,
+      sendBlockInput,
+      'send',
+      index,
+      readers,
+      getLogScope(ctx),
+    );
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
     const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
@@ -554,25 +706,45 @@ export async function executeSend(
       await report(ctx, 3, 4, `send: retrying after stale account info for ${account.address}`);
       try {
         info = await readers.accountInfo(account.address);
-      } catch { /* keep old info */ }
+      } catch {
+        /* keep old info */
+      }
       if (!isRpcError(info)) {
         sendBlockInput.previous = info.frontier;
         sendBlockInput.balanceRaw = (BigInt(info.balance) - BigInt(amountRaw)).toString();
-        submitted = await signWorkAndProcess(walletName, account.chainId, sendBlockInput, 'send', index, readers, getLogScope(ctx));
+        submitted = await signWorkAndProcess(
+          walletName,
+          account.chainId,
+          sendBlockInput,
+          'send',
+          index,
+          readers,
+          getLogScope(ctx),
+        );
       } else {
         throw error;
       }
     } else {
-      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit send block for ${account.address}`, {
-        walletName,
-        address: account.address,
-        destination,
-      }, true);
+      wrapError(
+        error,
+        'BLOCK_SUBMIT_FAILED',
+        'submit_block',
+        `Failed to submit send block for ${account.address}`,
+        {
+          walletName,
+          address: account.address,
+          destination,
+        },
+        true,
+      );
     }
   }
 
   await report(ctx, 4, 4, `send: submitted ${submitted.txHash}`);
-  logNanoAction(getLogScope(ctx), `send ok wallet=${walletName} address=${account.address} destination=${destination} hash=${submitted.txHash}`);
+  logNanoAction(
+    getLogScope(ctx),
+    `send ok wallet=${walletName} address=${account.address} destination=${destination} hash=${submitted.txHash}`,
+  );
   ctx.appendTransaction?.({
     id: generateId(),
     owsWalletId: walletName,
@@ -600,7 +772,12 @@ export async function executeChange(
   const account = await resolveNanoWalletAccount(walletName, index);
   const repValidation = validateAddress(representative);
   if (!repValidation.valid || !repValidation.publicKey) {
-    throw new NanoActionError('INVALID_REPRESENTATIVE', 'build_block', `Invalid representative address: ${repValidation.error}`, { details: { representative } });
+    throw new NanoActionError(
+      'INVALID_REPRESENTATIVE',
+      'build_block',
+      `Invalid representative address: ${repValidation.error}`,
+      { details: { representative } },
+    );
   }
 
   await report(ctx, 1, 4, `change: account_info for ${account.address}`);
@@ -608,11 +785,20 @@ export async function executeChange(
   try {
     info = await readers.accountInfo(account.address);
   } catch (error) {
-    wrapError(error, 'ACCOUNT_INFO_LOOKUP_FAILED', 'fetch_account_info', `Failed to fetch account info for ${account.address}`, { walletName, address: account.address }, true);
+    wrapError(
+      error,
+      'ACCOUNT_INFO_LOOKUP_FAILED',
+      'fetch_account_info',
+      `Failed to fetch account info for ${account.address}`,
+      { walletName, address: account.address },
+      true,
+    );
   }
 
   if (isRpcError(info)) {
-    throw new NanoActionError('ACCOUNT_UNOPENED', 'fetch_account_info', 'Account unopened.', { details: { walletName, address: account.address } });
+    throw new NanoActionError('ACCOUNT_UNOPENED', 'fetch_account_info', 'Account unopened.', {
+      details: { walletName, address: account.address },
+    });
   }
 
   await report(ctx, 2, 4, `change: building block for ${account.address}`);
@@ -627,7 +813,15 @@ export async function executeChange(
   await report(ctx, 3, 4, `change: submitting block for ${account.address}`);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers, getLogScope(ctx));
+    submitted = await signWorkAndProcess(
+      walletName,
+      account.chainId,
+      changeBlockInput,
+      'change',
+      index,
+      readers,
+      getLogScope(ctx),
+    );
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
     const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
@@ -635,20 +829,37 @@ export async function executeChange(
       await report(ctx, 3, 4, `change: retrying after stale account info for ${account.address}`);
       try {
         info = await readers.accountInfo(account.address);
-      } catch { /* keep old info */ }
+      } catch {
+        /* keep old info */
+      }
       if (!isRpcError(info)) {
         changeBlockInput.previous = info.frontier;
         changeBlockInput.balanceRaw = info.balance;
-        submitted = await signWorkAndProcess(walletName, account.chainId, changeBlockInput, 'change', index, readers, getLogScope(ctx));
+        submitted = await signWorkAndProcess(
+          walletName,
+          account.chainId,
+          changeBlockInput,
+          'change',
+          index,
+          readers,
+          getLogScope(ctx),
+        );
       } else {
         throw error;
       }
     } else {
-      wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit change block for ${account.address}`, {
-        walletName,
-        address: account.address,
-        representative,
-      }, true);
+      wrapError(
+        error,
+        'BLOCK_SUBMIT_FAILED',
+        'submit_block',
+        `Failed to submit change block for ${account.address}`,
+        {
+          walletName,
+          address: account.address,
+          representative,
+        },
+        true,
+      );
     }
   }
 
@@ -684,34 +895,58 @@ export async function submitPreparedBlock(
   const blockInput = parseNanoStateBlockHex(txHex);
   let submitted;
   try {
-    submitted = await signWorkAndProcess(walletName, account.chainId, blockInput, subtype, index, readers, getLogScope(ctx));
-  } catch (error) {
-    wrapError(error, 'BLOCK_SUBMIT_FAILED', 'submit_block', `Failed to submit prepared ${subtype} block for ${account.address}`, {
+    submitted = await signWorkAndProcess(
       walletName,
-      address: account.address,
+      account.chainId,
+      blockInput,
       subtype,
-    }, true);
+      index,
+      readers,
+      getLogScope(ctx),
+    );
+  } catch (error) {
+    wrapError(
+      error,
+      'BLOCK_SUBMIT_FAILED',
+      'submit_block',
+      `Failed to submit prepared ${subtype} block for ${account.address}`,
+      {
+        walletName,
+        address: account.address,
+        subtype,
+      },
+      true,
+    );
   }
 
   await report(ctx, 2, 2, `submit-block: submitted ${submitted.txHash}`);
   return { hash: submitted.txHash, address: account.address, subtype };
 }
 
-export async function signWalletMessage(walletName: string, message: string, options: { index?: number } = {}): Promise<SignMessageResult> {
+export async function signWalletMessage(
+  walletName: string,
+  message: string,
+  options: { index?: number } = {},
+): Promise<SignMessageResult> {
   const index = options.index ?? 0;
   const account = await resolveNanoWalletAccount(walletName, index);
   try {
     const result = await signMessageProxy(walletName, account.chainId, message, undefined, undefined, index);
     return { address: account.address, signature: result.signature };
   } catch (error) {
-    wrapError(error, 'MESSAGE_SIGN_FAILED', 'sign_with_ows', `Failed to sign message for ${account.address}`, { walletName, address: account.address });
+    wrapError(error, 'MESSAGE_SIGN_FAILED', 'sign_with_ows', `Failed to sign message for ${account.address}`, {
+      walletName,
+      address: account.address,
+    });
   }
 }
 
 export function verifyNanoMessage(address: string, message: string, signature: string): VerifyMessageResult {
   const validation = validateAddress(address);
   if (!validation.valid || !validation.publicKey) {
-    throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, { details: { address } });
+    throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, {
+      details: { address },
+    });
   }
 
   // NOMS (Nano Off-chain Message Signing) is specified and implemented in this repo's own
@@ -723,16 +958,23 @@ export function verifyNanoMessage(address: string, message: string, signature: s
   // `valid: true` fail to imply a canonical encoding, which is a footgun for any caller that
   // compares signature strings. `signMessage` emits lowercase, so no working input is lost.
   if (typeof signature !== 'string' || !/^[0-9a-f]{128}$/.test(signature)) {
-    throw new NanoActionError('INVALID_SIGNATURE', 'verify_message', 'Signature must be 128 lowercase hex characters (64 bytes).', { details: { length: typeof signature === 'string' ? signature.length : 0 } });
+    throw new NanoActionError(
+      'INVALID_SIGNATURE',
+      'verify_message',
+      'Signature must be 128 lowercase hex characters (64 bytes).',
+      { details: { length: typeof signature === 'string' ? signature.length : 0 } },
+    );
   }
 
   return { valid: NOMS.verifyMessage(message, signature, validation.publicKey) };
 }
 
 export function toToolSuccess(result: unknown, structuredContent?: Record<string, unknown>) {
-  const derivedStructured = structuredContent ?? (typeof result === 'object' && result !== null && !Array.isArray(result)
-    ? result as Record<string, unknown>
-    : undefined);
+  const derivedStructured =
+    structuredContent ??
+    (typeof result === 'object' && result !== null && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : undefined);
   return {
     content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
     structuredContent: derivedStructured,

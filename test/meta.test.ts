@@ -29,19 +29,25 @@ describe('formatSystemInfo diagnostics output', () => {
   });
 
   it('prints no advisory when local PoW is recommended', () => {
-    const output = formatSystemInfo(baseInfo({
-      localPowRecommended: true,
-    }));
+    const output = formatSystemInfo(
+      baseInfo({
+        localPowRecommended: true,
+      }),
+    );
 
     expect(output).not.toContain('Advisory:');
   });
 
   it('prints a probe-caps advisory when remote PoW should be verified', () => {
-    const output = formatSystemInfo(baseInfo({
-      localPowRecommended: false,
-      advisory: 'Run `xno-skills rpc probe-caps https://work.example/api` to verify remote PoW support.',
-    }));
+    const output = formatSystemInfo(
+      baseInfo({
+        localPowRecommended: false,
+        advisory: 'Run `xno-skills rpc probe-caps https://work.example/api` to verify remote PoW support.',
+      }),
+    );
 
-    expect(output).toContain('Advisory: Run `xno-skills rpc probe-caps https://work.example/api` to verify remote PoW support.');
+    expect(output).toContain(
+      'Advisory: Run `xno-skills rpc probe-caps https://work.example/api` to verify remote PoW support.',
+    );
   });
 });

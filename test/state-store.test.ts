@@ -71,7 +71,11 @@ describe('payment request store', () => {
 
     const files = fs.readdirSync(path.join(home, 'payments'));
     expect(files.sort()).toEqual(['req-a.json', 'req-b.json']);
-    expect(listPaymentRequests().map((r) => r.id).sort()).toEqual(['req-a', 'req-b']);
+    expect(
+      listPaymentRequests()
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(['req-a', 'req-b']);
   });
 
   it('is visible to another process without any cache refresh', () => {
@@ -88,7 +92,9 @@ describe('payment request store', () => {
   it('does not lose a concurrent write made between read and write', () => {
     putPaymentRequest(request('shared'));
     // Simulate another instance writing while we hold a stale copy in hand.
-    updatePaymentRequest('shared', (rec) => { rec.reason = 'ours'; });
+    updatePaymentRequest('shared', (rec) => {
+      rec.reason = 'ours';
+    });
 
     inSeparateProcess(`
       import { getPaymentRequest, putPaymentRequest } from ${JSON.stringify(moduleUrl())};
@@ -104,7 +110,9 @@ describe('payment request store', () => {
 
   it('updatePaymentRequest mutates in place and stamps updatedAt', () => {
     putPaymentRequest(request('r1', { updatedAt: '2020-01-01T00:00:00.000Z' }));
-    updatePaymentRequest('r1', (rec) => { rec.status = 'received'; });
+    updatePaymentRequest('r1', (rec) => {
+      rec.status = 'received';
+    });
 
     const rec = getPaymentRequest('r1');
     expect(rec?.status).toBe('received');
@@ -150,8 +158,14 @@ describe('legacy collection migration', () => {
 
   it('imports transactions.json likewise', () => {
     const tx: TransactionRecord = {
-      id: 'tx-1', owsWalletId: 'A', accountIndex: 0, address: 'nano_1',
-      type: 'send', amountRaw: '1', counterparty: 'nano_2', hash: 'h',
+      id: 'tx-1',
+      owsWalletId: 'A',
+      accountIndex: 0,
+      address: 'nano_1',
+      type: 'send',
+      amountRaw: '1',
+      counterparty: 'nano_2',
+      hash: 'h',
       timestamp: '2026-01-01T00:00:00.000Z',
     };
     fs.writeFileSync(path.join(home, 'transactions.json'), JSON.stringify({ transactions: [tx] }), 'utf8');
@@ -174,8 +188,15 @@ describe('legacy collection migration', () => {
 
 describe('transaction store', () => {
   const tx = (id: string, timestamp: string): TransactionRecord => ({
-    id, owsWalletId: 'A', accountIndex: 0, address: 'nano_1',
-    type: 'send', amountRaw: '1', counterparty: 'nano_2', hash: 'h', timestamp,
+    id,
+    owsWalletId: 'A',
+    accountIndex: 0,
+    address: 'nano_1',
+    type: 'send',
+    amountRaw: '1',
+    counterparty: 'nano_2',
+    hash: 'h',
+    timestamp,
   });
 
   it('keeps writes from separate processes', () => {

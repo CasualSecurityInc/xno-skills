@@ -59,7 +59,9 @@ function requestToolList() {
               child.stdin.write(toolsList + '\n');
             }, 200);
           }
-        } catch { /* not JSON, ignore */ }
+        } catch {
+          /* not JSON, ignore */
+        }
       }
     });
 
@@ -69,8 +71,14 @@ function requestToolList() {
 
     // Start MCP handshake: send initialize, then await response
     const init = JSON.stringify({
-      jsonrpc: '2.0', id: 1, method: 'initialize',
-      params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'smithery-scanner', version: '1.0.0' } },
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'smithery-scanner', version: '1.0.0' },
+      },
     });
     child.stdin.write(init + '\n');
   });

@@ -16,6 +16,7 @@ On-demand configuration reference for `xno-mcp` / xno-skills. Load this when you
 ### Override precedence
 
 **Remote PoW URL** (resolved in order):
+
 1. `NANO_WORK_URL` env var
 2. saved config `workUrl`
 3. `NANO_RPC_URL` env var
@@ -23,6 +24,7 @@ On-demand configuration reference for `xno-mcp` / xno-skills. Load this when you
 5. default primary RPC node
 
 **RPC endpoint list** (normal traffic):
+
 1. explicit tool argument `rpcUrl`
 2. saved config `rpcUrl`
 3. `NANO_RPC_URL` env var
@@ -37,11 +39,13 @@ On-demand configuration reference for `xno-mcp` / xno-skills. Load this when you
 ### Resetting values
 
 Setting a string field to `""` or `null` clears the saved override (falls back to defaults):
+
 ```json
 { "name": "config_set", "arguments": { "workUrl": "" } }
 ```
 
 Setting a number field to `null` clears the saved override:
+
 ```json
 { "name": "config_set", "arguments": { "powTimeoutMs": null } }
 ```

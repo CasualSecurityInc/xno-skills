@@ -1,10 +1,6 @@
 import { loadConfig, type XnoConfig } from './state-store.js';
 
-const DEFAULT_RPC_URLS = [
-  'https://rainstorm.city/api',
-  'https://nanoslo.0x.no/proxy',
-  'https://rpc.nano.to',
-];
+const DEFAULT_RPC_URLS = ['https://rainstorm.city/api', 'https://nanoslo.0x.no/proxy', 'https://rpc.nano.to'];
 
 /**
  * Resolve the effective remote PoW work URL list from highest to lowest priority:

@@ -74,15 +74,15 @@ export function generateAsciiQr(address: string, amount?: string | number): Prom
 export function generateSvgQr(address: string, amount?: string | number): string {
   const uri = formatNanoUri(address, amount);
   const footer = formatPayloadFooter(address, amount);
-  
+
   const svg = new QRCodeSvg({
     content: uri,
     padding: 4,
     width: 256,
     height: 256,
-    color: "#000000",
-    background: "#ffffff",
-    ecl: "M",
+    color: '#000000',
+    background: '#ffffff',
+    ecl: 'M',
   }).svg();
 
   return svg + footer;

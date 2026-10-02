@@ -20,7 +20,7 @@ type SystemInfo = {
 };
 
 function getText(result: unknown): string {
-  return ((((result as any).content) as any[])[0] as any).text;
+  return (((result as any).content as any[])[0] as any).text;
 }
 
 describe('diag parity: CLI --json vs MCP system_diag', () => {
@@ -28,15 +28,14 @@ describe('diag parity: CLI --json vs MCP system_diag', () => {
   let cliDiag: SystemInfo;
 
   beforeAll(async () => {
-    cliDiag = JSON.parse(execSync(`node "${BIN_PATH}" diag --json`, {
-      encoding: 'utf8',
-      env: { ...process.env, XNO_MCP_MOCK_OWS: 'true' },
-    })) as SystemInfo;
+    cliDiag = JSON.parse(
+      execSync(`node "${BIN_PATH}" diag --json`, {
+        encoding: 'utf8',
+        env: { ...process.env, XNO_MCP_MOCK_OWS: 'true' },
+      }),
+    ) as SystemInfo;
 
-    const client = new Client(
-      { name: 'diag-parity-test', version: '1.0.0' },
-      { capabilities: {} },
-    );
+    const client = new Client({ name: 'diag-parity-test', version: '1.0.0' }, { capabilities: {} });
     const transport = new StdioClientTransport({
       command: 'node',
       args: [BIN_PATH, 'mcp'],

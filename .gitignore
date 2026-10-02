@@ -20,3 +20,6 @@ interview/
 *.db
 .beads-credential-key
 .beads/proxieddb/
+
+# Husky internals (recreated by the prepare script)
+.husky/_/

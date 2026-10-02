@@ -15,16 +15,13 @@ export function validateWork(work: string): void {
 
 export async function localWorkGenerate(
   rootOrHash: string,
-  threshold: WorkType = WorkType.Send
+  threshold: WorkType = WorkType.Send,
 ): Promise<{ work: string }> {
   if (typeof rootOrHash !== 'string' || !/^[0-9a-fA-F]{64}$/.test(rootOrHash)) {
     throw new Error('work root/hash must be 32-byte hex (64 hex characters)');
   }
 
-  const proofOfWork = await workProvider.generate(
-    rootOrHash.toLowerCase(),
-    threshold
-  );
+  const proofOfWork = await workProvider.generate(rootOrHash.toLowerCase(), threshold);
 
   if (!proofOfWork || typeof proofOfWork !== 'string') {
     throw new Error('Local PoW generation failed');

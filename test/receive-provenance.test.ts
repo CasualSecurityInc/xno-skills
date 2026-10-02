@@ -6,11 +6,13 @@ vi.mock('../src/ows.js', () => ({
     id: 'mock-wallet-a',
     name: 'A',
     createdAt: new Date().toISOString(),
-    accounts: [{
-      address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
-      chainId: 'nano',
-      derivationPath: "m/44'/165'/0'/0/0",
-    }],
+    accounts: [
+      {
+        address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
+        chainId: 'nano',
+        derivationPath: "m/44'/165'/0'/0/0",
+      },
+    ],
   }),
   signTransactionProxy: vi.fn().mockResolvedValue({ signature: '0'.repeat(128) }),
   listWalletsProxy: vi.fn().mockResolvedValue([]),
@@ -40,11 +42,13 @@ describe('executeReceive provenance', () => {
       appendTransaction: vi.fn(),
     };
     const result = await executeReceive('A', undefined, ctx, readers(), { count: 1 });
-    expect(result.received).toEqual([{
-      hash: RECEIVE_HASH,
-      sendHash: SEND_HASH,
-      source: SOURCE,
-      amountRaw: '100',
-    }]);
+    expect(result.received).toEqual([
+      {
+        hash: RECEIVE_HASH,
+        sendHash: SEND_HASH,
+        source: SOURCE,
+        amountRaw: '100',
+      },
+    ]);
   });
 });

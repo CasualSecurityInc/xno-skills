@@ -5,9 +5,7 @@
     {
       "title": "Nano",
       "description": "Nano (XNO) cryptocurrency wallet operations, protocol tasks, and troubleshooting.",
-      "skills": [
-        "nano"
-      ]
+      "skills": ["nano"]
     },
     {
       "title": "Obsolete (do not use)",

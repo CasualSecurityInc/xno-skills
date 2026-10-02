@@ -2,9 +2,7 @@ import { blake2b } from '@noble/hashes/blake2b.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
 const CHARSET = '13456789abcdefghijkmnopqrstuwxyz';
-const CHAR_TO_VALUE: Record<string, number> = Object.fromEntries(
-  [...CHARSET].map((c, i) => [c, i])
-);
+const CHAR_TO_VALUE: Record<string, number> = Object.fromEntries([...CHARSET].map((c, i) => [c, i]));
 
 export type NanoAddressPrefix = 'nano_' | 'xrb_';
 
@@ -74,10 +72,11 @@ export function publicKeyToNanoAddress(publicKeyHex: string, prefix: NanoAddress
 }
 
 export function decodeNanoAddress(address: string): DecodeNanoAddressResult {
-  const prefix: NanoAddressPrefix | null =
-    address.startsWith('nano_') ? 'nano_' :
-    address.startsWith('xrb_') ? 'xrb_' :
-    null;
+  const prefix: NanoAddressPrefix | null = address.startsWith('nano_')
+    ? 'nano_'
+    : address.startsWith('xrb_')
+      ? 'xrb_'
+      : null;
 
   if (!prefix) {
     throw new Error("Invalid prefix. Address must start with 'nano_' or 'xrb_'.");
@@ -85,7 +84,9 @@ export function decodeNanoAddress(address: string): DecodeNanoAddressResult {
 
   const payload = address.slice(prefix.length);
   if (payload.length !== 60) {
-    throw new Error(`Invalid length. Address must be ${prefix === 'nano_' ? 65 : 64} characters, got ${address.length}.`);
+    throw new Error(
+      `Invalid length. Address must be ${prefix === 'nano_' ? 65 : 64} characters, got ${address.length}.`,
+    );
   }
 
   const bits300: number[] = new Array(300);
@@ -122,4 +123,3 @@ export function decodeNanoAddress(address: string): DecodeNanoAddressResult {
 
   return { prefix, publicKey: bytesToHex(publicKeyBytes) };
 }
-

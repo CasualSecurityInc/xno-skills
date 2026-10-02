@@ -53,7 +53,7 @@ describe('base32Encode', () => {
       // 3 bytes = 24 bits = 4 complete 5-bit chunks + 4 remaining bits
       // 4 bytes = 32 bits = 6 complete 5-bit chunks + 2 remaining bits
       // 5 bytes = 40 bits = 8 complete 5-bit chunks
-      
+
       const input = new Uint8Array([0xff, 0xff, 0xff, 0xff, 0xff]);
       const encoded = base32Encode(input);
       expect(encoded.length).toBe(8);
@@ -104,10 +104,8 @@ describe('base32Encode', () => {
       // Public key: 5b65b0e8173ee0802c2c3e6c9080d1a16b06de1176c938a924f58670904e82c4
       // This should encode to a specific base32 string
       const publicKey = new Uint8Array([
-        0x5b, 0x65, 0xb0, 0xe8, 0x17, 0x3e, 0xe0, 0x80,
-        0x2c, 0x2c, 0x3e, 0x6c, 0x90, 0x80, 0xd1, 0xa1,
-        0x6b, 0x06, 0xde, 0x11, 0x76, 0xc9, 0x38, 0xa9,
-        0x24, 0xf5, 0x86, 0x70, 0x90, 0x4e, 0x82, 0xc4
+        0x5b, 0x65, 0xb0, 0xe8, 0x17, 0x3e, 0xe0, 0x80, 0x2c, 0x2c, 0x3e, 0x6c, 0x90, 0x80, 0xd1, 0xa1, 0x6b, 0x06,
+        0xde, 0x11, 0x76, 0xc9, 0x38, 0xa9, 0x24, 0xf5, 0x86, 0x70, 0x90, 0x4e, 0x82, 0xc4,
       ]);
       const encoded = base32Encode(publicKey);
       // The encoded string should be 52 characters (256 bits / 5 bits per char, rounded up)
@@ -256,17 +254,17 @@ describe('Nano-specific behavior', () => {
   it('should use correct character set (excludes 0, O, I, l, 2)', () => {
     const charset = '13456789abcdefghijkmnopqrstuwxyz';
     const excludedChars = ['0', 'O', 'I', 'l', '2'];
-    
+
     const testBytes = new Uint8Array(256);
     for (let i = 0; i < 256; i++) {
       testBytes[i] = i;
     }
     const encoded = base32Encode(testBytes);
-    
+
     for (const char of excludedChars) {
       expect(encoded).not.toContain(char);
     }
-    
+
     for (const char of encoded) {
       expect(charset).toContain(char);
     }
@@ -277,7 +275,7 @@ describe('Nano-specific behavior', () => {
     // This regex matches the character set we use
     const charset = '13456789abcdefghijkmnopqrstuwxyz';
     const regex = new RegExp(`^[${charset}]+$`);
-    
+
     // Test various encodings
     for (let len = 1; len <= 64; len++) {
       const bytes = new Uint8Array(len).fill(0xab);

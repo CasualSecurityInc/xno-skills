@@ -39,7 +39,7 @@ Built-in skill for Personal AI Agents (OpenClaw etc.) and humans with AI Coding 
 
 ```bash
 npx skills add CasualSecurityInc/xno-skills -g
-# or non-interactively, i.e. for agent use: 
+# or non-interactively, i.e. for agent use:
 npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
@@ -52,12 +52,15 @@ npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 
 > [!IMPORTANT]
 > If you installed skills from this repository before May 4, 2026, you have 11 individual `nano-*` skills that have been consolidated into a single `nano` skill. Remove the old ones first:
+>
 > ```bash
 > npx skills remove nano-block-lattice-expert nano-check-balance nano-convert-units nano-create-wallet nano-generate-qr nano-mcp-wallet nano-request-payment nano-return-funds nano-sign-message nano-validate-address nano-verify-message -g -y
 > ```
+>
 > Then reinstall as above.
 
 Available skills:
+
 - `nano`: Wallet ops, balance, send/receive, QR codes, address validation, unit conversion, payment requests, refunds, block-lattice protocol expertise, and more — all in one skill. Uses `xno-mcp` MCP tools first, falls back to `xno-skills` CLI.
 
 ## CLI
@@ -65,59 +68,60 @@ Available skills:
 ### Installation & Upgrades
 
 To install or upgrade the CLI, AI agent skills, and wallet dependencies to the latest version, run:
+
 ```bash
 npm install -g xno-skills && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 xno-skills --help
 ```
 
 To pin to the current stable release instead:
+
 ```bash
 npm install -g xno-skills@4.7.5 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
-
 ### Wallet Operations
 
-| Command | Description |
-|---|---|
-| `wallets [options]` | List wallets that have Nano accounts |
-| `balance [options]` | Show balance and pending amount |
-| `receive [options]` | Receive pending blocks |
-| `send [options]` | Send Nano |
-| `change-rep [options]` | Submit a change representative block |
+| Command                  | Description                          |
+| ------------------------ | ------------------------------------ |
+| `wallets [options]`      | List wallets that have Nano accounts |
+| `balance [options]`      | Show balance and pending amount      |
+| `receive [options]`      | Receive pending blocks               |
+| `send [options]`         | Send Nano                            |
+| `change-rep [options]`   | Submit a change representative block |
 | `submit-block [options]` | Sign and submit a prepared block hex |
-| `history [options]` | Show transaction history |
+| `history [options]`      | Show transaction history             |
 
 ### Utilities
 
-| Command | Description |
-|---|---|
-| `info [options]` | Discover the current state and representative of any Nano account |
-| `convert [options] <amount> <from>` | Convert between XNO units |
-| `qr [options] <address>` | Generate a QR code for a Nano address |
-| `validate [options] <input>` | Validate a Nano address or block hash |
+| Command                             | Description                                                       |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `info [options]`                    | Discover the current state and representative of any Nano account |
+| `convert [options] <amount> <from>` | Convert between XNO units                                         |
+| `qr [options] <address>`            | Generate a QR code for a Nano address                             |
+| `validate [options] <input>`        | Validate a Nano address or block hash                             |
 
 ### Cryptography & Signing
 
-| Command | Description |
-|---|---|
-| `sign [options] <message>` | Sign a NOMS message with a private key |
-| `verify [options] <address> <message> <signature>` | Verify a NOMS message signature |
+| Command                                            | Description                            |
+| -------------------------------------------------- | -------------------------------------- |
+| `sign [options] <message>`                         | Sign a NOMS message with a private key |
+| `verify [options] <address> <message> <signature>` | Verify a NOMS message signature        |
 
 ### Advanced & RPC
 
-| Command | Description |
-|---|---|
-| `rpc` | Query a Nano node RPC |
+| Command                | Description                                                                                           |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `rpc`                  | Query a Nano node RPC                                                                                 |
 | `rpc probe-caps [url]` | Probe one or more comma-separated RPC URLs for JSON RPC, ledger-read, process, and remote PoW support |
-| `block` | Build unsigned Nano state blocks for manual/expert workflows |
+| `block`                | Build unsigned Nano state blocks for manual/expert workflows                                          |
 
 ### System
 
-| Command | Description |
-|---|---|
-| `diag` | Show version, environment, effective RPC/work URLs, and local PoW recommendation without network probes |
-| `mcp` | Start the MCP server or view configuration instructions |
+| Command | Description                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------- |
+| `diag`  | Show version, environment, effective RPC/work URLs, and local PoW recommendation without network probes |
+| `mcp`   | Start the MCP server or view configuration instructions                                                 |
 
 All commands support `-j` / `--json` for machine-readable output.
 
@@ -159,7 +163,6 @@ npm install -g xno-skills@4.7.5
 }
 ```
 
-
 ### Client Setup Examples
 
 <details>
@@ -178,6 +181,7 @@ codex mcp add nano \
   -c 'sandbox_permissions=["network-access"]' \
   -- npx -y -p xno-skills@4.7.5 xno-mcp
 ```
+
 </details>
 
 <details>
@@ -193,6 +197,7 @@ codex mcp add nano \
   }
 }
 ```
+
 </details>
 
 <details>
@@ -205,11 +210,12 @@ codex mcp add nano \
     "nano": {
       "type": "local",
       "command": ["xno-skills", "mcp"],
-      "enabled": true
-    }
-  }
+      "enabled": true,
+    },
+  },
 }
 ```
+
 </details>
 
 <details>
@@ -225,6 +231,7 @@ codex mcp add nano \
   }
 }
 ```
+
 </details>
 
 <details>
@@ -240,6 +247,7 @@ codex mcp add nano \
   }
 }
 ```
+
 </details>
 
 <details>
@@ -256,6 +264,7 @@ codex mcp add nano \
   }
 }
 ```
+
 </details>
 
 ## Library

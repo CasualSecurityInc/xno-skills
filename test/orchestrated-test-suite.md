@@ -1,6 +1,7 @@
 # Nano MCP v3 Real-Mode Test Suite
 
 ## Goal
+
 Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill against **real** OWS wallets. The agent discovers wallet names dynamically — no hardcoded names, no mock mode.
 
 ## Environment
@@ -25,12 +26,12 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 
 ## Dynamic Variables
 
-| Variable | Source | Steps Used |
-|----------|--------|------------|
-| `<wallet>` | Step 1: first wallet name from `wallet_list` | 2, 6–8, 16–20, 22–24 |
-| `<address>` | Step 2: address from `wallet_address` for `<wallet>` | 9–11, 16, 20–22 |
-| `<hex>` | Step 20: `blockHex` from `block_send` response | 23 |
-| `<payment-id>` | Step 24: `id` from `payment_create` response | 26–28 |
+| Variable       | Source                                               | Steps Used           |
+| -------------- | ---------------------------------------------------- | -------------------- |
+| `<wallet>`     | Step 1: first wallet name from `wallet_list`         | 2, 6–8, 16–20, 22–24 |
+| `<address>`    | Step 2: address from `wallet_address` for `<wallet>` | 9–11, 16, 20–22      |
+| `<hex>`        | Step 20: `blockHex` from `block_send` response       | 23                   |
+| `<payment-id>` | Step 24: `id` from `payment_create` response         | 26–28                |
 
 ## Test Steps
 
@@ -90,7 +91,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 - [ ] **Step 14**: "How much is 1.5 XNO in raw?"
   - Expected: `util_convert` {"amount": "1.5", "from": "xno", "to": "raw"}
 
-- [ ] **Step 15**: "Convert 1000000000000000000000000000 raw to mnano." (*DEPRECATED - SKIP mnano and knano*)
+- [ ] **Step 15**: "Convert 1000000000000000000000000000 raw to mnano." (_DEPRECATED - SKIP mnano and knano_)
   - Expected: `util_convert` {"amount": "1000000000000000000000000000", "from": "raw", "to": "mnano"}
 
 - [ ] **Step 16**: "Make me a QR code for <address>."
@@ -150,37 +151,37 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 
 ## Pass / Fail Criteria
 
-| Step | Prompt | Expected Tool | Actual Tool | Args Match? | Clean Response? | Notes |
-|------|--------|---------------|-------------|-------------|-----------------|-------|
-| 0 | What versions are running? | system_diag | | | | |
-| 1 | What wallets do I have? | wallet_list | | | | |
-| 2 | What's the Nano address for my wallet <wallet>? | wallet_address | | | | |
-| 3 | Is the wallet signing daemon working? | wallet_ows_health | | | | |
-| 4 | What's the current server configuration? | config_get | | | | |
-| 5 | I want to raise my spending limit to 5 XNO. | config_set | | | | |
-| 6 | Check the balance on wallet <wallet>... | wallet_balance | | | | |
-| 7 | Give me everything about wallet <wallet>... | wallet_info | | | | |
-| 8 | Show me the last 20 transactions... | wallet_history | | | | |
-| 9 | How much XNO does <address> have? | rpc_account_balance | | | | |
-| 10 | Get the full account info for that address. | rpc_account_info | | | | |
-| 11 | Are there any pending blocks for <address>? | rpc_receivable | | | | |
-| 12 | Does the node support remote PoW? | rpc_probe_caps | | | | |
-| 13 | Is nano_1invalid a valid address? | util_validate | | | | |
-| 14 | How much is 1.5 XNO in raw? | util_convert | | | | |
-| 15 | Convert 10^27 raw to mnano. | util_convert | | | | |
-| 16 | Make me a QR code for <address>. | util_qr | | | | |
-| 17 | Receive pending funds for <wallet>. | wallet_receive | | | | |
-| 18 | Send 0.01 XNO from <wallet> to <address>. | wallet_send | | | | |
-| 19 | Change the representative on <wallet>... | wallet_change_rep | | | | |
-| 20 | Build an unsigned send block... | block_send | | | | |
-| 21 | Build an unsigned receive block... | block_receive | | | | |
-| 22 | Build an unsigned change block... | block_change | | | | |
-| 23 | Sign and submit this block hex... | wallet_submit_block | | | | |
-| 24 | Create an invoice for 0.1 XNO... | payment_create | | | | |
-| 25 | Show me all my payment requests. | payment_list | | | | |
-| 26 | What's the status of that invoice? | payment_status | | | | |
-| 27 | The client paid. Receive the funds. | payment_receive | | | | |
-| 28 | The client wants a refund. | payment_refund | | | | |
+| Step | Prompt                                          | Expected Tool       | Actual Tool | Args Match? | Clean Response? | Notes |
+| ---- | ----------------------------------------------- | ------------------- | ----------- | ----------- | --------------- | ----- |
+| 0    | What versions are running?                      | system_diag         |             |             |                 |       |
+| 1    | What wallets do I have?                         | wallet_list         |             |             |                 |       |
+| 2    | What's the Nano address for my wallet <wallet>? | wallet_address      |             |             |                 |       |
+| 3    | Is the wallet signing daemon working?           | wallet_ows_health   |             |             |                 |       |
+| 4    | What's the current server configuration?        | config_get          |             |             |                 |       |
+| 5    | I want to raise my spending limit to 5 XNO.     | config_set          |             |             |                 |       |
+| 6    | Check the balance on wallet <wallet>...         | wallet_balance      |             |             |                 |       |
+| 7    | Give me everything about wallet <wallet>...     | wallet_info         |             |             |                 |       |
+| 8    | Show me the last 20 transactions...             | wallet_history      |             |             |                 |       |
+| 9    | How much XNO does <address> have?               | rpc_account_balance |             |             |                 |       |
+| 10   | Get the full account info for that address.     | rpc_account_info    |             |             |                 |       |
+| 11   | Are there any pending blocks for <address>?     | rpc_receivable      |             |             |                 |       |
+| 12   | Does the node support remote PoW?               | rpc_probe_caps      |             |             |                 |       |
+| 13   | Is nano_1invalid a valid address?               | util_validate       |             |             |                 |       |
+| 14   | How much is 1.5 XNO in raw?                     | util_convert        |             |             |                 |       |
+| 15   | Convert 10^27 raw to mnano.                     | util_convert        |             |             |                 |       |
+| 16   | Make me a QR code for <address>.                | util_qr             |             |             |                 |       |
+| 17   | Receive pending funds for <wallet>.             | wallet_receive      |             |             |                 |       |
+| 18   | Send 0.01 XNO from <wallet> to <address>.       | wallet_send         |             |             |                 |       |
+| 19   | Change the representative on <wallet>...        | wallet_change_rep   |             |             |                 |       |
+| 20   | Build an unsigned send block...                 | block_send          |             |             |                 |       |
+| 21   | Build an unsigned receive block...              | block_receive       |             |             |                 |       |
+| 22   | Build an unsigned change block...               | block_change        |             |             |                 |       |
+| 23   | Sign and submit this block hex...               | wallet_submit_block |             |             |                 |       |
+| 24   | Create an invoice for 0.1 XNO...                | payment_create      |             |             |                 |       |
+| 25   | Show me all my payment requests.                | payment_list        |             |             |                 |       |
+| 26   | What's the status of that invoice?              | payment_status      |             |             |                 |       |
+| 27   | The client paid. Receive the funds.             | payment_receive     |             |             |                 |       |
+| 28   | The client wants a refund.                      | payment_refund      |             |             |                 |       |
 
 ## Scoring
 
@@ -191,6 +192,7 @@ Exercise all 27 renamed MCP tools through the `casualsecurityinc/nano` skill aga
 ## Failure Analysis
 
 If any step fails, inspect in this order:
+
 1. **Skill activation** — did the prompt contain a trigger keyword (nano, xno, wallet, balance, send, etc.)?
 2. **Tool routing** — is the tool description clear enough for the model to map the intent?
 3. **Parameter inference** — does the model know which params are required vs optional? Are param descriptions specific?

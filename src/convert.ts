@@ -15,10 +15,10 @@ function stripLeadingZeros(str: string): string {
   // Handle negative numbers
   const isNegative = str.startsWith('-');
   if (isNegative) str = str.slice(1);
-  
+
   // Strip leading zeros but keep at least one digit
   let result = str.replace(/^0+/, '') || '0';
-  
+
   return isNegative ? '-' + result : result;
 }
 
@@ -28,14 +28,14 @@ function stripLeadingZeros(str: string): string {
 function parseDecimal(value: string): { integer: string; decimal: string } {
   const isNegative = value.startsWith('-');
   if (isNegative) value = value.slice(1);
-  
+
   const parts = value.split('.');
   const integer = parts[0] || '0';
   const decimal = parts[1] || '';
-  
+
   return {
     integer: isNegative ? '-' + integer : integer,
-    decimal
+    decimal,
   };
 }
 
@@ -76,27 +76,25 @@ export function nanoToRaw(nano: string): string {
 export function rawToNano(raw: string, decimals: number = 30): string {
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
-  
+
   const { integer: intPart } = parseDecimal(raw);
-  
+
   // Convert to BigInt first to handle the raw value
   const rawBigInt = BigInt(intPart);
-  
+
   const nanoBigInt = rawBigInt / BigInt(10) ** NAN;
   const remainder = rawBigInt % BigInt(10) ** NAN;
-  
+
   // Format with exact decimal places
   const remainderStr = remainder.toString().padStart(30, '0');
   const rawDecimalPart = remainderStr.slice(0, decimals);
-  
+
   // Use default behavior (trim trailing zeros) when decimals=30
-  const decimalPart = decimals === 30 
-    ? rawDecimalPart.replace(/0+$/, '') 
-    : rawDecimalPart.padEnd(decimals, '0');
-  
+  const decimalPart = decimals === 30 ? rawDecimalPart.replace(/0+$/, '') : rawDecimalPart.padEnd(decimals, '0');
+
   const intStr = nanoBigInt === 0n ? '0' : nanoBigInt.toString();
   const result = decimalPart ? `${intStr}.${decimalPart}` : intStr;
-  
+
   return result;
 }
 
@@ -145,15 +143,23 @@ export function convertUnits(amount: string, from: string, to: string): string {
   // Step 1: Convert from → raw
   let raw: string;
   switch (f) {
-    case 'raw': raw = amount; break;
-    case 'xno': raw = nanoToRaw(amount); break;
-    default: throw new Error(`Unsupported unit: ${from}`);
+    case 'raw':
+      raw = amount;
+      break;
+    case 'xno':
+      raw = nanoToRaw(amount);
+      break;
+    default:
+      throw new Error(`Unsupported unit: ${from}`);
   }
 
   // Step 2: Convert raw → to
   switch (t) {
-    case 'raw': return raw;
-    case 'xno': return rawToNano(raw);
-    default: throw new Error(`Unsupported unit: ${to}`);
+    case 'raw':
+      return raw;
+    case 'xno':
+      return rawToNano(raw);
+    default:
+      throw new Error(`Unsupported unit: ${to}`);
   }
 }

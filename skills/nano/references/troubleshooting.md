@@ -6,14 +6,14 @@ On-demand recovery procedures for the Nano skill. Entry point: run `system_diag`
 
 Almost always transient (rate limiting, brief node restart). Follow in order, stopping as soon as one works:
 
-| Step | Action |
-|---|---|
-| 1 | Wait 5 s. Retry with identical arguments. |
-| 2 | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, retry. |
-| 3 | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry. |
-| 4 | `config_set({ rpcUrl: "https://rpc.nano.to" })`, retry. |
-| 5 | Try any other public node, retry. |
-| 6 | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
+| Step | Action                                                            |
+| ---- | ----------------------------------------------------------------- |
+| 1    | Wait 5 s. Retry with identical arguments.                         |
+| 2    | `config_set({ rpcUrl: "https://rainstorm.city/api" })`, retry.    |
+| 3    | `config_set({ rpcUrl: "https://nanoslo.0x.no/proxy" })`, retry.   |
+| 4    | `config_set({ rpcUrl: "https://rpc.nano.to" })`, retry.           |
+| 5    | Try any other public node, retry.                                 |
+| 6    | `config_set({ rpcUrl: "" })` to reset. **Stop — report to user.** |
 
 Calling `config_set` with a new `rpcUrl` creates a fresh `NanoClient`, bypassing the exponential backoff cooldown on default endpoints.
 
@@ -32,8 +32,8 @@ On first use, the system probes local backends to build a local-first execution 
 
 **Diagnose in order, stopping at the first resolution:**
 
-| Step | Check | Action |
-|---|---|---|
-| 1 | Was this the very first `send`/`receive` on a fresh MCP or CLI process? | Allow for first-use warmup. Retry the operation once. |
-| 2 | Did the error say "Timed out after 10000ms"? | That is the local WASM per-backend timeout. It means WASM itself failed or is unavailable. Check Node.js version (`node --version`) — WASM PoW requires Node 16+. |
-| 3 | Is the system under heavy CPU load? | WASM PoW is CPU-bound. A send block requires ~8× more work than receive. Wait for load to drop, then retry. |
+| Step | Check                                                                   | Action                                                                                                                                                            |
+| ---- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Was this the very first `send`/`receive` on a fresh MCP or CLI process? | Allow for first-use warmup. Retry the operation once.                                                                                                             |
+| 2    | Did the error say "Timed out after 10000ms"?                            | That is the local WASM per-backend timeout. It means WASM itself failed or is unavailable. Check Node.js version (`node --version`) — WASM PoW requires Node 16+. |
+| 3    | Is the system under heavy CPU load?                                     | WASM PoW is CPU-bound. A send block requires ~8× more work than receive. Wait for load to drop, then retry.                                                       |

@@ -1,0 +1,21 @@
+# Written by scripts/generate-server-card.js on every build. Formatting it would
+# be undone by the next build, and preversion runs assert-clean-worktree --all.
+# marketplace.json comes from the same script as mcpb/server-card.json, so both
+# are excluded or neither: formatting one and not the other just moves the churn.
+mcpb/
+.claude-plugin/marketplace.json
+
+# Vendored smithery CLI, not our source.
+package/
+
+# Written by the prebuild hook.
+src/version.ts
+
+# Dependencies and build output.
+dist/
+node_modules/
+package-lock.json
+
+# Local tooling state.
+.beads/
+.fallow/

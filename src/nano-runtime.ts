@@ -37,12 +37,15 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
   function getNanoClient(explicitRpc?: string): CoreNanoClient {
     const config = options.getConfig();
     const configKey = JSON.stringify([config.rpcUrl, config.workUrl, config.timeoutMs, config.powTimeoutMs]);
-    if (!explicitRpc && options.cacheDefaultClient && cachedClient && cachedConfigKey === configKey) return cachedClient;
+    if (!explicitRpc && options.cacheDefaultClient && cachedClient && cachedConfigKey === configKey)
+      return cachedClient;
 
     const rpcUrls = explicitRpc ? explicitRpc.split(',').filter(Boolean) : resolveEffectiveRpcUrls(undefined, config);
     const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
     const powTimeoutMs = effectivePowTimeoutMs(config);
-    log(`NanoClient init rpc=[${rpcUrls.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`);
+    log(
+      `NanoClient init rpc=[${rpcUrls.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
+    );
     const client = NanoClient.initialize({
       rpc: rpcUrls.length > 0 ? rpcUrls : DEFAULT_RPC_URLS,
       workProvider: WorkProvider.local({ localEngine: createNodePowEngine(), localTimeoutMs: powTimeoutMs }),
@@ -65,7 +68,11 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
       accountHistory: (address, count) => rpcAccountHistory(client, address, count, { timeoutMs }),
       workGenerate: async (hash, difficulty) => {
         let preferLocal = true;
-        try { preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow); } catch { /* advisory only */ }
+        try {
+          preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
+        } catch {
+          /* advisory only */
+        }
         const workUrls = !preferLocal ? resolveEffectiveWorkUrls(config) : [];
         if (!localPowRecommendationLogged && preferLocal) {
           localPowRecommendationLogged = true;
@@ -74,13 +81,21 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
         const startedAt = Date.now();
         if (workUrls.length > 0) {
           const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
-          log(`pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`);
+          log(
+            `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`,
+          );
           try {
-            const res = await nanoRpcCall<{ work: string }>(getNanoClient(workUrls.join(',')), { action: 'work_generate', hash, difficulty: difficultyHex }, { timeoutMs: effectivePowTimeoutMs(config) });
+            const res = await nanoRpcCall<{ work: string }>(
+              getNanoClient(workUrls.join(',')),
+              { action: 'work_generate', hash, difficulty: difficultyHex },
+              { timeoutMs: effectivePowTimeoutMs(config) },
+            );
             log(`pow.generate ok remote elapsedMs=${Date.now() - startedAt}`);
             return res.work;
           } catch (error) {
-            log(`pow.generate remote fail elapsedMs=${Date.now() - startedAt} error=${describeError(error)}, falling back to local`);
+            log(
+              `pow.generate remote fail elapsedMs=${Date.now() - startedAt} error=${describeError(error)}, falling back to local`,
+            );
           }
         }
         log(`pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);

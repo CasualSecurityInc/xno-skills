@@ -11,17 +11,20 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
 }
 
 function mockRpcFetch(handler: (body: any) => Response | Promise<Response>): void {
-  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
-    const body = JSON.parse(String(init.body));
-    return handler(body);
-  }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      return handler(body);
+    }),
+  );
 }
 
 describe('rpcAccountBalance', () => {
   it('accepts valid Nano address', { timeout: 3000 }, async () => {
     const address = 'nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d';
     const client = NanoClient.initialize({ rpc: ['https://example.invalid'] });
-    
+
     await expect(rpcAccountBalance(client, address, { timeoutMs: 1500 })).rejects.toThrow();
   });
 });
@@ -33,9 +36,9 @@ describe('nanoRpcCall protocol handling', () => {
 
   it('rejects with a network error (not a TLS/protocol error) for http:// URLs', async () => {
     const client = NanoClient.initialize({ rpc: ['http://localhost:7076'] });
-    await expect(
-      nanoRpcCall(client, { action: 'version' }, { timeoutMs: 500 })
-    ).rejects.toThrow(/RPC (error|request failed)/);
+    await expect(nanoRpcCall(client, { action: 'version' }, { timeoutMs: 500 })).rejects.toThrow(
+      /RPC (error|request failed)/,
+    );
   });
 });
 

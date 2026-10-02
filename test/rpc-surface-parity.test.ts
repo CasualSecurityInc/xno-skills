@@ -14,7 +14,7 @@ const envHome = mkdtempSync(path.join(tmpdir(), 'xno-rpc-parity-'));
 const run = promisify(execFile);
 
 function text(result: unknown): string {
-  return (((result as { content: Array<{ text: string }> }).content)[0]).text;
+  return (result as { content: Array<{ text: string }> }).content[0].text;
 }
 
 describe('wallet RPC endpoint parity', () => {
@@ -26,33 +26,51 @@ describe('wallet RPC endpoint parity', () => {
   let savedCalls = 0;
 
   beforeAll(async () => {
-    const endpoint = (which: 'preferred' | 'saved') => createServer(async (request, response) => {
-      for await (const _chunk of request) { /* consume request */ }
-      if (which === 'preferred') preferredCalls += 1;
-      else savedCalls += 1;
-      response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify({ balance: '42', pending: '0' }));
-    });
+    const endpoint = (which: 'preferred' | 'saved') =>
+      createServer(async (request, response) => {
+        for await (const _chunk of request) {
+          /* consume request */
+        }
+        if (which === 'preferred') preferredCalls += 1;
+        else savedCalls += 1;
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ balance: '42', pending: '0' }));
+      });
     preferred = endpoint('preferred');
     saved = endpoint('saved');
-    await Promise.all([new Promise<void>((done) => preferred.listen(0, '127.0.0.1', done)), new Promise<void>((done) => saved.listen(0, '127.0.0.1', done))]);
+    await Promise.all([
+      new Promise<void>((done) => preferred.listen(0, '127.0.0.1', done)),
+      new Promise<void>((done) => saved.listen(0, '127.0.0.1', done)),
+    ]);
     const preferredAddress = preferred.address();
     const savedAddress = saved.address();
-    if (!preferredAddress || typeof preferredAddress === 'string' || !savedAddress || typeof savedAddress === 'string') throw new Error('failed to start test endpoints');
+    if (!preferredAddress || typeof preferredAddress === 'string' || !savedAddress || typeof savedAddress === 'string')
+      throw new Error('failed to start test endpoints');
     preferredUrl = `http://127.0.0.1:${preferredAddress.port}`;
     savedUrl = `http://127.0.0.1:${savedAddress.port}`;
     writeFileSync(path.join(envHome, 'config.json'), JSON.stringify({ rpcUrl: savedUrl }));
   });
 
   afterAll(async () => {
-    await Promise.all([new Promise<void>((done) => preferred.close(() => done())), new Promise<void>((done) => saved.close(() => done()))]);
+    await Promise.all([
+      new Promise<void>((done) => preferred.close(() => done())),
+      new Promise<void>((done) => saved.close(() => done())),
+    ]);
     rmSync(envHome, { recursive: true, force: true });
   });
 
-  const testEnv = () => ({ ...process.env, XNO_MCP_MOCK_OWS: 'true', XNO_MCP_HOME: envHome, NANO_RPC_URL: preferredUrl });
+  const testEnv = () => ({
+    ...process.env,
+    XNO_MCP_MOCK_OWS: 'true',
+    XNO_MCP_HOME: envHome,
+    NANO_RPC_URL: preferredUrl,
+  });
 
   it('CLI wallet actions select NANO_RPC_URL ahead of saved rpcUrl', async () => {
-    const { stdout } = await run('node', [bin, 'balance', '--wallet', 'A', '--json'], { env: testEnv(), encoding: 'utf8' });
+    const { stdout } = await run('node', [bin, 'balance', '--wallet', 'A', '--json'], {
+      env: testEnv(),
+      encoding: 'utf8',
+    });
     const result = JSON.parse(stdout);
     expect(result.balanceRaw).toBe('42');
   });

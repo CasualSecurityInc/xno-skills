@@ -34,17 +34,18 @@ export interface RpcCallOptions {
 export async function nanoRpcCall<T>(
   client: NanoClient,
   body: Record<string, unknown>,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? 15_000;
 
   try {
     const json = await (client.rpcPool as any).pool.execute(async (endpoint: NormalizedEndpoint) => {
-      const payload = endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'json-body-key'
-        ? { ...body, key: endpoint.auth.value }
-        : endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'bearer-and-json-body-key'
+      const payload =
+        endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'json-body-key'
           ? { ...body, key: endpoint.auth.value }
-          : body;
+          : endpoint.auth.type === 'api-key' && endpoint.auth.policy === 'bearer-and-json-body-key'
+            ? { ...body, key: endpoint.auth.value }
+            : body;
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -83,7 +84,7 @@ export async function nanoRpcCall<T>(
 export async function rpcAccountBalance(
   client: NanoClient,
   address: string,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<AccountBalanceResponse> {
   const v = validateAddress(address);
   if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
@@ -91,9 +92,9 @@ export async function rpcAccountBalance(
   const res = await nanoRpcCall<NanoRpcResponse<AccountBalanceResponse>>(
     client,
     { action: 'account_balance', account: address },
-    { ...options, allowRpcError: true }
+    { ...options, allowRpcError: true },
   );
-  
+
   if ((res as any)?.error != null) {
     return { balance: '0', pending: '0' };
   }
@@ -112,7 +113,7 @@ export interface AccountInfoResponse {
 export async function rpcAccountInfo(
   client: NanoClient,
   address: string,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<NanoRpcResponse<AccountInfoResponse>> {
   const v = validateAddress(address);
   if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
@@ -120,42 +121,34 @@ export async function rpcAccountInfo(
   return nanoRpcCall<NanoRpcResponse<AccountInfoResponse>>(
     client,
     { action: 'account_info', account: address, representative: 'true', pending: 'true', weight: 'true' },
-    { ...options, allowRpcError: true }
+    { ...options, allowRpcError: true },
   );
 }
 
 export async function rpcAccountsBalances(
   client: NanoClient,
   addresses: string[],
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<AccountsBalancesResponse> {
   if (!Array.isArray(addresses) || addresses.length === 0) throw new Error('At least one address is required');
   for (const a of addresses) {
     const v = validateAddress(a);
     if (!v.valid) throw new Error(`Invalid address: ${a} (${v.error})`);
   }
-  return nanoRpcCall<AccountsBalancesResponse>(
-    client,
-    { action: 'accounts_balances', accounts: addresses },
-    options
-  );
+  return nanoRpcCall<AccountsBalancesResponse>(client, { action: 'accounts_balances', accounts: addresses }, options);
 }
 
 export async function rpcAccountsFrontiers(
   client: NanoClient,
   addresses: string[],
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<AccountsFrontiersResponse> {
   if (!Array.isArray(addresses) || addresses.length === 0) throw new Error('At least one address is required');
   for (const a of addresses) {
     const v = validateAddress(a);
     if (!v.valid) throw new Error(`Invalid address: ${a} (${v.error})`);
   }
-  return nanoRpcCall<AccountsFrontiersResponse>(
-    client,
-    { action: 'accounts_frontiers', accounts: addresses },
-    options
-  );
+  return nanoRpcCall<AccountsFrontiersResponse>(client, { action: 'accounts_frontiers', accounts: addresses }, options);
 }
 
 export interface ProcessResponse {
@@ -166,13 +159,9 @@ export async function rpcProcess(
   client: NanoClient,
   block: Record<string, unknown>,
   subtype: 'send' | 'receive' | 'open' | 'change',
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<ProcessResponse> {
-  return nanoRpcCall<ProcessResponse>(
-    client,
-    { action: 'process', json_block: 'true', subtype, block },
-    options
-  );
+  return nanoRpcCall<ProcessResponse>(client, { action: 'process', json_block: 'true', subtype, block }, options);
 }
 
 export interface ReceivableItem {
@@ -196,7 +185,11 @@ function normalizeReceivableBlocks(blocks: any): ReceivableItem[] {
     if (typeof hash !== 'string') continue;
     if (typeof v === 'string') out.push({ hash, amount: v });
     else if (v && typeof v === 'object' && typeof (v as any).amount === 'string') {
-      out.push({ hash, amount: (v as any).amount, source: typeof (v as any).source === 'string' ? (v as any).source : undefined });
+      out.push({
+        hash,
+        amount: (v as any).amount,
+        source: typeof (v as any).source === 'string' ? (v as any).source : undefined,
+      });
     }
   }
   return out;
@@ -216,7 +209,7 @@ export async function rpcAccountHistory(
   client: NanoClient,
   address: string,
   count: number,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<AccountHistoryEntry[]> {
   const v = validateAddress(address);
   if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
@@ -225,10 +218,15 @@ export async function rpcAccountHistory(
   const res = await nanoRpcCall<any>(
     client,
     { action: 'account_history', account: address, count: String(n) },
-    { ...options, allowRpcError: true }
+    { ...options, allowRpcError: true },
   );
   if ((res as any)?.error != null) {
-    if (String((res as any).error).toLowerCase().includes('account not found')) return [];
+    if (
+      String((res as any).error)
+        .toLowerCase()
+        .includes('account not found')
+    )
+      return [];
     throw new Error(String((res as any).error));
   }
   return res.history || [];
@@ -252,12 +250,7 @@ interface BlockCountResponse {
 }
 
 export type ProbeCapStatus =
-  | 'supported'
-  | 'validation_error'
-  | 'rpc_error'
-  | 'permission_or_quota'
-  | 'transport_error'
-  | 'timeout';
+  'supported' | 'validation_error' | 'rpc_error' | 'permission_or_quota' | 'transport_error' | 'timeout';
 
 export type ProbeCapResult = {
   ok: boolean;
@@ -350,7 +343,7 @@ function invalidStateBlock(): Record<string, string> {
 async function probeSingleRpcUrl(
   client: NanoClient,
   url: string,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<RpcProbeResult> {
   const result: RpcProbeResult = {
     url,
@@ -403,7 +396,7 @@ async function probeSingleRpcUrl(
     const pi = await nanoRpcCall<NanoRpcResponse<ProcessResponse>>(
       client,
       { action: 'process', json_block: 'true', subtype: 'open', block: invalidStateBlock() },
-      { ...options, allowRpcError: true }
+      { ...options, allowRpcError: true },
     );
     const piMs = Date.now() - piStart;
     if ((pi as any)?.error != null) {
@@ -433,7 +426,7 @@ async function probeSingleRpcUrl(
     const wg = await nanoRpcCall<NanoRpcResponse<{ work: string }>>(
       client,
       { action: 'work_generate', hash: ZERO_HASH, difficulty: RECEIVE_OPEN_DIFFICULTY },
-      { ...options, allowRpcError: true }
+      { ...options, allowRpcError: true },
     );
     const wgMs = Date.now() - wgStart;
     if ((wg as any)?.error != null) {
@@ -464,13 +457,16 @@ async function probeSingleRpcUrl(
 export async function rpcProbeCaps(
   client: NanoClient,
   url: string,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<RpcProbeResult> {
-  const urls = url.split(',').map((value) => value.trim()).filter(Boolean);
+  const urls = url
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
   if (urls.length <= 1) return probeSingleRpcUrl(client, urls[0] ?? url, options);
 
   const results = await Promise.all(
-    urls.map((rpcUrl) => probeSingleRpcUrl(NanoClient.initialize({ rpc: [rpcUrl] }), rpcUrl, options))
+    urls.map((rpcUrl) => probeSingleRpcUrl(NanoClient.initialize({ rpc: [rpcUrl] }), rpcUrl, options)),
   );
   return {
     ...results[0],
@@ -485,7 +481,7 @@ export async function rpcReceivable(
   client: NanoClient,
   address: string,
   count: number,
-  options: RpcCallOptions = {}
+  options: RpcCallOptions = {},
 ): Promise<ReceivableItem[]> {
   const v = validateAddress(address);
   if (!v.valid) throw new Error(`Invalid address: ${v.error}`);
@@ -496,10 +492,15 @@ export async function rpcReceivable(
     const res = await nanoRpcCall<NanoRpcResponse<ReceivableResponse>>(
       client,
       { action: 'receivable', account: address, count: String(n), source: 'true' },
-      { ...options, allowRpcError: true }
+      { ...options, allowRpcError: true },
     );
     if ((res as any)?.error != null) {
-      if (String((res as any).error).toLowerCase().includes('account not found')) return [];
+      if (
+        String((res as any).error)
+          .toLowerCase()
+          .includes('account not found')
+      )
+        return [];
       throw new Error(String((res as any).error));
     }
     return normalizeReceivableBlocks((res as any).blocks);
@@ -509,10 +510,15 @@ export async function rpcReceivable(
     const res = await nanoRpcCall<NanoRpcResponse<AccountsPendingResponse>>(
       client,
       { action: 'accounts_pending', accounts: [address], count: String(n), source: 'true' },
-      { ...options, allowRpcError: true }
+      { ...options, allowRpcError: true },
     );
     if ((res as any)?.error != null) {
-      if (String((res as any).error).toLowerCase().includes('account not found')) return [];
+      if (
+        String((res as any).error)
+          .toLowerCase()
+          .includes('account not found')
+      )
+        return [];
       throw new Error(String((res as any).error));
     }
     const blocksForAccount = (res as any)?.blocks?.[address];

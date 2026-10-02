@@ -1,9 +1,9 @@
 /**
  * Nano Base32 Encoding/Decoding
- * 
+ *
  * Nano uses a custom Base32 encoding with a specific character set
  * that excludes visually ambiguous characters: 0, O, I, l, 2
- * 
+ *
  * Character set: 13456789abcdefghijkmnopqrstuwxyz (32 characters)
  * Note: 'x' IS included in the Nano charset (despite some docs saying otherwise)
  */
@@ -20,15 +20,15 @@ for (let i = 0; i < CHARSET.length; i++) {
 
 /**
  * Encodes a Uint8Array to a Nano Base32 string.
- * 
+ *
  * The encoding process:
  * 1. Treats the input bytes as a continuous bit stream
  * 2. Extracts 5-bit chunks from the stream
  * 3. Maps each 5-bit value (0-31) to the corresponding character
- * 
+ *
  * @param bytes - The input bytes to encode
  * @returns The Base32 encoded string
- * 
+ *
  * @example
  * ```ts
  * base32Encode(new Uint8Array([0x00])) // returns '1'
@@ -67,15 +67,15 @@ export function base32Encode(bytes: Uint8Array): string {
 
 /**
  * Decodes a Nano Base32 string to a Uint8Array.
- * 
+ *
  * The decoding process:
  * 1. Maps each character to its 5-bit value
  * 2. Reconstructs the byte stream from the 5-bit chunks
- * 
+ *
  * @param str - The Base32 encoded string to decode
  * @returns The decoded bytes
  * @throws Error if the string contains invalid characters
- * 
+ *
  * @example
  * ```ts
  * base32Decode('1') // returns Uint8Array([0x00])
@@ -91,10 +91,7 @@ export function base32Decode(str: string): Uint8Array {
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
     if (DECODE_MAP[char] === undefined) {
-      throw new Error(
-        `Invalid Base32 character '${char}' at position ${i}. ` +
-        `Valid characters are: ${CHARSET}`
-      );
+      throw new Error(`Invalid Base32 character '${char}' at position ${i}. ` + `Valid characters are: ${CHARSET}`);
     }
   }
 
@@ -111,7 +108,7 @@ export function base32Decode(str: string): Uint8Array {
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
     const value = DECODE_MAP[char];
-    
+
     buffer = (buffer << 5) | value;
     bits += 5;
 

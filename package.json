@@ -43,7 +43,8 @@
     "postbuild": "node scripts/generate-server-card.js; node scripts/generate-cli-refs.js",
     "postbuild:esm": "node scripts/generate-server-card.js; node scripts/generate-cli-refs.js",
     "prepack": "npm run build && npm run build:cjs",
-    "pack:mcpb": "bash scripts/pack-mcpb.sh"
+    "pack:mcpb": "bash scripts/pack-mcpb.sh",
+    "prepare": "husky"
   },
   "keywords": [
     "nano",
@@ -79,6 +80,9 @@
     "@types/qrcode-svg": "^1.1.5",
     "@types/qrcode-terminal": "^0.12.2",
     "fallow": "3.31.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.4.0",
+    "prettier": "3.9.9",
     "tsx": "^4.22.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
@@ -94,5 +98,10 @@
     "qrcode-svg": "^1.1.0",
     "qrcode-terminal": "^0.12.0",
     "zod": "^4.3.6"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,tsx,json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
   }
 }

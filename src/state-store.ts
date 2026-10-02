@@ -127,7 +127,11 @@ function writeFileAtomic(filePath: string, contents: string): void {
     fs.writeFileSync(tmp, contents, { encoding: 'utf8', mode: 0o600 });
     fs.renameSync(tmp, filePath);
   } catch (error) {
-    try { fs.unlinkSync(tmp); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* best effort */
+    }
     throw error;
   }
 }
@@ -211,7 +215,9 @@ export function saveConfig(config: XnoConfig): void {
 export function listPaymentRequests(): PaymentRequest[] {
   const dir = getPaymentsDir();
   migrateLegacyCollection<PaymentRequest>(getLegacyPaymentsPath(), dir, 'requests');
-  return readRecordDir<PaymentRequest>(dir).sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  return readRecordDir<PaymentRequest>(dir).sort((a, b) =>
+    a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0,
+  );
 }
 
 export function getPaymentRequest(id: string): PaymentRequest | null {
@@ -239,7 +245,9 @@ export function updatePaymentRequest(id: string, mutate: (record: PaymentRequest
 export function listTransactions(): TransactionRecord[] {
   const dir = getTransactionsDir();
   migrateLegacyCollection<TransactionRecord>(getLegacyTransactionsPath(), dir, 'transactions');
-  return readRecordDir<TransactionRecord>(dir).sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
+  return readRecordDir<TransactionRecord>(dir).sort((a, b) =>
+    a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0,
+  );
 }
 
 export function putTransactionRecord(record: TransactionRecord): void {

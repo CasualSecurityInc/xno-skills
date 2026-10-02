@@ -6,11 +6,13 @@ vi.mock('../src/ows.js', () => ({
     id: 'mock-wallet-a',
     name: 'A',
     createdAt: new Date().toISOString(),
-    accounts: [{
-      address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
-      chainId: 'nano',
-      derivationPath: "m/44'/165'/0'/0/0",
-    }],
+    accounts: [
+      {
+        address: 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
+        chainId: 'nano',
+        derivationPath: "m/44'/165'/0'/0/0",
+      },
+    ],
   }),
   signTransactionProxy: vi.fn().mockResolvedValue({ signature: '0'.repeat(128) }),
   listWalletsProxy: vi.fn().mockResolvedValue([]),
@@ -35,14 +37,16 @@ describe('executeSend', () => {
     const readers = makeReaders();
     const ctx: NanoActionContext = { config: {}, appendTransaction: vi.fn() };
 
-    await expect(executeSend(
-      'A',
-      undefined,
-      ctx,
-      readers,
-      'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
-      '0',
-    )).rejects.toThrow('Amount must be greater than 0 XNO.');
+    await expect(
+      executeSend(
+        'A',
+        undefined,
+        ctx,
+        readers,
+        'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
+        '0',
+      ),
+    ).rejects.toThrow('Amount must be greater than 0 XNO.');
 
     expect(readers.accountInfo).not.toHaveBeenCalled();
     expect(readers.workGenerate).not.toHaveBeenCalled();

@@ -39,9 +39,15 @@ const VECTORS = {
 function readersReturning(result: AccountInfoResponse | NanoRpcErrorResponse): NanoReaders {
   return {
     accountInfo: () => Promise.resolve(result),
-    accountBalance: () => { throw new Error('unexpected call to accountBalance'); },
-    receivable: () => { throw new Error('unexpected call to receivable'); },
-    accountHistory: () => { throw new Error('unexpected call to accountHistory'); },
+    accountBalance: () => {
+      throw new Error('unexpected call to accountBalance');
+    },
+    receivable: () => {
+      throw new Error('unexpected call to receivable');
+    },
+    accountHistory: () => {
+      throw new Error('unexpected call to accountHistory');
+    },
   };
 }
 
@@ -161,7 +167,9 @@ describe('getNanoAccountInfo', () => {
 
   it('rejects invalid Nano addresses', async () => {
     const readers = readersReturning({ frontier: 'A'.repeat(64), balance: '0' } as any);
-    await expect(getNanoAccountInfo({ address: 'not_a_valid_address' }, readers, ctx)).rejects.toThrow('Invalid address');
+    await expect(getNanoAccountInfo({ address: 'not_a_valid_address' }, readers, ctx)).rejects.toThrow(
+      'Invalid address',
+    );
   });
 
   it('handles missing pending field gracefully', async () => {

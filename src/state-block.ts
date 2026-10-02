@@ -55,12 +55,18 @@ export function hashNanoStateBlock(input: StateBlockHashInput): Uint8Array {
 
   const preimage = new Uint8Array(32 + 32 + 32 + 32 + 16 + 32);
   let o = 0;
-  preimage.set(STATE_BLOCK_PREAMBLE, o); o += 32;
-  preimage.set(account, o); o += 32;
-  preimage.set(previous, o); o += 32;
-  preimage.set(representative, o); o += 32;
-  preimage.set(balance, o); o += 16;
-  preimage.set(link, o); o += 32;
+  preimage.set(STATE_BLOCK_PREAMBLE, o);
+  o += 32;
+  preimage.set(account, o);
+  o += 32;
+  preimage.set(previous, o);
+  o += 32;
+  preimage.set(representative, o);
+  o += 32;
+  preimage.set(balance, o);
+  o += 16;
+  preimage.set(link, o);
+  o += 32;
 
   return blake2b(preimage, { dkLen: 32 });
 }
@@ -87,11 +93,16 @@ export function buildNanoStateBlockHex(input: StateBlockHashInput): string {
 
   const block = new Uint8Array(176);
   let o = 0;
-  block.set(STATE_BLOCK_PREAMBLE, o); o += 32;
-  block.set(account, o); o += 32;
-  block.set(previous, o); o += 32;
-  block.set(representative, o); o += 32;
-  block.set(balance, o); o += 16;
+  block.set(STATE_BLOCK_PREAMBLE, o);
+  o += 32;
+  block.set(account, o);
+  o += 32;
+  block.set(previous, o);
+  o += 32;
+  block.set(representative, o);
+  o += 32;
+  block.set(balance, o);
+  o += 16;
   block.set(link, o);
 
   return bytesToHex(block);
@@ -117,4 +128,3 @@ export function parseNanoStateBlockHex(hex: string): StateBlockHashInput & { bal
   const link = bytesToHex(bytes.slice(144, 176));
   return { accountPublicKey, previous, representativePublicKey, balanceRaw, link };
 }
-

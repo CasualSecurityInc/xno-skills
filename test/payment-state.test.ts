@@ -36,12 +36,14 @@ describe('payment receive selection', () => {
 describe('tracked payment state', () => {
   it('records receive provenance once and advances partial to received', () => {
     const rec = request('100');
-    applyPaymentReceive(rec, [{
-      hash: 'receive-1',
-      sendHash: 'send-1',
-      source: 'nano_source',
-      amountRaw: '40',
-    }]);
+    applyPaymentReceive(rec, [
+      {
+        hash: 'receive-1',
+        sendHash: 'send-1',
+        source: 'nano_source',
+        amountRaw: '40',
+      },
+    ]);
     expect(rec.status).toBe('partial');
     expect(paymentReceivedRaw(rec)).toBe(40n);
 
@@ -63,12 +65,14 @@ describe('tracked payment state', () => {
     expect(paymentMissingSourceRaw(rec)).toBe(100n);
     expect(refundCandidates(rec)).toEqual([]);
     const known = request('100');
-    applyPaymentReceive(known, [{
-      hash: 'receive-2',
-      sendHash: 'send-2',
-      source: 'nano_source',
-      amountRaw: '100',
-    }]);
+    applyPaymentReceive(known, [
+      {
+        hash: 'receive-2',
+        sendHash: 'send-2',
+        source: 'nano_source',
+        amountRaw: '100',
+      },
+    ]);
     recordPaymentRefund(known, 'nano_source', '100', 'refund-1');
     expect(known.status).toBe('refunded');
     expect(refundCandidates(known)).toEqual([]);
