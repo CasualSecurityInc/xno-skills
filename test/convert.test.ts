@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -150,8 +151,14 @@ describe('fractional raw input (regression: silent truncation)', () => {
 });
 
 describe('CLI error handling for convert (regression: uncaught throw)', () => {
-  it('converts errors to a clean one-line message, not a Node stack trace', () => {
-    const cli = path.resolve(__dirname, '../bin/xno-skills');
+  // bin/xno-skills spawns dist/esm/cli.js, which `npm run build:esm` produces and
+  // `npm test` runs first. A bare `npx vitest run test/convert.test.ts` on an
+  // unbuilt tree has no dist/ yet, so skip the spawn instead of reporting the
+  // module-resolution error as a failure. `npm test` still exercises it.
+  const cli = path.resolve(__dirname, '../bin/xno-skills');
+  const built = existsSync(path.resolve(__dirname, '../dist/esm/cli.js'));
+
+  it.skipIf(!built)('converts errors to a clean one-line message, not a Node stack trace', () => {
     let out = '';
     let code = 0;
     try {

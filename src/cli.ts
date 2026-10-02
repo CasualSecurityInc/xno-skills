@@ -374,14 +374,14 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action((amount: string, from: string, options: { json?: boolean }) => {
     try {
-    const normalizeUnit = (unit: string): string => {
-      const value = unit.toLowerCase();
-      if (value === 'xno' || value === 'nano') return 'xno';
-      if (value === 'raw' || value === 'rai') return 'raw';
-      return value;
-    };
+      const normalizeUnit = (unit: string): string => {
+        const value = unit.toLowerCase();
+        if (value === 'xno' || value === 'nano') return 'xno';
+        if (value === 'raw' || value === 'rai') return 'raw';
+        return value;
+      };
 
-    const fromUnit = normalizeUnit(from);
+      const fromUnit = normalizeUnit(from);
 
     let rawValue: string;
     switch (fromUnit) {
@@ -396,12 +396,12 @@ program
         process.exit(1);
     }
 
-    const xno = rawToNano(rawValue);
-    const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };
-    printJsonOrText(result, options, () => {
-      console.log(`raw: ${rawValue}`);
-      console.log(`xno: ${xno}`);
-    });
+      const xno = rawToNano(rawValue);
+      const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };
+      printJsonOrText(result, options, () => {
+        console.log(`raw: ${rawValue}`);
+        console.log(`xno: ${xno}`);
+      });
     } catch (error) {
       exitWithError(error);
     }
