@@ -277,6 +277,22 @@ npm test
 npm run build
 ```
 
+## Opt-in Codex wallet journey evaluation
+
+This live evaluator makes ten real, owned transfers (five CLI and five MCP). It creates and retains the recipient wallets, places a local guard in front of the supplied Nano RPC, and writes raw Codex JSONL plus an independently checked report. Use only a dedicated source wallet whose balance meets the preflight requirements:
+
+```bash
+npm run eval:codex-wallet-journey -- --model <model> --source-wallet <name> --upstream-rpc <url> --out <private-output-dir>
+```
+
+For OpenCode’s Kilo Auto Free router, use the parallel command below. It runs `opencode run --format json --model kilo/kilo-auto/free` and requires the normal Kilo/OpenCode provider authentication or free-tier access:
+
+```bash
+npm run eval:opencode-wallet-journey -- --source-wallet <name> --upstream-rpc <url> --out <private-output-dir>
+```
+
+It is never part of CI or the release flow. The report deliberately makes no token-efficiency claim unless the captured Codex events provide an authoritative per-run token count.
+
 ## Releasing
 
 See `RELEASING.md`.

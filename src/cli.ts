@@ -9,11 +9,11 @@ import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
 import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
-import { clearPowTuningCache, createNodePowEngine, NanoClient, WorkProvider, NOMS, recommendLocalPow } from '@openrai/nano-core/node';
-import type { NanoClient as CoreNanoClient } from '@openrai/nano-core';
+import { clearPowTuningCache, NOMS, recommendLocalPow } from '@openrai/nano-core/node';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
-import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { createNanoRuntime } from './nano-runtime.js';
 import {
   DEFAULT_REPRESENTATIVE,
   DEFAULT_TIMEOUT_MS,
@@ -37,106 +37,9 @@ import { getAsciiArtBanner } from './banner.js';
 const program = new Command();
 const config: XnoConfig = loadConfig();
 
-function logTiming(scope: string, message: string): void {
-  process.stderr.write(`[${scope}] ${message}\n`);
-}
-
-function elapsedMs(startedAt: number): number {
-  return Date.now() - startedAt;
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function effectivePowTimeoutMs(config: XnoConfig): number {
-  return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
-}
-
-function getNanoClient(options?: { urls?: string[] }): CoreNanoClient {
-  const rpcUrls = options?.urls?.length ? options.urls : resolveEffectiveRpcUrls(undefined, config);
-  const rpcTimeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
-  const powTimeoutMs = effectivePowTimeoutMs(config);
-  logTiming(
-    'xno-cli',
-    `NanoClient init rpc=[${rpcUrls.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
-  );
-  return NanoClient.initialize({
-    rpc: rpcUrls.length > 0 ? rpcUrls : DEFAULT_RPC_URLS,
-    workProvider: WorkProvider.local({ localEngine: createNodePowEngine(), localTimeoutMs: powTimeoutMs }),
-  });
-}
-
-let localPowRecommendationLogged = false;
-
-function readersFor(options?: { urls?: string[] }) {
-  const client = getNanoClient(options);
-  const timeoutMs = config.timeoutMs || DEFAULT_TIMEOUT_MS;
-  return {
-    accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
-    accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
-    receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
-    accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
-    workGenerate: async (hash: string, difficulty: string) => {
-      let preferLocal = true;
-      try {
-        preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
-      } catch (e) {
-        // ignore
-      }
-
-      const workUrls = !preferLocal ? resolveEffectiveWorkUrls(config) : [];
-
-
-      if (!localPowRecommendationLogged) {
-        localPowRecommendationLogged = true;
-        if (preferLocal) {
-          logTiming('xno-cli', '(cached) Local PoW recommended');
-        }
-      }
-      const startedAt = Date.now();
-
-      if (workUrls.length > 0) {
-        const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
-        logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`);
-        try {
-          const workClient = getNanoClient({ urls: workUrls });
-          const res = await nanoRpcCall<{ work: string }>(
-            workClient,
-            { action: 'work_generate', hash, difficulty: difficultyHex },
-            { timeoutMs: effectivePowTimeoutMs(config) }
-          );
-          logTiming('xno-cli', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
-          return res.work;
-        } catch (error) {
-          logTiming('xno-cli', `pow.generate remote fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}, falling back to local`);
-        }
-      }
-
-      logTiming('xno-cli', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);
-      try {
-        const work = await client.workProvider.generate(hash, difficulty);
-        logTiming('xno-cli', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);
-        return work;
-      } catch (error) {
-        logTiming('xno-cli', `pow.generate fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
-        throw error;
-      }
-    },
-    process: async (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => {
-      const startedAt = Date.now();
-      logTiming('xno-cli', `rpc.process start subtype=${subtype}`);
-      try {
-        const result = await rpcProcess(client, block, subtype, { timeoutMs });
-        logTiming('xno-cli', `rpc.process ok subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} hash=${result.hash}`);
-        return result;
-      } catch (error) {
-        logTiming('xno-cli', `rpc.process fail subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
-        throw error;
-      }
-    },
-  };
-}
+const runtime = createNanoRuntime({ getConfig: () => config, logScope: 'xno-cli' });
+const getNanoClient = (options?: { urls?: string[] }) => runtime.getNanoClient(options?.urls?.join(','));
+const readersFor = (options?: { urls?: string[] }) => runtime.readersFor(options?.urls?.join(','));
 
 function printJsonOrText(result: unknown, options?: { json?: boolean }, text?: () => void): void {
   if (options?.json) {

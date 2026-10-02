@@ -35,6 +35,8 @@
     "test": "npm run build:esm && vitest run",
     "test:watch": "npm run build:esm && vitest",
     "dev": "tsx src/cli.ts",
+    "eval:codex-wallet-journey": "node scripts/eval-codex-wallet-journey.mjs",
+    "eval:opencode-wallet-journey": "node scripts/eval-codex-wallet-journey.mjs --runner opencode",
     "build": "tsc",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",

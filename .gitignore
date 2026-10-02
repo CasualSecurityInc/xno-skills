@@ -14,3 +14,9 @@ smithery-*.tgz
 .sisyphus/
 .kilo/plans/
 interview/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/

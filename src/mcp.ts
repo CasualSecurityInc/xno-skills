@@ -2,16 +2,14 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { generateAsciiQr, generateSvgQr } from './qr.js';
-import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcReceivable, rpcAccountHistory, rpcProcess, rpcProbeCaps } from './rpc.js';
+import { rpcAccountBalance, rpcAccountsBalances, rpcAccountsFrontiers, rpcAccountInfo, rpcProbeCaps, rpcReceivable } from './rpc.js';
 import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
 import { getSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
 import { validateAddress } from './validate.js';
 import { decodeNanoAddress } from './nano-address.js';
 import { buildNanoStateBlockHex } from './state-block.js';
-import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { version } from './version.js';
-import { createNodePowEngine, NOMS, NanoClient, WorkProvider, recommendLocalPow } from '@openrai/nano-core/node';
-import type { NanoClient as CoreNanoClient } from '@openrai/nano-core';
+import { NOMS, recommendLocalPow } from '@openrai/nano-core/node';
 import {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_REPRESENTATIVE,
@@ -29,7 +27,6 @@ import {
   toToolError,
   toToolSuccess,
   verifyNanoMessage,
-  type NanoReaders,
 } from './nano-actions.js';
 import {
   generateId,
@@ -45,7 +42,8 @@ import {
   type TransactionRecord,
   type XnoConfig,
 } from './state-store.js';
-import { redactUrlForLog, resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import { createNanoRuntime } from './nano-runtime.js';
 import { listWalletsProxy } from './ows.js';
 import { applyPaymentReceive, paymentMissingSourceRaw, paymentReceivedRaw, recordPaymentRefund, refundCandidates, selectPaymentReceiveHash } from './payment-state.js';
 
@@ -83,7 +81,6 @@ const mcpServer = new McpServer(
 
 type McpState = {
   config: XnoConfig;
-  nanoClient?: CoreNanoClient;
 };
 
 const state: McpState = {
@@ -96,38 +93,13 @@ const DEFAULT_MAX_SEND_XNO = (() => {
   return '1.0';
 })();
 
-function logTiming(scope: string, message: string): void {
-  process.stderr.write(`[${scope}] ${message}\n`);
-}
-
-function elapsedMs(startedAt: number): number {
-  return Date.now() - startedAt;
-}
-
-function describeError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function effectivePowTimeoutMs(config: XnoConfig): number {
-  return config.powTimeoutMs ?? (config.timeoutMs ? config.timeoutMs * 4 : 60_000);
-}
-
 /**
- * Reload config from disk and update state if relevant fields changed.
- * Invalidates cached NanoClient when rpcUrl, workUrl, timeoutMs, or powTimeoutMs change.
+ * Reload config from disk. The shared runtime invalidates its cached default client
+ * when endpoint or timeout fields change.
  */
 function requireFreshConfig(): XnoConfig {
   const fresh = loadConfig();
-  const prev = state.config;
-  const changed =
-    fresh.rpcUrl !== prev.rpcUrl ||
-    fresh.workUrl !== prev.workUrl ||
-    fresh.timeoutMs !== prev.timeoutMs ||
-    fresh.powTimeoutMs !== prev.powTimeoutMs;
   state.config = fresh;
-  if (changed || !state.nanoClient) {
-    state.nanoClient = undefined;
-  }
   return fresh;
 }
 
@@ -135,111 +107,9 @@ function requireFreshConfig(): XnoConfig {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getNanoClient(explicitRpc?: string): CoreNanoClient {
-  const cfg = requireFreshConfig();
-  const rpc = explicitRpc
-    ? explicitRpc.split(',').filter(Boolean)
-    : resolveEffectiveRpcUrls(undefined, cfg);
-
-  if (state.nanoClient && !explicitRpc) {
-    return state.nanoClient;
-  }
-
-  const rpcTimeoutMs = cfg.timeoutMs || DEFAULT_TIMEOUT_MS;
-  const powTimeoutMs = effectivePowTimeoutMs(cfg);
-  logTiming(
-    'xno-mcp',
-    `NanoClient init rpc=[${rpc.map(redactUrlForLog).join(',') || '(defaults)'}] rpcTimeoutMs=${rpcTimeoutMs} powTimeoutMs=${powTimeoutMs}`,
-  );
-
-  const effectiveRpc = rpc.length > 0 ? rpc : DEFAULT_RPC_URLS;
-
-  const workProvider = WorkProvider.local({ localEngine: createNodePowEngine(), localTimeoutMs: powTimeoutMs });
-
-  const client = NanoClient.initialize({
-    rpc: effectiveRpc,
-    workProvider,
-  });
-
-  if (!explicitRpc) {
-    state.nanoClient = client;
-  }
-
-  return client;
-}
-
-let localPowRecommendationLogged = false;
-
-function readersFor(explicitRpcUrl?: string): NanoReaders {
-  const cfg = requireFreshConfig();
-  const effectiveRpc = explicitRpcUrl || cfg.rpcUrl || undefined;
-  const client = getNanoClient(effectiveRpc);
-  const timeoutMs = cfg.timeoutMs || DEFAULT_TIMEOUT_MS;
-  return {
-    accountInfo: (address: string) => rpcAccountInfo(client, address, { timeoutMs }),
-    accountBalance: (address: string) => rpcAccountBalance(client, address, { timeoutMs }),
-    receivable: (address: string, count: number) => rpcReceivable(client, address, count, { timeoutMs }),
-    accountHistory: (address: string, count: number) => rpcAccountHistory(client, address, count, { timeoutMs }),
-    workGenerate: async (hash: string, difficulty: string) => {
-      let preferLocal = true;
-      try {
-        preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
-      } catch (e) {
-        // ignore
-      }
-
-      const workUrls = !preferLocal ? resolveEffectiveWorkUrls(cfg) : [];
-
-      if (!localPowRecommendationLogged) {
-        localPowRecommendationLogged = true;
-        if (preferLocal) {
-          logTiming('xno-mcp', '(cached) Local PoW recommended');
-        }
-      }
-      const startedAt = Date.now();
-
-      if (workUrls.length > 0) {
-        const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
-        logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`);
-        try {
-          const workClient = getNanoClient(workUrls.join(','));
-          const { nanoRpcCall } = await import('./rpc.js');
-          const res = await nanoRpcCall<{ work: string }>(
-            workClient,
-            { action: 'work_generate', hash, difficulty: difficultyHex },
-            { timeoutMs: effectivePowTimeoutMs(cfg) }
-          );
-          logTiming('xno-mcp', `pow.generate ok remote elapsedMs=${elapsedMs(startedAt)}`);
-          return res.work;
-        } catch (error) {
-          logTiming('xno-mcp', `pow.generate remote fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}, falling back to local`);
-        }
-      }
-
-      logTiming('xno-mcp', `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);
-      try {
-        const work = await client.workProvider.generate(hash, difficulty);
-        logTiming('xno-mcp', `pow.generate ok elapsedMs=${elapsedMs(startedAt)}`);
-        return work;
-      } catch (error) {
-        logTiming('xno-mcp', `pow.generate fail elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
-        throw error;
-      }
-    },
-    process: async (block: Record<string, unknown>, subtype: 'send' | 'receive' | 'open' | 'change') => {
-      const startedAt = Date.now();
-      logTiming('xno-mcp', `rpc.process start subtype=${subtype}`);
-      try {
-        const result = await rpcProcess(client, block, subtype, { timeoutMs });
-        logTiming('xno-mcp', `rpc.process ok subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} hash=${result.hash}`);
-        return result;
-      } catch (error) {
-        logTiming('xno-mcp', `rpc.process fail subtype=${subtype} elapsedMs=${elapsedMs(startedAt)} error=${describeError(error)}`);
-        throw error;
-      }
-    },
-  };
-}
+const runtime = createNanoRuntime({ getConfig: requireFreshConfig, logScope: 'xno-mcp', cacheDefaultClient: true });
+const getNanoClient = (explicitRpc?: string) => runtime.getNanoClient(explicitRpc);
+const readersFor = (explicitRpc?: string) => runtime.readersFor(explicitRpc);
 
 function persistConfig(): void { saveConfig(state.config); }
 
@@ -453,7 +323,6 @@ mcpServer.registerTool('config_set', {
   setField('powTimeoutMs', args.powTimeoutMs);
   setField('defaultRepresentative', args.defaultRepresentative);
   setField('maxSendXno', args.maxSendXno);
-  state.nanoClient = undefined;
   persistConfig();
   return toToolSuccess(state.config);
 });
