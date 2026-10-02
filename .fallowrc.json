@@ -12,7 +12,15 @@
     "unused-exports": "warn"
   },
   "regression": {
-    "baseline": {
+    "baseline":     {
+      "analysisIdentity": {
+        "mode": "syntactic",
+        "semantic_schema_version": 1,
+        "capabilities": [],
+        "project_config_hash": "",
+        "backend_family": "",
+        "completeness": "complete"
+      },
       "totalIssues": 2,
       "unusedFiles": 0,
       "unusedExports": 2,
@@ -26,9 +34,15 @@
       "unlistedDependencies": 0,
       "duplicateExports": 0,
       "circularDependencies": 0,
+      "reExportCycles": 0,
+      "packageCycles": 0,
       "typeOnlyDependencies": 0,
       "testOnlyDependencies": 0,
-      "boundaryViolations": 0
+      "devDependenciesInProduction": 0,
+      "boundaryViolations": 0,
+      "boundaryCoverageViolations": 0,
+      "boundaryCallViolations": 0,
+      "policyViolations": 0
     }
   }
 }

@@ -1,4 +1,5 @@
 {
+  "kind": "health",
   "finding_counts": {
     "scripts/generate-server-card.js": {
       "crap_high": {
@@ -80,5 +81,7 @@
     }
   },
   "runtime_coverage_findings": [],
-  "target_keys": []
+  "target_keys": [
+    "src/ows.ts:high impact"
+  ]
 }
