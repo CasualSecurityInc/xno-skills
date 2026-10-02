@@ -626,6 +626,10 @@
           "id": {
             "type": "string",
             "description": "Payment request ID"
+          },
+          "sendHash": {
+            "description": "Optional Nano send block hash to bind this receive when multiple receivables are pending",
+            "type": "string"
           }
         },
         "required": [
@@ -645,7 +649,7 @@
     {
       "name": "payment_refund",
       "title": "Refund Payment",
-      "description": "Refund a payment request by sending funds back to the original payer. Requires confirmation with execute: true.",
+      "description": "Refund a payment request by sending received funds back to their recorded original source. Requires confirmation with execute: true.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -660,7 +664,7 @@
             "type": "boolean"
           },
           "confirmAddress": {
-            "description": "Destination address for the refund (must match original source)",
+            "description": "Destination address for the refund (must match a recorded original source)",
             "type": "string"
           }
         },
