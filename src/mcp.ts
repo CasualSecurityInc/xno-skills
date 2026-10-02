@@ -717,10 +717,11 @@ mcpServer.registerTool('payment_receive', {
     const onlyHash = selectPaymentReceiveHash(pending, args.sendHash);
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
     const result = await executeReceive(rec.owsWalletId, undefined, ctx, readers, { index: rec.accountIndex, count: 10, ...(onlyHash ? { onlyHash } : {}) });
-    applyPaymentReceive(rec, result.received);
-    persistPaymentRequests();
-    const receivedRaw = paymentReceivedRaw(rec);
-    return toToolSuccess({ ...result, paymentRequest: { id: rec.id, status: rec.status, receivedRaw: receivedRaw.toString(), receivedXno: rawToNano(receivedRaw.toString()), remainingRaw: receivedRaw >= BigInt(rec.amountRaw) ? '0' : (BigInt(rec.amountRaw) - receivedRaw).toString() } });
+    // Re-read at write time: rec was fetched before the receive, so writing it
+    // back directly would discard anything another instance wrote meanwhile.
+    const updated = updatePaymentRequest(rec.id, (current) => applyPaymentReceive(current, result.received));
+    const receivedRaw = paymentReceivedRaw(updated);
+    return toToolSuccess({ ...result, paymentRequest: { id: updated.id, status: updated.status, receivedRaw: receivedRaw.toString(), receivedXno: rawToNano(receivedRaw.toString()), remainingRaw: receivedRaw >= BigInt(updated.amountRaw) ? '0' : (BigInt(updated.amountRaw) - receivedRaw).toString() } });
   } catch (error) { return toToolError(error); }
 });
 
@@ -749,9 +750,8 @@ mcpServer.registerTool('payment_refund', {
     const cfg = requireFreshConfig();
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
     const result = await executeSend(rec.owsWalletId, undefined, ctx, readersFor(), candidate.address, candidate.amountXno, { index: rec.accountIndex });
-    recordPaymentRefund(rec, candidate.address, candidate.amountRaw, result.hash);
-    persistPaymentRequests();
-    return toToolSuccess({ ...result, paymentRequest: { id: rec.id, status: rec.status, refundedRaw: candidate.amountRaw, refundedXno: candidate.amountXno } });
+    const updated = updatePaymentRequest(rec.id, (current) => { recordPaymentRefund(current, candidate.address, candidate.amountRaw, result.hash); });
+    return toToolSuccess({ ...result, paymentRequest: { id: updated.id, status: updated.status, refundedRaw: candidate.amountRaw, refundedXno: candidate.amountXno } });
   } catch (error) { return toToolError(error); }
 });
 
