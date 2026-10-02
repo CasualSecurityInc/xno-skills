@@ -34,11 +34,13 @@ import {
 import {
   generateId,
   loadConfig,
-  loadPaymentRequests,
-  loadTransactions,
+  listPaymentRequests,
+  getPaymentRequest,
+  putPaymentRequest,
+  updatePaymentRequest,
   saveConfig,
-  savePaymentRequests,
-  saveTransactions,
+  putTransactionRecord,
+  listTransactions,
   type PaymentRequest,
   type TransactionRecord,
   type XnoConfig,
@@ -80,15 +82,11 @@ const mcpServer = new McpServer(
 
 type McpState = {
   config: XnoConfig;
-  paymentRequests: Map<string, PaymentRequest>;
-  transactions: TransactionRecord[];
   nanoClient?: CoreNanoClient;
 };
 
 const state: McpState = {
   config: loadConfig(),
-  paymentRequests: loadPaymentRequests(),
-  transactions: loadTransactions(),
 };
 
 const DEFAULT_MAX_SEND_XNO = (() => {
@@ -243,12 +241,11 @@ function readersFor(explicitRpcUrl?: string): NanoReaders {
 }
 
 function persistConfig(): void { saveConfig(state.config); }
-function persistPaymentRequests(): void { savePaymentRequests(state.paymentRequests.values()); }
-function persistTransactions(): void { saveTransactions(state.transactions); }
 
+// Transactions are append-only and each one is its own file, so concurrent
+// stdio instances never contend on the same path.
 function appendTransaction(record: TransactionRecord): void {
-  state.transactions.push(record);
-  persistTransactions();
+  putTransactionRecord(record);
 }
 
 function makeProgressReporter(sendNotification: (n: any) => Promise<void>, progressToken?: string | number) {
@@ -306,7 +303,7 @@ mcpServer.registerResource(
     contents: [{
       uri: uri.toString(),
       mimeType: 'application/json',
-      text: JSON.stringify(Array.from(state.paymentRequests.values()), null, 2),
+      text: JSON.stringify(listPaymentRequests(), null, 2),
     }],
   }),
 );
@@ -656,8 +653,7 @@ mcpServer.registerTool('payment_create', {
       updatedAt: new Date().toISOString(),
       receivedBlocks: [],
     };
-    state.paymentRequests.set(id, requestRecord);
-    persistPaymentRequests();
+    putPaymentRequest(requestRecord);
     const qr = await generateAsciiQr(address.address, args.amountXno);
     return toToolSuccess({ id, address: address.address, amountXno: args.amountXno, qr });
   } catch (error) { return toToolError(error); }
@@ -674,7 +670,7 @@ mcpServer.registerTool('payment_list', {
   },
   annotations: READONLY,
 }, async (args) => {
-  let list = Array.from(state.paymentRequests.values());
+  let list = listPaymentRequests();
   if (args.walletName) list = list.filter(r => r.owsWalletId === args.walletName);
   if (args.status) list = list.filter(r => r.status === args.status);
   const total = list.length;
@@ -696,7 +692,7 @@ mcpServer.registerTool('payment_status', {
   },
   annotations: READONLY,
 }, async (args) => {
-  const rec = state.paymentRequests.get(args.id);
+  const rec = getPaymentRequest(args.id);
   if (!rec) return toToolError(new Error('Not found'));
   return toToolSuccess(rec);
 });
@@ -710,7 +706,7 @@ mcpServer.registerTool('payment_receive', {
   annotations: WRITE,
 }, async (args, extra) => {
   try {
-    const rec = state.paymentRequests.get(args.id);
+    const rec = getPaymentRequest(args.id);
     if (!rec) throw new Error('Not found');
     const cfg = requireFreshConfig();
     const ctx = { config: cfg, appendTransaction, reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken) };
@@ -729,7 +725,7 @@ mcpServer.registerTool('payment_refund', {
   annotations: DESTRUCTIVE,
 }, async (args, extra) => {
   try {
-    const rec = state.paymentRequests.get(args.id);
+    const rec = getPaymentRequest(args.id);
     if (!rec) throw new Error('Not found');
     if (!args.execute) return { content: [{ type: 'text' as const, text: 'Set execute: true to refund.' }] };
     const cfg = requireFreshConfig();

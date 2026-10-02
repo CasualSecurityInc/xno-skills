@@ -123,15 +123,15 @@ function getEnvVars(): EnvVarEntry[] {
     },
     {
       name: 'XNO_MCP_REQUESTS_PATH',
-      defaultValue: '$XNO_MCP_HOME/requests.json',
+      defaultValue: '$XNO_MCP_HOME/payments/',
       effectiveValue: process.env.XNO_MCP_REQUESTS_PATH,
-      description: 'Override payment requests path',
+      description: 'Override the directory holding one JSON file per payment request',
     },
     {
       name: 'XNO_MCP_TRANSACTIONS_PATH',
-      defaultValue: '$XNO_MCP_HOME/transactions.json',
+      defaultValue: '$XNO_MCP_HOME/transactions/',
       effectiveValue: process.env.XNO_MCP_TRANSACTIONS_PATH,
-      description: 'Override transaction ledger path',
+      description: 'Override the directory holding one JSON file per transaction',
     },
   ];
 }

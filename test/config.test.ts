@@ -168,8 +168,6 @@ describe('requireFreshConfig reload behaviour', () => {
     vi.doMock('../src/state-store.js', () => ({
       loadConfig: mockLoad,
       saveConfig: vi.fn(),
-      loadPaymentRequests: vi.fn(() => new Map()),
-      loadTransactions: vi.fn(() => []),
     }));
 
     const { resolveEffectiveRpcUrls } = await import('../src/config.js');
