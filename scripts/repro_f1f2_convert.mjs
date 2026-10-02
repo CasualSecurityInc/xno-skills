@@ -33,8 +33,11 @@ const { pkg, pub, version } = loadPub();
 let fails = 0;
 function show(label, fn) {
   let out;
-  try { out = JSON.stringify(fn()); }
-  catch (e) { out = 'THROW ' + e.message; }
+  try {
+    out = JSON.stringify(fn());
+  } catch (e) {
+    out = 'THROW ' + e.message;
+  }
   console.log('  ' + label + '\n    -> ' + out);
   return out;
 }
@@ -62,8 +65,19 @@ console.log('F2. formatNano has no negative guard and emits a corrupt string');
 console.log('    Its siblings rawToNano/nanoToRaw both throw "negative values not supported".');
 const f2a = show('formatNano("-1")', () => pub.formatNano('-1'));
 const f2b = show('formatNano("-999")', () => pub.formatNano('-999'));
-const f2c = show('formatNano("-1500000000000000000000000000000")', () => pub.formatNano('-1500000000000000000000000000000'));
-console.log('    rawToNano("-1") for comparison:', (() => { try { return pkg.rawToNano('-1'); } catch (e) { return 'THROW ' + e.message; } })());
+const f2c = show('formatNano("-1500000000000000000000000000000")', () =>
+  pub.formatNano('-1500000000000000000000000000000'),
+);
+console.log(
+  '    rawToNano("-1") for comparison:',
+  (() => {
+    try {
+      return pkg.rawToNano('-1');
+    } catch (e) {
+      return 'THROW ' + e.message;
+    }
+  })(),
+);
 check(/^-/.test(f2a), 'F2a: formatNano("-1") should be a negative rendering or throw, got ' + f2a);
 check(/^-/.test(f2b), 'F2b: formatNano("-999") should be a negative rendering or throw, got ' + f2b);
 check(/^-/.test(f2c), 'F2c: formatNano("-1500...000") should be a negative rendering or throw, got ' + f2c);
