@@ -48,8 +48,6 @@ describe('refund recording is idempotent', () => {
     recordPaymentRefund(rec, 'nano_payer', '300', 'TX_A');
 
     expect(paymentRefundedRaw(rec)).toBe(300n);
-    expect(refundCandidates(rec)).toEqual([
-      { address: 'nano_payer', amountRaw: '700', amountXno: expect.any(String) },
-    ]);
+    expect(refundCandidates(rec)).toEqual([{ address: 'nano_payer', amountRaw: '700', amountXno: expect.any(String) }]);
   });
 });
