@@ -39,7 +39,7 @@ function formatNanoUri(address: string, amount?: string | number): string {
   }
   if (validation.kind !== 'address') {
     throw new Error(
-      `A QR code must encode a Nano address (nano_.../xrb_...); "${address}" is 64 hex characters, which is the shape of a public key, a block hash, a seed or a private key.`
+      `A QR code must encode a Nano address (nano_.../xrb_...); "${address}" is 64 hex characters, which is the shape of a public key, a block hash, a seed or a private key.`,
     );
   }
 

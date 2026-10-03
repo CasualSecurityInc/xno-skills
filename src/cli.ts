@@ -454,7 +454,9 @@ program
         if (result.kind === 'address') {
           console.log('Valid Nano address');
         } else {
-          console.log('Valid 32-byte value (64 hex) — not an address: this is the shape of a public key, a block hash, a seed or a private key, and the three cannot be told apart from the value alone.');
+          console.log(
+            'Valid 32-byte value (64 hex) — not an address: this is the shape of a public key, a block hash, a seed or a private key, and the three cannot be told apart from the value alone.',
+          );
         }
         if (result.publicKey) console.log(`Public Key: ${result.publicKey}`);
       } else {
