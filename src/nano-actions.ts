@@ -7,6 +7,7 @@ import {
 } from './state-block.js';
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
+import { resolveEffectiveMaxSendXno } from './config.js';
 import { validateAddress } from './validate.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
@@ -658,7 +659,7 @@ export async function executeSend(
     );
   }
 
-  const sendLimitStr = ctx.config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+  const sendLimitStr = resolveEffectiveMaxSendXno(ctx.config);
   const sendLimitRaw = nanoToRaw(sendLimitStr);
   if (BigInt(amountRaw) > BigInt(sendLimitRaw)) {
     throw new NanoActionError(
@@ -931,7 +932,7 @@ export async function submitPreparedBlock(
     info = lookup;
   }
 
-  const maxSendXno = ctx.config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+  const maxSendXno = resolveEffectiveMaxSendXno(ctx.config);
   try {
     validatePreparedBlockPolicy(blockInput, account.address, info, maxSendXno, subtype);
   } catch (error) {
