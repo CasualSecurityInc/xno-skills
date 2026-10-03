@@ -37,8 +37,13 @@ function info(frontierByte: string, balanceXno: bigint, representative: string):
 }
 
 function readersWithFreshInfo(fresh: AccountInfoResponse): NanoReaders {
-  const accountInfo = vi.fn().mockResolvedValueOnce(info('a', 2n, REP_A)).mockResolvedValueOnce(fresh);
-  const process = vi.fn().mockRejectedValueOnce(new Error('Invalid previous'))
+  const accountInfo = vi
+    .fn()
+    .mockResolvedValueOnce(info('a', 2n, REP_A))
+    .mockResolvedValueOnce(fresh);
+  const process = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Invalid previous'))
     .mockResolvedValueOnce({ hash: 'c'.repeat(64) });
   return {
     accountInfo,
