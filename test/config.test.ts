@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { redactUrlForLog, resolveEffectiveRpcUrls, resolveEffectiveWorkUrls, DEFAULT_RPC_URLS } from '../src/config.js';
+import {
+  assertNonIncreasingMaxSendXnoUpdate,
+  DEFAULT_MAX_SEND_XNO,
+  DEFAULT_RPC_URLS,
+  redactUrlForLog,
+  resolveEffectiveMaxSendXno,
+  resolveEffectiveRpcUrls,
+  resolveEffectiveWorkUrls,
+} from '../src/config.js';
 import type { XnoConfig } from '../src/state-store.js';
 
-const ENV_KEYS = ['NANO_RPC_URL', 'NANO_WORK_URL'];
+const ENV_KEYS = ['NANO_RPC_URL', 'NANO_WORK_URL', 'XNO_MAX_SEND'];
 
 function clearEnv() {
   for (const key of ENV_KEYS) delete process.env[key];
@@ -157,5 +165,53 @@ describe('requireFreshConfig reload behaviour', () => {
 
     expect(mockLoad).toHaveBeenCalledTimes(2);
     expect(fresh1).not.toEqual(fresh2);
+  });
+});
+
+describe('max send ceiling', () => {
+  beforeEach(clearEnv);
+  afterEach(clearEnv);
+
+  it('uses the default ceiling when no owner override exists', () => {
+    expect(resolveEffectiveMaxSendXno({})).toBe(DEFAULT_MAX_SEND_XNO);
+  });
+
+  it('uses saved maxSendXno when no owner env ceiling exists', () => {
+    expect(resolveEffectiveMaxSendXno({ maxSendXno: '2.5' })).toBe('2.5');
+  });
+
+  it('treats XNO_MAX_SEND as a hard ceiling over a looser saved config', () => {
+    process.env.XNO_MAX_SEND = '1';
+    expect(resolveEffectiveMaxSendXno({ maxSendXno: '5' })).toBe('1');
+  });
+
+  it('allows saved config to tighten the owner environment ceiling', () => {
+    process.env.XNO_MAX_SEND = '1';
+    expect(resolveEffectiveMaxSendXno({ maxSendXno: '0.25' })).toBe('0.25');
+  });
+
+  it('allows config_set-style changes that tighten the current effective ceiling', () => {
+    expect(() => assertNonIncreasingMaxSendXnoUpdate({ maxSendXno: '1' }, '0.5')).not.toThrow();
+  });
+
+  it('rejects config_set-style changes that loosen the current effective ceiling', () => {
+    expect(() => assertNonIncreasingMaxSendXnoUpdate({ maxSendXno: '1' }, '2')).toThrow(
+      /can only be tightened/i,
+    );
+  });
+
+  it('rejects resetting a tightened saved ceiling when reset would loosen it', () => {
+    expect(() => assertNonIncreasingMaxSendXnoUpdate({ maxSendXno: '0.5' }, null)).toThrow(
+      /can only be tightened/i,
+    );
+  });
+
+  it('allows reset when reset is itself a tightening action', () => {
+    expect(() => assertNonIncreasingMaxSendXnoUpdate({ maxSendXno: '5' }, null)).not.toThrow();
+  });
+
+  it('rejects a latent saved increase even when XNO_MAX_SEND would still cap it', () => {
+    process.env.XNO_MAX_SEND = '1';
+    expect(() => assertNonIncreasingMaxSendXnoUpdate({}, '2')).toThrow(/can only be tightened/i);
   });
 });

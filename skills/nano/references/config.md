@@ -30,6 +30,17 @@ On-demand configuration reference for `xno-mcp` / xno-skills. Load this when you
 3. `NANO_RPC_URL` env var
 4. default RPC node list
 
+### Spending-limit trust boundary
+
+`maxSendXno` is enforced immediately before signing both normal sends and prepared send blocks.
+
+- If `XNO_MAX_SEND` is set by the owner, it is a hard ceiling.
+- Saved `maxSendXno` may make that ceiling lower, never higher.
+- Without either value, the default ceiling is `1.0 XNO`.
+- The agent-accessible `config_set` tool may only **tighten** the current effective ceiling. It cannot raise the limit or reset it to a higher value.
+- Raising or loosening the ceiling is deliberately out-of-band: the owner must edit the config file or environment outside the agent tool call.
+
+This prevents an agent from bypassing a send policy by temporarily increasing `maxSendXno`, sending, and then restoring the old value.
 ### Setting values
 
 ```json
