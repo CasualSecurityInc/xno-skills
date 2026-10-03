@@ -49,7 +49,13 @@ import {
   type TransactionRecord,
   type XnoConfig,
 } from './state-store.js';
-import { resolveEffectiveWorkUrls, resolveEffectiveRpcUrls, DEFAULT_RPC_URLS } from './config.js';
+import {
+  assertNonIncreasingMaxSendXnoUpdate,
+  resolveEffectiveMaxSendXno,
+  resolveEffectiveWorkUrls,
+  resolveEffectiveRpcUrls,
+  DEFAULT_RPC_URLS,
+} from './config.js';
 import { createNanoRuntime } from './nano-runtime.js';
 import { listWalletsProxy } from './ows.js';
 import {
@@ -103,11 +109,6 @@ const state: McpState = {
   config: loadConfig(),
 };
 
-const DEFAULT_MAX_SEND_XNO = (() => {
-  const env = process.env.XNO_MAX_SEND;
-  if (env !== undefined && env.trim()) return env.trim();
-  return '1.0';
-})();
 
 /**
  * Reload config from disk. The shared runtime invalidates its cached default client
@@ -338,7 +339,10 @@ mcpServer.registerTool(
     inputSchema: {},
     annotations: READONLY,
   },
-  async () => toToolSuccess(requireFreshConfig()),
+  async () => {
+    const config = requireFreshConfig();
+    return toToolSuccess({ ...config, effectiveMaxSendXno: resolveEffectiveMaxSendXno(config) });
+  },
 );
 
 mcpServer.registerTool(
@@ -346,7 +350,7 @@ mcpServer.registerTool(
   {
     title: 'Set Configuration',
     description:
-      'Update the xno-mcp configuration. Any provided fields overwrite existing values; omitted fields are preserved. Set a string field to "" or null to reset it to default; set a number field to null to reset it to default.',
+      'Update xno-mcp configuration. Agent-accessible maxSendXno changes may only tighten the current effective spending ceiling; raising it is an owner-controlled out-of-band action. Other provided fields overwrite existing values; omitted fields are preserved.',
     inputSchema: {
       rpcUrl: z.string().nullable().optional().describe('Primary Nano RPC endpoint URL (set to "" or null to reset)'),
       workUrl: z.string().nullable().optional().describe('Remote PoW endpoint URL (set to "" or null to reset)'),
@@ -365,11 +369,14 @@ mcpServer.registerTool(
         .string()
         .nullable()
         .optional()
-        .describe('Maximum XNO allowed per send transaction (default: 1.0, set to "" or null to reset)'),
+        .describe('Maximum XNO per send. Through config_set this may only tighten the current effective limit; raising/resetting to a higher value requires owner-controlled config/env.'),
     },
     annotations: WRITE,
   },
   async (args) => {
+    const freshConfig = requireFreshConfig();
+    assertNonIncreasingMaxSendXnoUpdate(freshConfig, args.maxSendXno);
+
     function setField(key: keyof XnoConfig, value: unknown): void {
       if (value === undefined) return;
       if (value === null || value === '') {
