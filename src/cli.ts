@@ -417,6 +417,10 @@ program
       console.error(`Invalid address: ${validation.error}`);
       process.exit(1);
     }
+    // The kind check lives in formatNanoUri (src/qr.ts) now: the QR is built by
+    // buildNanoUri/generateAsciiQr/generateSvgQr, so one check there covers the CLI,
+    // the MCP tool and anyone importing buildNanoUri. Anything it refuses is caught by
+    // the try/catch below and routed through exitWithError.
     try {
       const content = buildNanoUri(address, options.amountXno);
       const format = options.format === 'svg' ? 'svg' : 'ascii';
@@ -441,10 +445,19 @@ program
   .option('-j, --json', 'Output in JSON format')
   .action((input: string, options: { json?: boolean }) => {
     const result = validateAddress(input);
-    const out = { address: input, ...result };
+    // Only call it an address when it is one. A bare 64-hex input is reported as a public
+    // key, not echoed into `address` (the command's own help says it accepts "a Nano address
+    // or block hash", and a block hash is not an address either).
+    const out = { input, ...result };
     printJsonOrText(out, options, () => {
       if (result.valid) {
-        console.log('Valid Nano address');
+        if (result.kind === 'address') {
+          console.log('Valid Nano address');
+        } else {
+          console.log(
+            'Valid 32-byte value (64 hex) — not an address: this is the shape of a public key, a block hash, a seed or a private key, and the three cannot be told apart from the value alone.',
+          );
+        }
         if (result.publicKey) console.log(`Public Key: ${result.publicKey}`);
       } else {
         console.error(`Invalid: ${result.error}`);
