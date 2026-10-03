@@ -336,15 +336,15 @@ describe('MCP Server Integration', () => {
     expect(out.items).toBeInstanceOf(Array);
   });
 
-  it('should set maxSendXno via config_set', async () => {
+  it('should set maxSendXno via config_set without raising the effective ceiling', async () => {
     const result = await client.callTool({
       name: 'config_set',
-      arguments: { maxSendXno: '5.0' },
+      arguments: { maxSendXno: '1.0' },
     });
 
     expect(result.isError).toBeFalsy();
     const config = JSON.parse(getText(result));
-    expect(config.maxSendXno).toBe('5.0');
+    expect(config.maxSendXno).toBe('1.0');
   });
 
   it('should set powTimeoutMs via config_set', async () => {
@@ -366,7 +366,8 @@ describe('MCP Server Integration', () => {
 
     expect(result.isError).toBeFalsy();
     const config = JSON.parse(getText(result));
-    expect(config.maxSendXno).toBe('5.0');
+    expect(config.maxSendXno).toBe('1.0');
+    expect(config.effectiveMaxSendXno).toBe('1.0');
   });
 
   it('should embed max-send cap in wallet_send tool description', async () => {
