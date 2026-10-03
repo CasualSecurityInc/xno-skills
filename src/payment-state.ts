@@ -82,6 +82,11 @@ export function paymentMissingSourceRaw(rec: PaymentRequest): bigint {
 }
 
 export function recordPaymentRefund(rec: PaymentRequest, source: string, amountRaw: string, sendHash: string): void {
+  // Mirror applyPaymentReceive: a refund that is already recorded must not be
+  // counted twice. refundedBlocks is summed by paymentRefundedRaw, so a repeat
+  // entry makes refunded exceed received, flips the status to 'refunded' and
+  // drops the payer out of refundCandidates through the amount > 0n filter.
+  if ((rec.refundedBlocks || []).some((existing) => existing.sendHash === sendHash)) return;
   rec.refundedBlocks = [
     ...(rec.refundedBlocks || []),
     {

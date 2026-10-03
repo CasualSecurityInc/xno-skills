@@ -25,6 +25,12 @@ describe('MCP Server Integration', () => {
     return {
       ...process.env,
       XNO_MCP_MOCK_OWS: 'true',
+      // Without this the server prefers local PoW and really solves the puzzle,
+      // which costs ~5s per block and made the send/receive tests time out in CI.
+      // Pointing work at the mock RPC keeps the remote-then-fallback path under
+      // test, which is the path a configured work peer actually takes. The local
+      // engine has its own coverage in test/pow.test.ts.
+      XNO_FORCE_LOCAL_POW: '0',
       NANO_RPC_URL: rpcUrl,
       NANO_WORK_URL: rpcUrl,
     };
@@ -308,7 +314,7 @@ describe('MCP Server Integration', () => {
     mockAccountInfo = { error: 'Account not found' };
     mockReceivableBlocks = {};
     mockProcessResponse = { error: 'Block work is less than threshold' };
-  }, 20_000);
+  }, 60_000);
 
   it('should error for unknown payment request', async () => {
     const result = await client.callTool({
