@@ -373,34 +373,38 @@ program
   .argument('<from>', 'Source unit: xno or raw')
   .option('-j, --json', 'Output in JSON format')
   .action((amount: string, from: string, options: { json?: boolean }) => {
-    const normalizeUnit = (unit: string): string => {
-      const value = unit.toLowerCase();
-      if (value === 'xno' || value === 'nano') return 'xno';
-      if (value === 'raw' || value === 'rai') return 'raw';
-      return value;
-    };
+    try {
+      const normalizeUnit = (unit: string): string => {
+        const value = unit.toLowerCase();
+        if (value === 'xno' || value === 'nano') return 'xno';
+        if (value === 'raw' || value === 'rai') return 'raw';
+        return value;
+      };
 
-    const fromUnit = normalizeUnit(from);
+      const fromUnit = normalizeUnit(from);
 
-    let rawValue: string;
-    switch (fromUnit) {
-      case 'xno':
-        rawValue = nanoToRaw(amount);
-        break;
-      case 'raw':
-        rawValue = amount;
-        break;
-      default:
-        console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
-        process.exit(1);
+      let rawValue: string;
+      switch (fromUnit) {
+        case 'xno':
+          rawValue = nanoToRaw(amount);
+          break;
+        case 'raw':
+          rawValue = amount;
+          break;
+        default:
+          console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
+          process.exit(1);
+      }
+
+      const xno = rawToNano(rawValue);
+      const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };
+      printJsonOrText(result, options, () => {
+        console.log(`raw: ${rawValue}`);
+        console.log(`xno: ${xno}`);
+      });
+    } catch (error) {
+      exitWithError(error);
     }
-
-    const xno = rawToNano(rawValue);
-    const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };
-    printJsonOrText(result, options, () => {
-      console.log(`raw: ${rawValue}`);
-      console.log(`xno: ${xno}`);
-    });
   });
 
 program
