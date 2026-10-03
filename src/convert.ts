@@ -49,12 +49,25 @@ function parseDecimal(value: string): { integer: string; decimal: string } {
  * the shortest round-tripping form, so `nanoToRaw(0.1)` and `nanoToRaw('0.1')`
  * produce the same raw amount.
  */
+// IEEE-754 guarantees 15 significant decimal digits round-trip. A longer
+// shortest-repr means the value carries binary representation error, which is
+// the double being the wrong number rather than a spelling of the right one.
+const MAX_SIGNIFICANT_DIGITS = 15;
+
 function coerceXnoNumber(value: number, fn: string): string {
   if (!Number.isFinite(value)) {
     throw new Error(`${fn}: expected a finite amount, got ${value}. Pass it as a decimal string.`);
   }
   if (value < 0) throw new Error(`${fn}: negative values not supported`);
-  return Number.isInteger(value) ? BigInt(value).toString() : String(value);
+  if (Number.isInteger(value)) return BigInt(value).toString();
+  const repr = String(value);
+  const significantDigits = repr.replace(/[^0-9]/g, '').replace(/^0+/, '').length;
+  if (significantDigits > MAX_SIGNIFICANT_DIGITS) {
+    throw new Error(
+      `${fn}: ${repr} carries ${significantDigits} significant digits, more than a double holds faithfully. Pass it as a decimal string.`,
+    );
+  }
+  return repr;
 }
 
 /**

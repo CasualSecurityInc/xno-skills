@@ -224,3 +224,18 @@ describe('numeric input (a caller may pass Number or String)', () => {
     expect(convertUnits(5, 'raw', 'raw')).toBe('5');
   });
 });
+
+describe('numeric input that a double cannot hold faithfully', () => {
+  it('rejects a value carrying more precision than 15 significant digits', () => {
+    expect(() => nanoToRaw(0.1 + 0.2)).toThrow(/more than a double holds faithfully/);
+    expect(() => nanoToRaw(1.0000000000000002)).toThrow(/more than a double holds faithfully/);
+  });
+
+  it('still accepts what a caller could plausibly have typed', () => {
+    expect(nanoToRaw(0.1)).toBe(nanoToRaw('0.1'));
+    expect(nanoToRaw(1.5)).toBe(nanoToRaw('1.5'));
+    expect(nanoToRaw(0.123456789012345)).toBe(nanoToRaw('0.123456789012345'));
+    expect(nanoToRaw(42)).toBe(nanoToRaw('42'));
+    expect(nanoToRaw(1e21)).toBe('1' + '0'.repeat(51));
+  });
+});
