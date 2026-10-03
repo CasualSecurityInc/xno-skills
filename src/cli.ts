@@ -383,18 +383,18 @@ program
 
       const fromUnit = normalizeUnit(from);
 
-    let rawValue: string;
-    switch (fromUnit) {
-      case 'xno':
-        rawValue = nanoToRaw(amount);
-        break;
-      case 'raw':
-        rawValue = amount;
-        break;
-      default:
-        console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
-        process.exit(1);
-    }
+      let rawValue: string;
+      switch (fromUnit) {
+        case 'xno':
+          rawValue = nanoToRaw(amount);
+          break;
+        case 'raw':
+          rawValue = amount;
+          break;
+        default:
+          console.error(`Unknown source unit: ${fromUnit}. Use xno or raw.`);
+          process.exit(1);
+      }
 
       const xno = rawToNano(rawValue);
       const result = { input: amount, inputUnit: fromUnit, raw: rawValue, xno };

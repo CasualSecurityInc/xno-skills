@@ -83,10 +83,14 @@ function coerceRawNumber(value: number, fn: string): string {
     throw new Error(`${fn}: expected a finite amount, got ${value}. Pass it as a decimal string.`);
   }
   if (!Number.isInteger(value)) {
-    throw new Error(`${fn}: raw is the smallest indivisible unit, so a raw amount must be a whole number. Pass it as a string.`);
+    throw new Error(
+      `${fn}: raw is the smallest indivisible unit, so a raw amount must be a whole number. Pass it as a string.`,
+    );
   }
   if (!Number.isSafeInteger(value)) {
-    throw new Error(`${fn}: raw amount ${value} is above Number.MAX_SAFE_INTEGER and cannot be represented exactly as a number. Pass it as a string.`);
+    throw new Error(
+      `${fn}: raw amount ${value} is above Number.MAX_SAFE_INTEGER and cannot be represented exactly as a number. Pass it as a string.`,
+    );
   }
   return BigInt(value).toString();
 }
@@ -130,14 +134,14 @@ export function rawToNano(raw: string | number, decimals: number = 30): string {
   if (typeof raw === 'number') raw = coerceRawNumber(raw, 'rawToNano');
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
-  
+
   const { integer: intPart, decimal: rawDecPart } = parseDecimal(raw);
   // raw is the smallest indivisible unit: a fractional raw value is not a valid amount.
   // Rejecting it prevents a silent, self-inconsistent result (raw echoed as "1.5" while
   // the XNO amount is computed from the integer part alone).
   if (rawDecPart.length > 0 && /[1-9]/.test(rawDecPart))
     throw new Error('rawToNano: raw amounts must be integers (raw is the smallest indivisible unit)');
-  
+
   // Convert to BigInt first to handle the raw value
   const rawBigInt = BigInt(intPart);
 
@@ -201,20 +205,28 @@ export function convertUnits(amount: string | number, from: string, to: string):
   // Coerce before the pass-through below, so raw -> raw still yields a string.
   // An unsupported `from` keeps the number as-is and throws in the switch below,
   // exactly as a string did.
-  const value: string = typeof amount === 'number'
-    ? f === 'raw' ? coerceRawNumber(amount, 'convertUnits')
-      : f === 'xno' ? coerceXnoNumber(amount, 'convertUnits')
-      : String(amount)
-    : amount;
+  const value: string =
+    typeof amount === 'number'
+      ? f === 'raw'
+        ? coerceRawNumber(amount, 'convertUnits')
+        : f === 'xno'
+          ? coerceXnoNumber(amount, 'convertUnits')
+          : String(amount)
+      : amount;
 
   if (f === t) return value;
 
   // Step 1: Convert from → raw
   let raw: string;
   switch (f) {
-    case 'raw': raw = value; break;
-    case 'xno': raw = nanoToRaw(value); break;
-    default: throw new Error(`Unsupported unit: ${from}`);
+    case 'raw':
+      raw = value;
+      break;
+    case 'xno':
+      raw = nanoToRaw(value);
+      break;
+    default:
+      throw new Error(`Unsupported unit: ${from}`);
   }
 
   // Step 2: Convert raw → to
