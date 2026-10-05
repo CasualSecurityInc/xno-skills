@@ -67,6 +67,11 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
       receivable: (address, count) => rpcReceivable(client, address, count, { timeoutMs }),
       accountHistory: (address, count) => rpcAccountHistory(client, address, count, { timeoutMs }),
       workGenerate: async (hash, difficulty) => {
+        // Boundary normalization only, on the symmetry you allowed: the remote branch
+        // needs canonical hex, and the local route reaches the engine through
+        // WorkProvider, which converts symbolic values itself (workDifficultyToThreshold).
+        // Keeping one spelling here means the log line and the call we pass on agree.
+        const threshold = normalizeRemoteWorkDifficulty(difficulty);
         let preferLocal = true;
         try {
           preferLocal = getEffectiveLocalPowRecommended(recommendLocalPow);
@@ -80,14 +85,13 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
         }
         const startedAt = Date.now();
         if (workUrls.length > 0) {
-          const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
           log(
-            `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`,
+            `pow.generate start hash=${hash.slice(0, 12)} difficulty=${threshold} remote=${workUrls.map(redactUrlForLog).join(',')}`,
           );
           try {
             const res = await nanoRpcCall<{ work: string }>(
               getNanoClient(workUrls.join(',')),
-              { action: 'work_generate', hash, difficulty: difficultyHex },
+              { action: 'work_generate', hash, difficulty: threshold },
               { timeoutMs: effectivePowTimeoutMs(config) },
             );
             log(`pow.generate ok remote elapsedMs=${Date.now() - startedAt}`);
@@ -98,9 +102,9 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
             );
           }
         }
-        log(`pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficulty} local=true`);
+        log(`pow.generate start hash=${hash.slice(0, 12)} difficulty=${threshold} local=true`);
         try {
-          const work = await client.workProvider.generate(hash, difficulty);
+          const work = await client.workProvider.generate(hash, threshold);
           log(`pow.generate ok elapsedMs=${Date.now() - startedAt}`);
           return work;
         } catch (error) {
