@@ -1,5 +1,5 @@
 import { validateAddress } from './validate.js';
-import { NanoClient } from '@openrai/nano-core';
+import { NanoClient, WorkDifficulty, workDifficultyToThreshold } from '@openrai/nano-core';
 import { buildHeaders } from '@openrai/nano-core/transport/http';
 import type { NormalizedEndpoint } from '@openrai/nano-core/transport';
 
@@ -278,7 +278,7 @@ export type RpcProbeResult = {
   results?: RpcProbeResult[];
 };
 
-const RECEIVE_OPEN_DIFFICULTY = 'fffffe0000000000';
+const RECEIVE_OPEN_DIFFICULTY = workDifficultyToThreshold(WorkDifficulty.Receive);
 const ZERO_HASH = '0'.repeat(64);
 const ZERO_ACCOUNT = 'nano_1111111111111111111111111111111111111111111111111111hifc8npp';
 

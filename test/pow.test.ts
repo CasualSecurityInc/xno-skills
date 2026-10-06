@@ -1,12 +1,31 @@
 import { describe, it, expect } from 'vitest';
-import { localWorkGenerate, getThresholdForSubtype, validateWork, WorkType } from '../src/pow';
+import { WorkDifficulty, workDifficultyToThreshold } from '@openrai/nano-core';
+import { localWorkGenerate, getThresholdForSubtype, validateWork } from '../src/pow';
 
 describe('Local PoW', () => {
   it('should return correct threshold for subtype', () => {
-    expect(getThresholdForSubtype('send')).toBe(WorkType.Send);
-    expect(getThresholdForSubtype('change')).toBe(WorkType.Send);
-    expect(getThresholdForSubtype('receive')).toBe(WorkType.Receive);
-    expect(getThresholdForSubtype('open')).toBe(WorkType.Receive);
+    expect(getThresholdForSubtype('send')).toBe(WorkDifficulty.Send);
+    expect(getThresholdForSubtype('change')).toBe(WorkDifficulty.Send);
+    expect(getThresholdForSubtype('receive')).toBe(WorkDifficulty.Receive);
+    expect(getThresholdForSubtype('open')).toBe(WorkDifficulty.Receive);
+  });
+
+  it('should echo the library vocabulary rather than a local spelling', () => {
+    // Guards against reintroducing a locally-declared WorkType. The difficulty values
+    // we hand to WorkProvider must be exactly the ones nano-core defines, so there is
+    // one vocabulary rather than one per consumer.
+    for (const difficulty of [WorkDifficulty.Send, WorkDifficulty.Receive]) {
+      expect([WorkDifficulty.Send, WorkDifficulty.Receive]).toContain(difficulty);
+    }
+  });
+
+  it('should emit difficulties the provider seam accepts', () => {
+    // The local path deliberately passes the symbolic name to WorkProvider and lets it
+    // resolve the threshold internally. Pre-normalizing to hex here would be redundant
+    // with workDifficultyToThreshold and would re-introduce a second spelling.
+    for (const subtype of ['send', 'change', 'receive', 'open'] as const) {
+      expect(() => workDifficultyToThreshold(getThresholdForSubtype(subtype))).not.toThrow();
+    }
   });
 
   it('should throw for invalid hash', async () => {

@@ -1,9 +1,5 @@
+import { WorkDifficulty } from '@openrai/nano-core';
 import { createNodePowEngine, WorkProvider } from '@openrai/nano-core/node';
-
-export enum WorkType {
-  Send = 'Send',
-  Receive = 'Receive',
-}
 
 const workProvider = WorkProvider.local({ localEngine: createNodePowEngine() });
 
@@ -15,7 +11,7 @@ export function validateWork(work: string): void {
 
 export async function localWorkGenerate(
   rootOrHash: string,
-  threshold: WorkType = WorkType.Send,
+  threshold: WorkDifficulty = WorkDifficulty.Send,
 ): Promise<{ work: string }> {
   if (typeof rootOrHash !== 'string' || !/^[0-9a-fA-F]{64}$/.test(rootOrHash)) {
     throw new Error('work root/hash must be 32-byte hex (64 hex characters)');
@@ -33,6 +29,6 @@ export async function localWorkGenerate(
   return { work };
 }
 
-export function getThresholdForSubtype(subtype: 'send' | 'receive' | 'open' | 'change'): WorkType {
-  return subtype === 'open' || subtype === 'receive' ? WorkType.Receive : WorkType.Send;
+export function getThresholdForSubtype(subtype: 'send' | 'receive' | 'open' | 'change'): WorkDifficulty {
+  return subtype === 'open' || subtype === 'receive' ? WorkDifficulty.Receive : WorkDifficulty.Send;
 }

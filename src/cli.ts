@@ -18,7 +18,6 @@ import {
 import { decodeNanoAddress } from './nano-address.js';
 import { nanoGetPublicKeyFromPrivateKey } from './ed25519-blake2b.js';
 import { buildNanoStateBlockHex } from './state-block.js';
-import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import { clearPowTuningCache, NOMS, recommendLocalPow } from '@openrai/nano-core/node';
 import { version } from './version.js';
 import { getSystemInfo, formatSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';

@@ -119,6 +119,18 @@ const valid = NOMS.verifyMessage('Hello, Nano!', signature, publicKeyHex);
 import { localWorkGenerate, validateWork, getThresholdForSubtype } from 'xno-skills';
 
 const threshold = getThresholdForSubtype('send');
-const work = await localWorkGenerate(blockHash, threshold);
-const valid = validateWork(blockHash, work, threshold);
+const { work } = await localWorkGenerate(blockHash, threshold);
+validateWork(work);
 ```
+
+`getThresholdForSubtype` returns a `WorkDifficulty` — the named level that `@openrai/nano-core` defines. There is no xno-skills-specific difficulty vocabulary; import `WorkDifficulty` from `xno-skills` if you need the level itself rather than a subtype mapping.
+
+```typescript
+import { WorkDifficulty, workDifficultyToThreshold } from 'xno-skills';
+
+WorkDifficulty.Send; // 'send'
+workDifficultyToThreshold(WorkDifficulty.Send); // 'fffffff800000000'
+workDifficultyToThreshold('fffffff800000000'); // same — hex passes through
+```
+
+The local engine takes a canonical 16-character hexadecimal threshold, and `nano-core` resolves names to it for you, so `localWorkGenerate` accepts a `WorkDifficulty` directly.
