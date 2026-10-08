@@ -1,6 +1,7 @@
 import qrcode from 'qrcode-terminal';
 import QRCodeSvg from 'qrcode-svg';
 import { nanoToRaw, rawToNano } from './convert.js';
+import { validateAddress } from './validate.js';
 
 function normalizeAmount(amount?: string | number): string | undefined {
   if (amount === undefined || amount === null) {
@@ -26,6 +27,15 @@ function normalizeAmount(amount?: string | number): string | undefined {
 }
 
 function formatNanoUri(address: string, amount?: string | number): string {
+  // A QR code has to encode something a wallet can pay. All three public QR functions go
+  // through here, so one check covers the CLI, the MCP tool, and anyone importing
+  // buildNanoUri. This has to throw rather than exit: qr.ts is a library and cannot end the
+  // process, and the callers already have try/catch.
+  const validation = validateAddress(address);
+  if (!validation.valid) {
+    throw new Error(`Invalid address: ${validation.error}`);
+  }
+
   let uri = `nano:${address}`;
   const amountString = normalizeAmount(amount);
 
