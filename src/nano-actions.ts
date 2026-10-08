@@ -942,11 +942,21 @@ export async function signWalletMessage(
 }
 
 export function verifyNanoMessage(address: string, message: string, signature: string): VerifyMessageResult {
-  const validation = validateAddress(address);
-  if (!validation.valid || !validation.publicKey) {
-    throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, {
-      details: { address },
-    });
+  // Accept either a Nano address or a bare public key. Signature verification is against a
+  // public key, and callers legitimately pass one directly. `validateAddress` is strict about
+  // addresses because sending to an opaque hex string is not something any wallet supports —
+  // but that strictness must not leak into signature verification.
+  let publicKey: string;
+  if (/^[0-9A-Fa-f]{64}$/.test(address)) {
+    publicKey = address.toLowerCase();
+  } else {
+    const validation = validateAddress(address);
+    if (!validation.valid || !validation.publicKey) {
+      throw new NanoActionError('INVALID_ADDRESS', 'verify_message', `Invalid address: ${validation.error}`, {
+        details: { address },
+      });
+    }
+    publicKey = validation.publicKey;
   }
 
   // NOMS (Nano Off-chain Message Signing) is specified and implemented in this repo's own
@@ -966,7 +976,7 @@ export function verifyNanoMessage(address: string, message: string, signature: s
     );
   }
 
-  return { valid: NOMS.verifyMessage(message, signature, validation.publicKey) };
+  return { valid: NOMS.verifyMessage(message, signature, publicKey) };
 }
 
 export function toToolSuccess(result: unknown, structuredContent?: Record<string, unknown>) {
