@@ -1,10 +1,9 @@
 import { createNodePowEngine, NanoClient, WorkProvider, recommendLocalPow } from '@openrai/nano-core/node';
-import type { NanoClient as CoreNanoClient } from '@openrai/nano-core';
+import { workDifficultyToThreshold, type NanoClient as CoreNanoClient } from '@openrai/nano-core';
 import { getEffectiveLocalPowRecommended } from './meta.js';
 import { DEFAULT_RPC_URLS, redactUrlForLog, resolveEffectiveRpcUrls, resolveEffectiveWorkUrls } from './config.js';
 import { DEFAULT_TIMEOUT_MS, type NanoReaders } from './nano-actions.js';
 import { nanoRpcCall, rpcAccountBalance, rpcAccountHistory, rpcAccountInfo, rpcProcess, rpcReceivable } from './rpc.js';
-import { normalizeRemoteWorkDifficulty } from './work-threshold.js';
 import type { XnoConfig } from './state-store.js';
 
 export type NanoRuntimeOptions = {
@@ -80,7 +79,9 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
         }
         const startedAt = Date.now();
         if (workUrls.length > 0) {
-          const difficultyHex = normalizeRemoteWorkDifficulty(difficulty);
+          // The node's work_generate RPC speaks canonical hex only, so resolve the
+          // difficulty before the wire. The local provider below takes the name directly.
+          const difficultyHex = workDifficultyToThreshold(difficulty);
           log(
             `pow.generate start hash=${hash.slice(0, 12)} difficulty=${difficultyHex} remote=${workUrls.map(redactUrlForLog).join(',')}`,
           );

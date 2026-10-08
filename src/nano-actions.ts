@@ -1,4 +1,4 @@
-import { NOMS } from '@openrai/nano-core';
+import { NOMS, WorkDifficulty } from '@openrai/nano-core';
 import {
   buildNanoStateBlockHex,
   hashNanoStateBlockHex,
@@ -10,7 +10,6 @@ import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
-import { WorkType } from './pow.js';
 import {
   type ReceivableItem,
   type NanoRpcErrorResponse,
@@ -88,7 +87,7 @@ export type NanoReaders = {
   accountBalance: (address: string) => Promise<{ balance: string; pending: string }>;
   receivable: (address: string, count: number) => Promise<ReceivableItem[]>;
   accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
-  workGenerate?: (hash: string, difficulty: string) => Promise<string>;
+  workGenerate?: (hash: string, difficulty: string | WorkDifficulty) => Promise<string>;
   process?: (
     block: Record<string, unknown>,
     subtype: 'send' | 'receive' | 'open' | 'change',
@@ -242,7 +241,7 @@ async function signWorkAndProcess(
   }
 
   // 2. Generate PoW via the injected provider (local nano-core provider, or remote with local fallback)
-  const difficulty = subtype === 'open' || subtype === 'receive' ? WorkType.Receive : WorkType.Send;
+  const difficulty = subtype === 'open' || subtype === 'receive' ? WorkDifficulty.Receive : WorkDifficulty.Send;
   const workRoot = subtype === 'open' ? blockInput.accountPublicKey : blockInput.previous;
 
   let work: string;
