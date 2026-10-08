@@ -58,11 +58,11 @@ describe('QR codes refuse values that are not addresses', () => {
   // pays nothing. Refuse at the library boundary so the CLI, the MCP tool and anything
   // importing buildNanoUri are all covered by one check.
   it('buildNanoUri rejects a 64-hex value', () => {
-    expect(() => buildNanoUri(HEX64)).toThrow(/must encode a Nano address/);
+    expect(() => buildNanoUri(HEX64)).toThrow(/Invalid prefix/);
   });
 
   it('buildNanoUri rejects a 64-hex value even with an amount', () => {
-    expect(() => buildNanoUri(HEX64, 1)).toThrow(/must encode a Nano address/);
+    expect(() => buildNanoUri(HEX64, 1)).toThrow(/Invalid prefix/);
   });
 
   it('generateAsciiQr rejects a 64-hex value', () => {
@@ -70,11 +70,11 @@ describe('QR codes refuse values that are not addresses', () => {
     // await, so a refused input throws out of the call itself rather than rejecting a
     // promise. Callers that wrap the call in try/catch (the CLI does) see it either way;
     // asserting the throw pins the actual behaviour.
-    expect(() => generateAsciiQr(HEX64)).toThrow(/must encode a Nano address/);
+    expect(() => generateAsciiQr(HEX64)).toThrow(/Invalid prefix/);
   });
 
   it('generateSvgQr rejects a 64-hex value', () => {
-    expect(() => generateSvgQr(HEX64)).toThrow(/must encode a Nano address/);
+    expect(() => generateSvgQr(HEX64)).toThrow(/Invalid prefix/);
   });
 
   it('buildNanoUri rejects an invalid address', () => {

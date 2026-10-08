@@ -440,24 +440,15 @@ program
 program
   .command('validate')
   .helpGroup('Utilities')
-  .description('Validate a Nano address or block hash')
-  .argument('<input>', 'Address or block hash to validate')
+  .description('Validate a Nano address')
+  .argument('<input>', 'Nano address to validate')
   .option('-j, --json', 'Output in JSON format')
   .action((input: string, options: { json?: boolean }) => {
     const result = validateAddress(input);
-    // Only call it an address when it is one. A bare 64-hex input is reported as a public
-    // key, not echoed into `address` (the command's own help says it accepts "a Nano address
-    // or block hash", and a block hash is not an address either).
     const out = { input, ...result };
     printJsonOrText(out, options, () => {
       if (result.valid) {
-        if (result.kind === 'address') {
-          console.log('Valid Nano address');
-        } else {
-          console.log(
-            'Valid 32-byte value (64 hex) — not an address: this is the shape of a public key, a block hash, a seed or a private key, and the three cannot be told apart from the value alone.',
-          );
-        }
+        console.log('Valid Nano address');
         if (result.publicKey) console.log(`Public Key: ${result.publicKey}`);
       } else {
         console.error(`Invalid: ${result.error}`);
