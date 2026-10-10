@@ -302,6 +302,8 @@ npm run eval:opencode-wallet-journey -- --source-wallet <name> --upstream-rpc <u
 
 It is never part of CI or the release flow. The report deliberately makes no token-efficiency claim unless the captured Codex events provide an authoritative per-run token count.
 
+For a manual, tool-by-tool routing check instead of the end-to-end journey, use [`test/user-journey-prompts.md`](test/user-journey-prompts.md): 28 prompts mapped one-to-one to the 28 MCP tools, run one at a time in a fresh agent session with the file withheld. It is also never part of CI.
+
 ## Releasing
 
 See `RELEASING.md`.

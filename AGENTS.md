@@ -34,6 +34,7 @@
 - MCP responses should be wrapped as `{ content: [{ type: "text", text: JSON.stringify(result, null, 2) }] }`.
 - After changing CLI subcommands in `src/cli.ts`, verify the README CLI table against `npm run dev -- --help`.
 - `diag` / `system_diag` must stay no-network; live endpoint checks belong in `rpc probe-caps` / `rpc_probe_caps`.
+- Manual MCP tool-routing checklist: `test/user-journey-prompts.md` (28 prompts ↔ 28 tools, run one at a time in a fresh agent session with the file withheld; not in CI). The outcome-verified end-to-end journey is `npm run eval:opencode-wallet-journey` / `eval:codex-wallet-journey`; the Autoresearch rubric is `skill-eval-guide.md`.
 
 ## Release Flow
 

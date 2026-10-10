@@ -1,12 +1,20 @@
-# Nano MCP v3 User Journey Test — Agent Self-Discovery Checklist
+# Nano MCP Tool-Routing Checklist
 
-Use these prompts one at a time in a fresh OpenCode session. The agent should use the `nano` skill and discover the correct MCP tool from descriptions alone. Do not hint at tool names.
+Manual, offline checklist for a **fresh** agent session that has the `nano` skill and the `xno-mcp` tools loaded. It checks the two things the automated harness does not: that the skill activates on ordinary wording, and that the agent routes each of the 28 MCP tools correctly from tool descriptions alone.
+
+Scope and usage:
+
+- Run **one prompt at a time** in a fresh agent session (OpenCode, Codex, or any MCP-capable client). **Withhold this file from the agent** — the point is discovery, not recall.
+- Replace `<wallet>` with any wallet name returned by `wallet_list`.
+- This checklist is **not** part of CI or the release flow.
+- It is not the end-to-end journey test. For the outcome-verified journey (create a wallet, send half the source balance, receive it — verified on-chain through a guard RPC), use `npm run eval:opencode-wallet-journey` or `npm run eval:codex-wallet-journey` (see README, "Opt-in Codex wallet journey evaluation"). For the binary Autoresearch rubric, see `skill-eval-guide.md`.
+- Per-tool options: `skills/nano/references/*.md`.
 
 After each prompt, verify:
 
-- Did the skill activate? (Should reference xno-mcp tools)
+- Did the skill activate? (Should reference `xno-mcp` tools.)
 - Did the agent call exactly one tool?
-- Did the arguments match the schemas? (Correct param names, types, defaults)
+- Did the arguments match the schemas? (Correct param names, types, defaults.)
 - Was the response natural / not an error?
 
 ---
@@ -21,9 +29,9 @@ After each prompt, verify:
 
 ### 2. Address lookup
 
-> What's the Nano address for my wallet A?
+> What's the Nano address for `<wallet>`?
 
-**Should trigger:** `wallet_address` with wallet name resolved from context.
+**Should trigger:** `wallet_address` with the wallet name resolved from context.
 
 ### 3. Health check
 
@@ -31,59 +39,69 @@ After each prompt, verify:
 
 **Should trigger:** `wallet_ows_health` — agent checks OWS reachability before trusting signing.
 
-### 4. Read config
+### 4. Diagnostics
+
+> What version of the toolkit and OWS is running, and is mock mode on?
+
+**Should trigger:** `system_diag` — reports versions, paths, invocation, and environment (no network).
+
+---
+
+## Configuration
+
+### 5. Read config
 
 > What's the current server configuration?
 
 **Should trigger:** `config_get` — agent reads RPC URLs, timeouts, limits.
 
-### 5. Update config
+### 6. Update config
 
 > I want to raise my spending limit to 5 XNO.
 
-**Should trigger:** `config_set` — agent updates maxSendXno.
+**Should trigger:** `config_set` — agent updates `maxSendXno`.
 
 ---
 
 ## Reading State
 
-### 6. Balance check
+### 7. Balance check
 
-> Check the balance on wallet A. Tell me if there's anything pending too.
+> Check the balance on `<wallet>`. Tell me if there's anything pending too.
 
 **Should trigger:** `wallet_balance` — agent fetches balance + pending blocks list.
 
-### 7. Full account state
+### 8. Full account state
 
-> Give me everything about wallet A — frontier, representative, balance, the works.
+> Give me everything about `<wallet>` — frontier, representative, balance, the works.
 
-**Should trigger:** `wallet_info` — agent fetches full on-chain account summary.
+**Should trigger:** `wallet_info` — agent fetches the full on-chain account summary.
 
-### 8. Transaction history
+### 9. Transaction history
 
-> Show me the last 20 transactions for wallet A.
+> Show me the last 20 transactions for `<wallet>`.
 
 **Should trigger:** `wallet_history` — agent limits to 20 entries.
 
-### 9. External balance query
+### 10. External balance query
 
 > How much XNO does nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7 have?
 
-**Should trigger:** `rpc_account_balance` — agent queries arbitrary address via RPC.
+**Should trigger:** `rpc_account_balance` — agent queries an arbitrary address via RPC.
 
-### 10. External account info
+### 11. External account info
 
 > Get the full account info for that same address.
 
 **Should trigger:** `rpc_account_info` — frontier, representative, block count.
 
-### 11. Pending blocks check
+### 12. Pending blocks check
 
-> Are there any pending receivable blocks for wallet A?
+> Are there any pending receivable blocks for `<wallet>`?
 
 **Should trigger:** `rpc_receivable` — agent lists pending sends waiting to be claimed.
 
-### 12. RPC capability probe
+### 13. RPC capability probe
 
 > Does the node I'm connected to support remote proof of work?
 
@@ -93,27 +111,21 @@ After each prompt, verify:
 
 ## Utilities
 
-### 13. Address validation (invalid)
+### 14. Address validation (invalid)
 
 > Is nano_1invalid a valid Nano address?
 
-**Should trigger:** `util_validate` — agent returns invalid result with reason.
+**Should trigger:** `util_validate` — agent returns an invalid result with reason.
 
-### 14. Unit conversion (XNO → raw)
+### 15. Unit conversion (XNO → raw)
 
 > How much is 1.5 XNO in raw?
 
 **Should trigger:** `util_convert` — amount 1.5, from xno, to raw.
 
-### 15. Unit conversion (raw → mnano) _SKIPPED, DEPRECATED_
-
-> Convert 1000000000000000000000000000 raw to mnano.
-
-**Should trigger:** `util_convert` — from raw, to mnano.
-
 ### 16. QR generation
 
-> Make me a QR code for wallet A's address.
+> Make me a QR code for `<wallet>`'s address.
 
 **Should trigger:** `util_qr` — default ASCII format, no amount.
 
@@ -123,21 +135,21 @@ After each prompt, verify:
 
 ### 17. Receive funds
 
-> There should be pending funds for wallet A — receive them.
+> There should be pending funds for `<wallet>` — receive them.
 
 **Should trigger:** `wallet_receive` — agent auto-detects pending and pockets them.
 
 ### 18. Send funds
 
-> Send 0.01 XNO from wallet A to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7.
+> Send 0.01 XNO from `<wallet>` to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7.
 
-**Should trigger:** `wallet_send` — agent validates destination first, then sends.
+**Should trigger:** `wallet_send` — agent validates the destination first, then sends.
 
 ### 19. Change representative
 
-> Change the representative on wallet A to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4.
+> Change the representative on `<wallet>` to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4.
 
-**Should trigger:** `wallet_change_rep` — agent updates rep for wallet A.
+**Should trigger:** `wallet_change_rep` — agent updates the rep for `<wallet>`.
 
 ---
 
@@ -145,25 +157,25 @@ After each prompt, verify:
 
 ### 20. Unsigned send block
 
-> Build me an unsigned send block from wallet A's address to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7 for 0.01 XNO. I want the hex.
+> Build me an unsigned send block from `<wallet>`'s address to nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7 for 0.01 XNO. I want the hex.
 
 **Should trigger:** `block_send` — agent returns unsigned hex only, no signing/broadcast.
 
 ### 21. Unsigned receive block
 
-> Build an unsigned receive block hex for wallet A.
+> Build an unsigned receive block hex for `<wallet>`.
 
-**Should trigger:** `block_receive` — auto-detects pending hash if none specified.
+**Should trigger:** `block_receive` — auto-detects the pending hash if none specified.
 
 ### 22. Unsigned change block
 
-> Build an unsigned change representative block for wallet A to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4.
+> Build an unsigned change representative block for `<wallet>` to nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4.
 
 **Should trigger:** `block_change` — requires account + representative params.
 
 ### 23. Submit prepared block
 
-> Sign and submit this block hex I have using wallet A.
+> Sign and submit this block hex I have using `<wallet>`.
 
 **Should trigger:** `wallet_submit_block` — agent signs via OWS and broadcasts.
 
@@ -173,7 +185,7 @@ After each prompt, verify:
 
 ### 24. Create invoice
 
-> Create an invoice for 0.1 XNO for consulting work. Use wallet A.
+> Create an invoice for 0.1 XNO for consulting work. Use `<wallet>`.
 
 **Should trigger:** `payment_create` — returns request ID + QR + address.
 
@@ -199,7 +211,7 @@ After each prompt, verify:
 
 > The client wants a refund for that invoice.
 
-**Should trigger:** `payment_refund` with `execute: false` first (dry run), then agent asks for confirmation address, then `execute: true` + `confirmAddress`.
+**Should trigger:** `payment_refund` with `execute: false` first (dry run), then agent asks for the confirmation address, then `execute: true` + `confirmAddress`.
 
 ---
 
@@ -211,9 +223,11 @@ After each prompt, verify:
 | 2   |                  |               |             |                 |
 | ... |                  |               |             |                 |
 
+Coverage: the 28 prompts above correspond one-to-one with the 28 MCP tools.
+
 If any row fails, inspect:
 
 1. **Skill triggers** — does the prompt contain a trigger keyword?
 2. **Tool descriptions** — is the description clear enough for the model to route correctly?
 3. **Parameter descriptions** — does the model know which params are required vs optional?
-4. **Annotations** — is the model hesitant to call a write tool? (should not be — annotations signal safety)
+4. **Annotations** — is the model hesitant to call a write tool? (It should not be — annotations signal safety.)
