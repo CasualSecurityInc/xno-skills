@@ -20,6 +20,7 @@
 
 - `scripts/update-version.js` syncs `src/version.ts`, `README.md`, `src/cli.ts`, and `skills/nano/SKILL.md` from `package.json`.
 - `npm run build` / `npm run build:esm` also regenerate `mcpb/server-card.json`, `.claude-plugin/marketplace.json`, and `skills/nano/references/*.md`.
+- `prepack` does a clean rebuild (`rm -rf dist` first) so the packed artifact always matches `src/` exactly. tsc does not delete orphaned outputs when a source file is removed, so without the clean step stale modules leak into the tarball. Do not remove the `rm -rf dist`.
 
 ## Nano / OWS Constraints
 

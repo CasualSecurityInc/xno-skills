@@ -23,3 +23,7 @@ interview/
 
 # Husky internals (recreated by the prepare script)
 .husky/_/
+
+# Dev-only skill symlinks (real files live in .agents/skills/; npm cannot pack symlinks)
+skills/mcp-builder
+.claude/skills/mcp-builder

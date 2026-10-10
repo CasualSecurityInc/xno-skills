@@ -42,7 +42,7 @@
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "postbuild": "node scripts/generate-server-card.js && node scripts/generate-cli-refs.js",
     "postbuild:esm": "node scripts/generate-server-card.js && node scripts/generate-cli-refs.js",
-    "prepack": "npm run build && npm run build:cjs",
+    "prepack": "rm -rf dist && npm run build && npm run build:cjs",
     "pack:mcpb": "bash scripts/pack-mcpb.sh",
     "prepare": "husky"
   },
