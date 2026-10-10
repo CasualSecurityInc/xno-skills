@@ -7,6 +7,7 @@ import {
 } from './state-block.js';
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
+import { resolveEffectiveMaxSendXno } from './config.js';
 import { validateAddress } from './validate.js';
 import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
@@ -16,6 +17,7 @@ import {
   type AccountInfoResponse,
   type AccountHistoryEntry,
 } from './rpc.js';
+import { PreparedBlockPolicyError, validatePreparedBlockPolicy } from './prepared-send-policy.js';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
 export const DEFAULT_REPRESENTATIVE = 'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4';
@@ -656,7 +658,7 @@ export async function executeSend(
     );
   }
 
-  const sendLimitStr = ctx.config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+  const sendLimitStr = resolveEffectiveMaxSendXno(ctx.config);
   const sendLimitRaw = nanoToRaw(sendLimitStr);
   if (BigInt(amountRaw) > BigInt(sendLimitRaw)) {
     throw new NanoActionError(
@@ -906,6 +908,40 @@ export async function submitPreparedBlock(
   await report(ctx, 1, 2, `submit-block: submitting ${subtype} block for ${account.address}`);
 
   const blockInput = parseNanoStateBlockHex(txHex);
+  let info: AccountInfoResponse | null = null;
+  if (subtype !== 'open') {
+    let lookup: AccountInfoResponse | NanoRpcErrorResponse;
+    try {
+      lookup = await readers.accountInfo(account.address);
+    } catch (error) {
+      wrapError(
+        error,
+        'ACCOUNT_INFO_LOOKUP_FAILED',
+        'fetch_account_info',
+        `Failed to fetch account info for ${account.address}`,
+        { walletName, address: account.address },
+        true,
+      );
+    }
+    if (isRpcError(lookup)) {
+      throw new NanoActionError('ACCOUNT_UNOPENED', 'fetch_account_info', 'Account unopened.', {
+        details: { walletName, address: account.address },
+      });
+    }
+    info = lookup;
+  }
+
+  const maxSendXno = resolveEffectiveMaxSendXno(ctx.config);
+  try {
+    validatePreparedBlockPolicy(blockInput, account.address, info, maxSendXno, subtype);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const code = error instanceof PreparedBlockPolicyError ? error.code : 'INVALID_PREPARED_BLOCK';
+    throw new NanoActionError(code, 'build_block', message, {
+      details: { walletName, address: account.address, maxSendXno, subtype },
+    });
+  }
+
   let submitted;
   try {
     submitted = await signWorkAndProcess(
