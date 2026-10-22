@@ -74,7 +74,33 @@ describe('rawToNano', () => {
   });
 
   it('respects custom decimals parameter', () => {
-    expect(rawToNano('1', 5)).toBe('0.00000');
+    // 1 raw is 0.000000000000000000000000000001 XNO: at five decimals every digit of it would be
+    // dropped, so the answer used to read '0.00000' for a nonzero amount. The amount is named instead.
+    expect(() => rawToNano('1', 5)).toThrow(/more than 5 decimals/);
+    expect(rawToNano('1000000000000000000000000000000', 5)).toBe('1.00000');
+  });
+
+  it('never reports a nonzero raw amount as zero at a low decimals value', () => {
+    // nanoToRaw refuses to round a nonzero amount down to 0 raw ("nonzero value rounds to 0 raw"); rawToNano
+    // is the same conversion in the other direction, so a nonzero raw must not be printed as 0 XNO.
+    // Before this test, rawToNano('1', 0) answered '0' and rawToNano('1', 5) answered '0.00000'.
+    expect(() => rawToNano('1', 0)).toThrow(/more than 0 decimals/);
+    expect(() => rawToNano('1', 5)).toThrow(/more than 5 decimals/);
+  });
+
+  it('names the digits a low decimals value cannot show instead of dropping them silently', () => {
+    // 1.999999999999999999999999999999 XNO at decimals=0 used to answer '1': a reader saw one XNO
+    // where the caller had passed just under two. The refusal has to name the amount that would be lost.
+    expect(() => rawToNano('1999999999999999999999999999999', 0)).toThrow(/more than 0 decimals/);
+    expect(() => rawToNano('1999999999999999999999999999999', 0)).toThrow(/1999999999999999999999999999999/);
+  });
+
+  it('rejects a decimals value outside 0..30 instead of silently shifting the amount', () => {
+    // A negative decimals value used to return 29 digits labelled as if the caller had asked for 30,
+    // and any value above 30 padded the fraction without changing the value it claimed to represent.
+    expect(() => rawToNano('1', -1)).toThrow(/decimals/);
+    expect(() => rawToNano('1', 31)).toThrow(/decimals/);
+    expect(rawToNano('1', 30)).toBe('0.000000000000000000000000000001');
   });
 
   it('handles zero', () => {
