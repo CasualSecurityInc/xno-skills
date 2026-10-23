@@ -708,6 +708,14 @@ blockCmd
         console.error('Error: amount must be positive.');
         process.exit(1);
       }
+      const sendLimitStr = config.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+      const sendLimitRaw = BigInt(nanoToRaw(sendLimitStr));
+      if (sendRaw > sendLimitRaw) {
+        console.error(
+          `Error: amount ${options.amountXno} XNO exceeds the per-transaction limit of ${sendLimitStr} XNO.`,
+        );
+        process.exit(1);
+      }
       if (sendRaw > currentBalance) {
         console.error(
           `Error: insufficient balance. Have ${rawToNano(info.balance)} XNO, sending ${options.amountXno} XNO.`,
@@ -774,9 +782,16 @@ blockCmd
           amountRaw = amountRaw || pending[0].amount;
           console.error(`Auto-detected pending block: ${hash} (${rawToNano(amountRaw)} XNO)`);
         }
-        let info = await rpcAccountInfo(client, options.account, {
+        if (!amountRaw || !/^\d+$/.test(amountRaw) || BigInt(amountRaw) <= 0n) {
+          console.error('Error: amountRaw must be a positive integer.');
+          process.exit(1);
+        }
+        const info = await rpcAccountInfo(client, options.account, {
           timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
-        }).catch(() => ({ error: 'Account not found' }) as NanoRpcErrorResponse);
+        });
+        if (isRpcError(info) && !/account not found/i.test(String(info.error))) {
+          throw new Error(`Failed to fetch account info for ${options.account}: ${info.error}`);
+        }
         const opened = !isRpcError(info);
         const previous = opened ? info.frontier : ZERO_HASH;
         const currentBalance = opened ? BigInt(info.balance) : 0n;

@@ -1064,6 +1064,11 @@ mcpServer.registerTool(
       const currentBalance = BigInt(info.balance);
       const sendRaw = BigInt(nanoToRaw(args.amountXno));
       if (sendRaw <= 0n) throw new Error('Amount must be positive');
+      const sendLimitStr = cfg.maxSendXno || process.env.XNO_MAX_SEND || '1.0';
+      const sendLimitRaw = BigInt(nanoToRaw(sendLimitStr));
+      if (sendRaw > sendLimitRaw) {
+        throw new Error(`Amount ${args.amountXno} XNO exceeds the per-transaction limit of ${sendLimitStr} XNO.`);
+      }
       if (sendRaw > currentBalance) throw new Error('Insufficient balance');
       const blockHex = buildNanoStateBlockHex({
         accountPublicKey: senderPk,
@@ -1114,9 +1119,13 @@ mcpServer.registerTool(
         amountRaw = pending[0].amount;
       }
       if (!amountRaw) throw new Error('amountRaw is required if hash is provided');
-      const info = await rpcAccountInfo(client, args.account, { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS }).catch(
-        () => ({ error: 'Account not found' }) as any,
-      );
+      if (!/^\d+$/.test(amountRaw) || BigInt(amountRaw) <= 0n) {
+        throw new Error('amountRaw must be a positive integer');
+      }
+      const info = await rpcAccountInfo(client, args.account, { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS });
+      if (isRpcError(info) && !/account not found/i.test(String(info.error))) {
+        throw new Error(`Failed to fetch account info for ${args.account}: ${info.error}`);
+      }
       const opened = !isRpcError(info);
       const previous = opened ? info.frontier : '0'.repeat(64);
       const currentBalance = opened ? BigInt(info.balance) : 0n;
