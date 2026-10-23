@@ -493,6 +493,17 @@ export async function executeReceive(
     );
   }
 
+  if (isRpcError(info) && info.error !== 'Account not found') {
+    throw new NanoActionError(
+      'ACCOUNT_INFO_LOOKUP_FAILED',
+      'fetch_account_info',
+      `Failed to fetch account info for ${account.address}: ${info.error}`,
+      {
+        retriable: true,
+        details: { walletName, address: account.address, cause: String(info.error) },
+      },
+    );
+  }
   const opened = !isRpcError(info);
   const representative = opened
     ? (info as AccountInfoResponse).representative
@@ -685,6 +696,7 @@ export async function executeSend(
     balanceRaw: (currentBalance - BigInt(amountRaw)).toString(),
     link: destinationValidation.publicKey,
   };
+  const firstHash = hashNanoStateBlockHex(sendBlockInput).toUpperCase();
 
   await report(ctx, 3, 4, `send: submitting block for ${account.address}`);
   let submitted;
@@ -700,42 +712,78 @@ export async function executeSend(
     );
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
-    const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
+    const stale =
+      errMsg.includes('Invalid block balance') ||
+      errMsg.includes('Invalid previous') ||
+      errMsg.includes('Fork') ||
+      errMsg.includes('Old block');
     if (stale) {
       await report(ctx, 3, 4, `send: retrying after stale account info for ${account.address}`);
+      let refreshed: AccountInfoResponse | NanoRpcErrorResponse | undefined;
       try {
-        info = await readers.accountInfo(account.address);
+        refreshed = await readers.accountInfo(account.address);
       } catch {
-        /* keep old info */
+        refreshed = undefined;
       }
-      if (!isRpcError(info)) {
-        const refreshedBalance = BigInt(info.balance);
-        if (BigInt(amountRaw) > refreshedBalance) {
-          throw new NanoActionError(
-            'INSUFFICIENT_BALANCE',
-            'build_block',
-            'Insufficient balance after refreshing stale account state.',
-            {
-              details: { address: account.address, currentBalance: info.balance, amountRaw },
-            },
-          );
+      if (refreshed && !isRpcError(refreshed)) {
+        info = refreshed;
+        if (info.frontier.toUpperCase() === firstHash) {
+          submitted = { txHash: info.frontier };
+        } else {
+          const refreshedBalance = BigInt(info.balance);
+          if (BigInt(amountRaw) > refreshedBalance) {
+            throw new NanoActionError(
+              'INSUFFICIENT_BALANCE',
+              'build_block',
+              'Insufficient balance after refreshing stale account state.',
+              {
+                details: { address: account.address, currentBalance: info.balance, amountRaw },
+              },
+            );
+          }
+          sendBlockInput.previous = info.frontier;
+          sendBlockInput.representativePublicKey = decodeNanoAddress(
+            info.representative || DEFAULT_REPRESENTATIVE,
+          ).publicKey;
+          sendBlockInput.balanceRaw = (refreshedBalance - BigInt(amountRaw)).toString();
+          try {
+            submitted = await signWorkAndProcess(
+              walletName,
+              account.chainId,
+              sendBlockInput,
+              'send',
+              index,
+              readers,
+              getLogScope(ctx),
+            );
+          } catch (retryError) {
+            wrapError(
+              retryError,
+              'BLOCK_SUBMIT_FAILED',
+              'submit_block',
+              `Failed to submit send block for ${account.address}`,
+              {
+                walletName,
+                address: account.address,
+                destination,
+              },
+              true,
+            );
+          }
         }
-        sendBlockInput.previous = info.frontier;
-        sendBlockInput.representativePublicKey = decodeNanoAddress(
-          info.representative || DEFAULT_REPRESENTATIVE,
-        ).publicKey;
-        sendBlockInput.balanceRaw = (refreshedBalance - BigInt(amountRaw)).toString();
-        submitted = await signWorkAndProcess(
-          walletName,
-          account.chainId,
-          sendBlockInput,
-          'send',
-          index,
-          readers,
-          getLogScope(ctx),
-        );
       } else {
-        throw error;
+        wrapError(
+          error,
+          'BLOCK_SUBMIT_FAILED',
+          'submit_block',
+          `Failed to submit send block for ${account.address}`,
+          {
+            walletName,
+            address: account.address,
+            destination,
+          },
+          true,
+        );
       }
     } else {
       wrapError(
@@ -822,6 +870,7 @@ export async function executeChange(
     balanceRaw: info.balance,
     link: ZERO_32_HEX,
   };
+  const firstHash = hashNanoStateBlockHex(changeBlockInput).toUpperCase();
 
   await report(ctx, 3, 4, `change: submitting block for ${account.address}`);
   let submitted;
@@ -837,28 +886,64 @@ export async function executeChange(
     );
   } catch (error: any) {
     const errMsg = String(error?.message ?? error);
-    const stale = errMsg.includes('Invalid block balance') || errMsg.includes('Invalid previous');
+    const stale =
+      errMsg.includes('Invalid block balance') ||
+      errMsg.includes('Invalid previous') ||
+      errMsg.includes('Fork') ||
+      errMsg.includes('Old block');
     if (stale) {
       await report(ctx, 3, 4, `change: retrying after stale account info for ${account.address}`);
+      let refreshed: AccountInfoResponse | NanoRpcErrorResponse | undefined;
       try {
-        info = await readers.accountInfo(account.address);
+        refreshed = await readers.accountInfo(account.address);
       } catch {
-        /* keep old info */
+        refreshed = undefined;
       }
-      if (!isRpcError(info)) {
-        changeBlockInput.previous = info.frontier;
-        changeBlockInput.balanceRaw = info.balance;
-        submitted = await signWorkAndProcess(
-          walletName,
-          account.chainId,
-          changeBlockInput,
-          'change',
-          index,
-          readers,
-          getLogScope(ctx),
-        );
+      if (refreshed && !isRpcError(refreshed)) {
+        info = refreshed;
+        if (info.frontier.toUpperCase() === firstHash) {
+          submitted = { txHash: info.frontier };
+        } else {
+          changeBlockInput.previous = info.frontier;
+          changeBlockInput.balanceRaw = info.balance;
+          try {
+            submitted = await signWorkAndProcess(
+              walletName,
+              account.chainId,
+              changeBlockInput,
+              'change',
+              index,
+              readers,
+              getLogScope(ctx),
+            );
+          } catch (retryError) {
+            wrapError(
+              retryError,
+              'BLOCK_SUBMIT_FAILED',
+              'submit_block',
+              `Failed to submit change block for ${account.address}`,
+              {
+                walletName,
+                address: account.address,
+                representative,
+              },
+              true,
+            );
+          }
+        }
       } else {
-        throw error;
+        wrapError(
+          error,
+          'BLOCK_SUBMIT_FAILED',
+          'submit_block',
+          `Failed to submit change block for ${account.address}`,
+          {
+            walletName,
+            address: account.address,
+            representative,
+          },
+          true,
+        );
       }
     } else {
       wrapError(
