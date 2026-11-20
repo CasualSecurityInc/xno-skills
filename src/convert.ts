@@ -145,15 +145,15 @@ export function rawToNano(raw: string | number, decimals: number = 30): string {
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
 
-  const { integer: intPart, decimal: rawDecPart } = parseDecimal(raw);
-  // raw is the smallest indivisible unit: a fractional raw value is not a valid amount.
-  // Rejecting it prevents a silent, self-inconsistent result (raw echoed as "1.5" while
-  // the XNO amount is computed from the integer part alone).
-  if (rawDecPart.length > 0 && /[1-9]/.test(rawDecPart))
-    throw new Error('rawToNano: raw amounts must be integers (raw is the smallest indivisible unit)');
+  // raw is the smallest indivisible unit, so a raw string is digits and nothing
+  // else: no decimal point, not even "1.0". Rejecting it prevents a silent,
+  // self-inconsistent result (raw echoed as "1.5" while the XNO amount is
+  // computed from the integer part alone).
+  if (!/^\d+$/.test(raw))
+    throw new Error('rawToNano: raw must be a string of digits only (raw is the smallest indivisible unit)');
 
   // Convert to BigInt first to handle the raw value
-  const rawBigInt = BigInt(intPart);
+  const rawBigInt = BigInt(raw);
 
   const nanoBigInt = rawBigInt / BigInt(10) ** NAN;
   const remainder = rawBigInt % BigInt(10) ** NAN;
@@ -181,8 +181,13 @@ export function formatNano(raw: string | number): string {
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('formatNano: negative values not supported');
 
-  const { integer: intPart } = parseDecimal(raw);
-  const rawBigInt = BigInt(intPart);
+  // Same policy as rawToNano: a raw string is digits and nothing else. Without
+  // this, formatNano('1.5') returned the string for 1 raw and formatNano('1.999...')
+  // returned the string for 1 raw, so a caller reading the formatted amount saw
+  // a different number than the one it passed in.
+  if (!/^\d+$/.test(raw))
+    throw new Error('formatNano: raw must be a string of digits only (raw is the smallest indivisible unit)');
+  const rawBigInt = BigInt(raw);
 
   // Get the Nano value and remainder
   const nanoBigInt = rawBigInt / BigInt(10) ** NAN;
