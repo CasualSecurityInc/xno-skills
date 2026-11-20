@@ -43,7 +43,6 @@ Use this workflow to ship `xno-skills` changes to production.
    The publish workflow is green.
    `npm publish` completed for `xno-skills`.
    The GitHub Release was created.
-   The MCP bundle publish step completed.
-   The Smithery nano skill publish step completed.
+   The ClawHub Nano skill publish workflow completed.
 
 9. Do not declare the ship complete until every required workflow is green.

@@ -41,7 +41,7 @@
 
 - Releases go through GitHub Actions only.
 - Do **not** run `npm publish`, `pnpm release`, or any local publish command.
-- Use `npm version patch|minor|major`, then `git push --follow-tags`; the publish workflow handles npm, GitHub Release, MCPB, and Smithery.
+- Use `npm version patch|minor|major`, then `git push --follow-tags`; the publish workflow handles npm and GitHub Releases. A separate workflow publishes the Nano skill to ClawHub.
 - `preversion` runs tests first, so release version bumps are test-gated.
 - **Before running `npm version`**: run `npm test` independently first. Fix any failures or flaky tests and commit those fixes _before_ attempting the version bump. Tagged versions are immutable — a wasted version number (from a failed `npm version` attempt that somehow partially succeeds, or from bumping just to fix a test glitch) cannot be unpublished. Treat version numbers as a scarce, permanent resource.
 - npm and PyPI publish **must** use OCID Trusted Publisher (`--provenance`) only. Never rely on a preset `GITHUB_TOKEN` for registry auth.
