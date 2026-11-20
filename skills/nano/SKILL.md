@@ -127,7 +127,7 @@ If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage,
 4. npx -y xno-skills@5.0.0 <command>
 ```
 
-If the global `xno-skills` binary is not available, fall through to the next option. Always pin the version (`@4.5.2`) with `bunx`/`pnpm dlx`/`npx` to prevent interactive prompts from freezing.
+If the global `xno-skills` binary is not available, fall through to the next option. Always pin the version (`xno-skills@5.0.0`) with `bunx`/`pnpm dlx`/`npx` to prevent interactive prompts from freezing.
 
 Before guessing a subcommand, run `--help`:
 
