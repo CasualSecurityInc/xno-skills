@@ -32,7 +32,6 @@ PoW runs locally through the `nano-core` work provider when recommended. Otherwi
 
 ## Agent Skills
 
-[![smithery badge](https://smithery.ai/badge/casualsecurityinc/xno-skills)](https://smithery.ai/servers/casualsecurityinc/xno-skills)
 [![skills.sh](https://skills.sh/b/casualsecurityinc/xno-skills)](https://skills.sh/casualsecurityinc/xno-skills)
 
 Built-in skill for Personal AI Agents (OpenClaw etc.) and humans with AI Coding Assistants (Claude Code, Cursor, etc.) alike:
@@ -133,6 +132,8 @@ Use `diag` for local configuration diagnostics. Use `rpc probe-caps <effective-w
 Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://github.com/open-wallet-standard/core). `xno-skills` bundles OWS as a dependency — no separate install needed. See the [OWS quick-start](https://openwallet.sh/#quickstart) for terminal usage, or install OWS agent skills with `npx skills add open-wallet-standard/core@ows`.
 
 ## MCP Server
+
+The Nano wallet MCP server runs on your machine over stdio and uses your local OWS wallet. There is no hosted endpoint. Use the npm setup below and see [skill installation](#agent-skills) for the GitHub install command.
 
 Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Codex, etc.). MCP resources (`xno-wallet://` URIs) are served but require client-side `resources/read` support — not yet available in OpenCode ([#15535](https://github.com/anomalyco/opencode/issues/15535)).
 

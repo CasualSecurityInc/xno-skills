@@ -78,14 +78,3 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
-
-      - name: Install MCPB CLI
-        run: npm install -g @anthropic-ai/mcpb
-
-      - name: Pack MCPB bundle
-        run: npm run pack:mcpb
-
-      - name: Publish to Smithery
-        env:
-          SMITHERY_API_KEY: ${{ secrets.SMITHERY_API_KEY }}
-        run: npx @smithery/cli@latest mcp publish ./server.mcpb -n casualsecurityinc/xno-skills
