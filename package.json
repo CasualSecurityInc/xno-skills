@@ -44,7 +44,8 @@
     "postbuild:esm": "node scripts/generate-server-card.js && node scripts/generate-cli-refs.js",
     "prepack": "rm -rf dist && npm run build && npm run build:cjs",
     "pack:mcpb": "bash scripts/pack-mcpb.sh",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:wallet-create:docker": "bash scripts/test-wallet-create-docker.sh"
   },
   "keywords": [
     "nano",

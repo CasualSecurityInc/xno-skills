@@ -22,6 +22,9 @@ const versionPin = (src) => src.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, 
 for (const rel of ['skills/nano/SKILL.md', 'README.md', 'src/cli.ts']) {
   const filePath = resolve(__dirname, '..', rel);
   const src = readFileSync(filePath, 'utf8');
-  const pinned = versionPin(src);
+  const pinned = versionPin(src).replace(
+    /(github\.com\/CasualSecurityInc\/xno-skills\/blob\/v)\d+\.\d+\.\d+(?=\/src\/nano-actions\.ts)/g,
+    (_, prefix) => `${prefix}${packageJson.version}`,
+  );
   if (src !== pinned) writeFileSync(filePath, pinned, 'utf8');
 }

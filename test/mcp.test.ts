@@ -135,7 +135,7 @@ describe('MCP Server Integration', () => {
     expect(toolNames).not.toContain('derive_address');
     expect(toolNames).toContain('util_convert');
     expect(toolNames).toContain('util_validate');
-    expect(toolNames).not.toContain('wallet_create');
+    expect(toolNames).toContain('wallet_create');
     expect(toolNames).toContain('wallet_list');
     expect(toolNames).not.toContain('wallet_addresses');
     expect(toolNames).toContain('wallet_receive');

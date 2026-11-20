@@ -55,7 +55,7 @@ triggers:
   - how much xno
   - how much nano
 complements:
-  - ows # Open Wallet Standard — wallet lifecycle (create, import, rename, delete)
+  - ows # Open Wallet Standard — wallet lifecycle (import, rename, delete)
 requires_network: true
 ---
 
@@ -80,6 +80,7 @@ Wallets returned by `wallet_list` are wallets configured for this assistant envi
 **The assistant may**:
 
 - list wallets;
+- create a wallet on explicit user request;
 - inspect balances, pending funds, history, and representatives;
 - receive funds into an assistant-controlled wallet;
 - provide an assistant-controlled receiving address;
@@ -135,9 +136,11 @@ Before guessing a subcommand, run `--help`:
 xno-skills --help              # or: bunx -y xno-skills@5.0.1 --help
 ```
 
-### 3. Wallet lifecycle → `ows` skill only
+### 3. Wallet creation and lifecycle
 
-For wallet **create, import, rename, or delete**: delegate to the `ows` skill. Do not invoke `ows` CLI commands directly from this skill.
+Create a wallet only on explicit user request. Ask for a name if missing. Call `wallet_create` with `{"name":"treasury"}` or run `xno-skills wallet create --name treasury` when using the CLI. The installed `@open-wallet-standard/core` npm dependency writes to the local OWS vault and the command returns only `name` and the Nano `address`. Creation uses the installed runtime without downloading dependencies or requiring a global `ows` command. If the runtime is missing, show the pinned npm install command and wait for the user to run it. [Wallet creation source](https://github.com/CasualSecurityInc/xno-skills/blob/v5.0.1/src/nano-actions.ts)
+
+For wallet **import, rename, or delete**: delegate to the `ows` skill.
 
 ### 4. Never do any of the following
 
@@ -174,7 +177,7 @@ When the user asks for an account, block, transaction, or explorer link, always 
 { "name": "wallet_list", "arguments": {} }
 ```
 
-To **create** a new wallet, delegate to the `ows` skill. Then return here for all Nano operations.
+To **create** a new wallet on request, use `wallet_create` as described above.
 
 **MCP Resources** (passive reads, no tool call needed):
 

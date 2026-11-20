@@ -8,7 +8,7 @@ import {
 import { decodeNanoAddress, publicKeyToNanoAddress } from './nano-address.js';
 import { nanoToRaw, rawToNano } from './convert.js';
 import { validateAddress } from './validate.js';
-import { getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
+import { createWalletProxy, getWalletProxy, listWalletsProxy, signTransactionProxy, signMessageProxy } from './ows.js';
 import { generateId, type TransactionRecord, type XnoConfig } from './state-store.js';
 import {
   type ReceivableItem,
@@ -317,6 +317,25 @@ export async function listNanoWallets(): Promise<NanoWalletSummary[]> {
   }));
 }
 
+function findNanoWalletAccount(wallet: Awaited<ReturnType<typeof createWalletProxy>>, index: number) {
+  return (
+    wallet.accounts.find(
+      (entry) =>
+        (entry.chainId === 'nano' || entry.chainId.startsWith('nano:')) && entry.derivationPath.endsWith(`/${index}`),
+    ) || wallet.accounts.filter((entry) => entry.address.startsWith('nano_'))[index]
+  );
+}
+
+export async function createNanoWallet(name: string): Promise<{ name: string; address: string }> {
+  if (!name.trim()) throw new Error('Wallet name must not be blank.');
+  const wallet = await createWalletProxy(name);
+  const account = findNanoWalletAccount(wallet, 0);
+  if (!account) {
+    throw new Error('OWS created the wallet but returned no Nano address. List wallets before retrying.');
+  }
+  return { name: wallet.name, address: account.address };
+}
+
 async function resolveNanoWalletAccount(walletName: string, index = 0): Promise<NanoWalletAccount> {
   const wallet = await getWalletProxy(walletName);
   if (!wallet) {
@@ -325,11 +344,7 @@ async function resolveNanoWalletAccount(walletName: string, index = 0): Promise<
     });
   }
 
-  const account =
-    wallet.accounts.find(
-      (entry) =>
-        (entry.chainId === 'nano' || entry.chainId.startsWith('nano:')) && entry.derivationPath.endsWith(`/${index}`),
-    ) || wallet.accounts.filter((entry) => entry.address.startsWith('nano_'))[index];
+  const account = findNanoWalletAccount(wallet, index);
 
   if (!account) {
     throw new NanoActionError(

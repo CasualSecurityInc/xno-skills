@@ -1,18 +1,14 @@
-import {
-  createWallet,
-  deleteWallet,
-  getWallet,
-  importWalletMnemonic,
-  importWalletPrivateKey,
-  listWallets,
-  renameWallet,
-  signAndSend,
-  signMessage,
-  signTransaction,
-  type WalletInfo,
-  type SignResult,
-  type SendResult,
-} from '@open-wallet-standard/core';
+import type { WalletInfo, SignResult } from '@open-wallet-standard/core';
+
+async function loadOws() {
+  try {
+    return await import('@open-wallet-standard/core');
+  } catch (cause) {
+    throw new Error('OWS could not load. Reinstall xno-skills with optional dependencies on a supported platform.', {
+      cause,
+    });
+  }
+}
 
 const useMockOws = process.env.XNO_MCP_MOCK_OWS === 'true';
 
@@ -39,12 +35,13 @@ const mockWallet: WalletLike = {
 };
 
 export const listWalletsProxy = useMockOws
-  ? async (): Promise<WalletLike[]> => [mockWallet]
-  : async () => listWallets();
+  ? async (): Promise<WalletLike[]> => [mockWallet, ...mockCreatedWallets.values()]
+  : async () => (await loadOws()).listWallets();
 
 export const getWalletProxy = useMockOws
-  ? async (name: string): Promise<WalletLike | null> => (name === 'A' ? mockWallet : null)
-  : async (name: string) => getWallet(name);
+  ? async (name: string): Promise<WalletLike | null> =>
+      name === 'A' ? mockWallet : (mockCreatedWallets.get(name) ?? null)
+  : async (name: string) => (await loadOws()).getWallet(name);
 
 export const signTransactionProxy = useMockOws
   ? async (
@@ -55,7 +52,7 @@ export const signTransactionProxy = useMockOws
       _index?: number,
     ): Promise<SignResult> => ({ signature: '0'.repeat(128) })
   : async (wallet: string, chain: string, tx: string, passphrase?: string, index?: number) =>
-      signTransaction(wallet, chain, tx, passphrase, index);
+      (await loadOws()).signTransaction(wallet, chain, tx, passphrase, index);
 
 export const signMessageProxy = useMockOws
   ? async (
@@ -67,25 +64,15 @@ export const signMessageProxy = useMockOws
       _index?: number,
     ): Promise<SignResult> => ({ signature: '0'.repeat(128) })
   : async (wallet: string, chain: string, msg: string, passphrase?: string, encoding?: string, index?: number) =>
-      signMessage(wallet, chain, msg, passphrase, encoding, index);
+      (await loadOws()).signMessage(wallet, chain, msg, passphrase, encoding, index);
 
-const signAndSendProxy = useMockOws
-  ? async (
-      _wallet: string,
-      _chain: string,
-      _tx: string,
-      _passphrase?: string,
-      _index?: number,
-      _rpcUrl?: string,
-    ): Promise<SendResult> => ({ txHash: '0'.repeat(64) })
-  : async (wallet: string, chain: string, tx: string, passphrase?: string, index?: number, rpcUrl?: string) =>
-      signAndSend(wallet, chain, tx, passphrase, index, rpcUrl);
+const mockCreatedWallets = new Map<string, WalletLike>();
 
-const createWalletProxy = async (name: string) => createWallet(name);
-const importWalletMnemonicProxy = async (name: string, mnemonic: string) => importWalletMnemonic(name, mnemonic);
-const importWalletPrivateKeyProxy = async (name: string, privateKeyHex: string) =>
-  importWalletPrivateKey(name, privateKeyHex);
-const renameWalletProxy = async (name: string, newName: string) => renameWallet(name, newName);
-const deleteWalletProxy = async (name: string) => deleteWallet(name);
+export async function createWalletProxy(name: string): Promise<WalletLike> {
+  if (!useMockOws) return (await loadOws()).createWallet(name);
 
-type OwsWalletLike = WalletLike;
+  if (await getWalletProxy(name)) throw new Error(`Wallet already exists: ${name}`);
+  const wallet = { ...mockWallet, id: `mock-${name}`, name };
+  mockCreatedWallets.set(name, wallet);
+  return wallet;
+}

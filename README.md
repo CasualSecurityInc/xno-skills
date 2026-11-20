@@ -82,17 +82,20 @@ npm install -g xno-skills@5.0.1 && npx -y skills add CasualSecurityInc/xno-skill
 
 ### Wallet Operations
 
-| Command                  | Description                          |
-| ------------------------ | ------------------------------------ |
-| `wallets [options]`      | List wallets that have Nano accounts |
-| `balance [options]`      | Show balance and pending amount      |
-| `receive [options]`      | Receive pending blocks               |
-| `send [options]`         | Send Nano                            |
-| `change-rep [options]`   | Submit a change representative block |
-| `submit-block [options]` | Sign and submit a prepared block hex |
-| `history [options]`      | Show transaction history             |
+| Command                                | Description                                 |
+| -------------------------------------- | ------------------------------------------- |
+| `wallet create --name <name> [--json]` | Create a Nano wallet in the local OWS vault |
+| `wallets [options]`                    | List wallets that have Nano accounts        |
+| `balance [options]`                    | Show balance and pending amount             |
+| `receive [options]`                    | Receive pending blocks                      |
+| `send [options]`                       | Send Nano                                   |
+| `change-rep [options]`                 | Submit a change representative block        |
+| `submit-block [options]`               | Sign and submit a prepared block hex        |
+| `history [options]`                    | Show transaction history                    |
 
-### Utilities
+#Run the packaged wallet creation acceptance check with `npm run test:wallet-create:docker`. It installs the candidate into a temporary image and runs the checks offline with a disposable vault. To select a Linux architecture, pass `-- --platform linux/amd64` or `-- --platform linux/arm64`.
+
+## Utilities
 
 | Command                             | Description                                                       |
 | ----------------------------------- | ----------------------------------------------------------------- |

@@ -33,6 +33,7 @@ import {
   getNanoHistory,
   getNanoAccountInfo,
   isRpcError,
+  createNanoWallet,
   listNanoWallets,
   signWalletMessage,
   submitPreparedBlock,
@@ -77,6 +78,25 @@ program.hook('preAction', (thisCommand) => {
     quiet: opts.quiet || false,
   };
 });
+
+const wallet = program.command('wallet').helpGroup('Wallet Operations').description('Manage Nano wallets');
+
+wallet
+  .command('create')
+  .description('Create a wallet in the local OWS vault')
+  .requiredOption('--name <name>', 'New wallet name')
+  .option('-j, --json', 'Output in JSON format')
+  .action(async (options: { name: string; json?: boolean }) => {
+    try {
+      const result = await createNanoWallet(options.name);
+      printJsonOrText(result, options, () => {
+        console.log(`Created Nano wallet "${result.name}"`);
+        console.log(result.address);
+      });
+    } catch (error) {
+      exitWithError(error);
+    }
+  });
 
 program
   .command('wallets')

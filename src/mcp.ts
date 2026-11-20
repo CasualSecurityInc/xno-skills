@@ -28,6 +28,7 @@ import {
   getNanoHistory,
   getNanoAccountInfo,
   isRpcError,
+  createNanoWallet,
   listNanoWallets,
   signWalletMessage,
   submitPreparedBlock,
@@ -390,6 +391,23 @@ mcpServer.registerTool(
 );
 
 // ── wallet ─────────────────────────────────────────────────────────────────
+
+mcpServer.registerTool(
+  'wallet_create',
+  {
+    title: 'Create Nano Wallet',
+    description: 'Create a wallet in the local OWS vault. Call only when the user explicitly asks to create a wallet.',
+    inputSchema: { name: z.string().describe('New wallet name') },
+    annotations: WRITE,
+  },
+  async ({ name }) => {
+    try {
+      return toToolSuccess(await createNanoWallet(name));
+    } catch (error) {
+      return toToolError(error);
+    }
+  },
+);
 
 mcpServer.registerTool(
   'wallet_list',

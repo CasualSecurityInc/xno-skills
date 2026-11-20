@@ -133,6 +133,33 @@
       }
     },
     {
+      "name": "wallet_create",
+      "title": "Create Nano Wallet",
+      "description": "Create a wallet in the local OWS vault. Call only when the user explicitly asks to create a wallet.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "New wallet name"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
       "name": "wallet_list",
       "title": "List Wallets",
       "description": "List all OWS wallets that have Nano accounts.",
