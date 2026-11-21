@@ -39,6 +39,11 @@ export function refreshPaymentStatus(rec: PaymentRequest): void {
   rec.updatedAt = new Date().toISOString();
 }
 export function applyPaymentReceive(rec: PaymentRequest, blocks: PaymentReceiveBlock[]): void {
+  // A record written before receivedBlocks existed (or by an older version) has no array there. Every read already
+  // answers `(rec.receivedBlocks || [])`, so such a record is treated as "nothing received yet"; the write path used
+  // `rec.receivedBlocks.push(...)` and threw a TypeError instead. The payer's money is already on chain at that point,
+  // so the receive could not be recorded and the request stayed pending forever.
+  if (!Array.isArray(rec.receivedBlocks)) rec.receivedBlocks = [];
   for (const block of blocks) {
     if ((rec.receivedBlocks || []).some((existing) => existing.sendHash === block.sendHash)) continue;
     rec.receivedBlocks.push({
