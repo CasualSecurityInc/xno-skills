@@ -77,7 +77,7 @@ function requestToolList() {
       params: {
         protocolVersion: '2024-11-05',
         capabilities: {},
-        clientInfo: { name: 'smithery-scanner', version: '1.0.0' },
+        clientInfo: { name: 'xno-server-card', version: '1.0.0' },
       },
     });
     child.stdin.write(init + '\n');
@@ -133,14 +133,6 @@ try {
   tools = await requestToolList();
 } catch (err) {
   console.error('[generate-server-card] Failed to query tools:', err.message);
-  // Fall back to existing card if available (MCP server may be slow to init)
-  if (existsSync(outputPath)) {
-    const existing = JSON.parse(readFileSync(outputPath, 'utf-8'));
-    existing.serverInfo.version = pkg.version;
-    writeFileSync(outputPath, JSON.stringify(existing, null, 2));
-    console.log('[generate-server-card] Kept existing card with tools from earlier build.');
-    process.exit(0);
-  }
   process.exit(1);
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { createServer, type Server } from 'node:http';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,6 +17,7 @@ describe('MCP Server Integration', () => {
   let transport: StdioClientTransport;
   let rpcServer: Server;
   let rpcUrl: string;
+  let processRequests = 0;
   const balanceBatchRequests: string[][] = [];
   const receivableBatchRequests: string[][] = [];
   let mockAccountInfo: any = { error: 'Account not found' };
@@ -66,9 +67,14 @@ describe('MCP Server Integration', () => {
         } else if (action === 'block_count') {
           response = { count: '100', unchecked: '0', cemented: '90' };
         } else if (action === 'process') {
+          processRequests++;
           response = mockProcessResponse;
         } else if (action === 'work_generate') {
-          response = { work: 'f'.repeat(16) };
+          setTimeout(() => {
+            res.writeHead(200, { 'content-type': 'application/json' });
+            res.end(JSON.stringify({ work: 'f'.repeat(16) }));
+          }, 50);
+          return;
         } else if (action === 'account_history') {
           response = { history: [] };
         } else if (action === 'accounts_balances') {
@@ -123,7 +129,12 @@ describe('MCP Server Integration', () => {
   }, 10000); // 10s timeout for startup
 
   beforeAll(async () => {
-    client = new Client({ name: 'test-client', version: '1.0.0' }, { capabilities: {} });
+    client = new Client(
+      { name: 'test-client', version: '1.0.0' },
+      {
+        versionNegotiation: { mode: { pin: '2026-07-28' } },
+      },
+    );
 
     transport = new StdioClientTransport({
       command: 'node',
@@ -153,6 +164,9 @@ describe('MCP Server Integration', () => {
     expect(toolNames).toContain('util_validate');
     expect(toolNames).toContain('wallet_create');
     expect(toolNames).toContain('wallet_list');
+    for (const name of ['wallet_balance', 'rpc_account_balance', 'rpc_receivable']) {
+      expect(result.tools.find((tool) => tool.name === name)?.outputSchema).toMatchObject({ type: 'object' });
+    }
     expect(toolNames).not.toContain('wallet_addresses');
     expect(toolNames).toContain('wallet_receive');
     expect(toolNames).toContain('wallet_send');
@@ -168,6 +182,7 @@ describe('MCP Server Integration', () => {
     expect(result.isError).not.toBe(true);
     const data = JSON.parse((result.content as { text: string }[])[0].text);
     expect(data.map((item: { wallet: string }) => item.wallet)).toEqual(wallets);
+    expect(result.structuredContent).toEqual({ wallets: data });
     expect(data[0].balanceRaw).toBe('20');
     expect(balanceBatchRequests.splice(0)).toEqual([[data[0].address]]);
   });
@@ -186,6 +201,18 @@ describe('MCP Server Integration', () => {
     expect(JSON.parse((receivable.content as { text: string }[])[0].text)).toEqual(
       Object.fromEntries(addresses.map((address) => [address, [{ hash: 'a'.repeat(64), amount: '5' }]])),
     );
+  });
+
+  it('preserves single-account text and structured results and tool errors', async () => {
+    const address = 'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7';
+    const balance = await client.callTool({ name: 'rpc_account_balance', arguments: { address } });
+    expect(balance.structuredContent).toEqual({ balance: '0', pending: '0' });
+    expect(JSON.parse(getText(balance))).toEqual(balance.structuredContent);
+    const receivable = await client.callTool({ name: 'rpc_receivable', arguments: { address } });
+    expect(receivable.structuredContent).toEqual({ blocks: JSON.parse(getText(receivable)) });
+    const error = await client.callTool({ name: 'rpc_account_balance', arguments: { address: 'invalid' } });
+    expect(error.isError).toBe(true);
+    expect(error.structuredContent).toMatchObject({ code: 'INTERNAL_ERROR', retriable: false });
   });
 
   it('should convert units via util_convert tool', async () => {
@@ -318,9 +345,21 @@ describe('MCP Server Integration', () => {
     mockReceivableBlocks = { [sendHash]: { amount: amountRaw, source } };
     mockProcessResponse = { hash: receiveHash };
 
-    const receiveResult = await client.callTool({ name: 'payment_receive', arguments: { id: created.id } });
+    const progress: number[] = [];
+    const previousProcesses = processRequests;
+    const receiveResult = await client.callTool(
+      { name: 'payment_receive', arguments: { id: created.id } },
+      {
+        onprogress: (event) => {
+          progress.push(event.progress);
+        },
+      },
+    );
+    expect(progress.slice(0, 4)).toEqual([1, 2, 3, 4]);
+    expect(processRequests - previousProcesses).toBe(1);
     expect(receiveResult.isError).toBeFalsy();
     const received = JSON.parse(getText(receiveResult));
+    expect(received.received[0].hash).toBe(receiveHash);
     expect(received.paymentRequest.status).toBe('received');
     expect(received.paymentRequest.receivedRaw).toBe(amountRaw);
 
