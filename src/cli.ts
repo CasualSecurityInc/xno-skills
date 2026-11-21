@@ -6,8 +6,10 @@ import { nanoToRaw, rawToNano } from './convert.js';
 import { generateAsciiQr, buildNanoUri, generateSvgQr } from './qr.js';
 import {
   rpcAccountBalance,
+  rpcAccountsBalances,
   rpcAccountInfo,
   rpcReceivable,
+  rpcAccountsReceivable,
   rpcAccountHistory,
   rpcProbeCaps,
   rpcProcess,
@@ -30,6 +32,7 @@ import {
   executeReceive,
   executeSend,
   getNanoBalance,
+  getNanoBalances,
   getNanoHistory,
   getNanoAccountInfo,
   isRpcError,
@@ -119,13 +122,24 @@ program
 program
   .command('balance')
   .helpGroup('Wallet Operations')
-  .description('Show balance and pending amount')
-  .requiredOption('--wallet <name>', 'OWS wallet name')
+  .description('Show balances and pending amounts')
+  .requiredOption(
+    '--wallet <name>',
+    'OWS wallet name (repeat for a batch)',
+    (name: string, wallets: string[]) => [...wallets, name],
+    [],
+  )
   .option('--count <n>', 'Max receivable blocks to return if pending > 0', (value) => parseInt(value, 10), 10)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (options: { wallet: string; count: number; json?: boolean }) => {
+  .action(async (options: { wallet: string[]; count: number; json?: boolean }) => {
     try {
-      const result = await getNanoBalance(options.wallet, readersFor(), { config }, 0, options.count);
+      if (options.wallet.length === 0) throw new Error('Provide at least one --wallet');
+      if (options.wallet.length > 1) {
+        const results = await getNanoBalances(options.wallet, readersFor(), { config }, 0, options.count);
+        printJsonOrText(results, options, () => console.log(JSON.stringify(results, null, 2)));
+        return;
+      }
+      const result = await getNanoBalance(options.wallet[0], readersFor(), { config }, 0, options.count);
       printJsonOrText(result, options, () => {
         console.log(`Address: ${result.address}`);
         console.log(`Balance: ${result.balanceXno} XNO`);
@@ -527,15 +541,33 @@ const rpcCmd = program.command('rpc').helpGroup('Advanced & RPC').description('Q
 
 rpcCmd
   .command('account-balance')
-  .description('Fetch account balance and pending amount')
-  .argument('<address>', 'Nano address')
+  .description('Fetch account balances and pending amounts')
+  .argument('<address...>', 'One or more Nano addresses')
   .option('--url <url>', 'RPC URL override')
   .option('--timeout-ms <ms>', 'Timeout in milliseconds', (value) => parseInt(value, 10), 15000)
   .option('--xno', 'Also include XNO-formatted values')
   .option('-j, --json', 'Output in JSON format')
-  .action(async (address: string, options: { url?: string; timeoutMs: number; xno?: boolean; json?: boolean }) => {
+  .action(async (addresses: string[], options: { url?: string; timeoutMs: number; xno?: boolean; json?: boolean }) => {
     try {
       const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
+      if (addresses.length > 1) {
+        const { balances } = await rpcAccountsBalances(client, [...new Set(addresses)], {
+          timeoutMs: options.timeoutMs,
+        });
+        const results = addresses.map((address) => {
+          const { balance, pending } = balances[address] ?? { balance: '0', pending: '0' };
+          return {
+            address,
+            balanceRaw: balance,
+            pendingRaw: pending,
+            balanceXno: rawToNano(balance),
+            pendingXno: rawToNano(pending),
+          };
+        });
+        printJsonOrText(results, options, () => console.log(JSON.stringify(results, null, 2)));
+        return;
+      }
+      const [address] = addresses;
       const result = await rpcAccountBalance(client, address, { timeoutMs: options.timeoutMs });
       const out: any = {
         address,
@@ -562,14 +594,22 @@ rpcCmd
 
 rpcCmd
   .command('receivable')
-  .description('List receivable blocks for an account')
-  .argument('<address>', 'Nano address')
+  .description('List receivable blocks for one or more accounts')
+  .argument('<address...>', 'One or more Nano addresses')
   .option('--url <url>', 'RPC URL override')
   .option('--count <n>', 'Max blocks to return', (value) => parseInt(value, 10), 10)
   .option('-j, --json', 'Output in JSON format')
-  .action(async (address: string, options: { url?: string; count: number; json?: boolean }) => {
+  .action(async (addresses: string[], options: { url?: string; count: number; json?: boolean }) => {
     try {
       const client = getNanoClient({ urls: options.url ? options.url.split(',').filter(Boolean) : undefined });
+      if (addresses.length > 1) {
+        const blocks = await rpcAccountsReceivable(client, [...new Set(addresses)], options.count, {
+          timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
+        });
+        printJsonOrText(blocks, options, () => console.log(JSON.stringify(blocks, null, 2)));
+        return;
+      }
+      const [address] = addresses;
       const items = await rpcReceivable(client, address, options.count, {
         timeoutMs: config.timeoutMs || DEFAULT_TIMEOUT_MS,
       });

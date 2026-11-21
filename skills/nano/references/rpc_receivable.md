@@ -1,12 +1,12 @@
 # xno-skills rpc receivable
 
 ```
-Usage: xno-skills rpc receivable [options] <address>
+Usage: xno-skills rpc receivable [options] <address...>
 
-List receivable blocks for an account
+List receivable blocks for one or more accounts
 
 Arguments:
-  address      Nano address
+  address      One or more Nano addresses
 
 Options:
   --url <url>  RPC URL override

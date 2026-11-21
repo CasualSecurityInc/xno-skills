@@ -9,6 +9,7 @@ import {
   rpcAccountInfo,
   rpcProbeCaps,
   rpcReceivable,
+  rpcAccountsReceivable,
 } from './rpc.js';
 import { convertUnits, nanoToRaw, rawToNano } from './convert.js';
 import { getSystemInfo, getEffectiveLocalPowRecommended } from './meta.js';
@@ -25,6 +26,7 @@ import {
   executeSend,
   getNanoAddress,
   getNanoBalance,
+  getNanoBalances,
   getNanoHistory,
   getNanoAccountInfo,
   isRpcError,
@@ -438,10 +440,10 @@ mcpServer.registerTool(
   'wallet_balance',
   {
     title: 'Get Wallet Balance',
-    description:
-      'Show the confirmed balance and pending receivable amount for an OWS wallet. Also lists pending receivable blocks.',
+    description: 'Show balances and pending blocks for OWS wallets. Prefer wallets for multiple names in one batch.',
     inputSchema: {
-      wallet: walletParam,
+      wallet: walletParam.optional(),
+      wallets: z.array(walletParam).min(1).optional().describe('Wallet names to query together'),
       index: indexParam,
       count: z.number().default(10).describe('Max pending blocks to return'),
       rpcUrl: rpcUrlParam,
@@ -456,6 +458,10 @@ mcpServer.registerTool(
         appendTransaction,
         reportProgress: makeProgressReporter(extra.sendNotification, extra._meta?.progressToken),
       };
+      if (args.wallets && args.wallet === undefined) {
+        return toToolSuccess(await getNanoBalances(args.wallets, readersFor(args.rpcUrl), ctx, args.index, args.count));
+      }
+      if (args.wallet === undefined || args.wallets) throw new Error('Provide exactly one of wallet or wallets');
       return toToolSuccess(await getNanoBalance(args.wallet, readersFor(args.rpcUrl), ctx, args.index, args.count));
     } catch (error) {
       return toToolError(error);
@@ -985,9 +991,10 @@ mcpServer.registerTool(
   'rpc_account_balance',
   {
     title: 'Get Account Balance (RPC)',
-    description: 'Fetch the confirmed balance and pending amount for any Nano account via RPC.',
+    description: 'Fetch confirmed balances and pending amounts via RPC. Prefer addresses for multiple Nano accounts.',
     inputSchema: {
-      address: z.string().describe('Nano address to query'),
+      address: z.string().optional().describe('Nano address to query'),
+      addresses: z.array(z.string()).min(1).optional().describe('Nano addresses to query together'),
       rpcUrl: rpcUrlParam,
     },
     annotations: READONLY_EXTERNAL,
@@ -996,9 +1003,12 @@ mcpServer.registerTool(
     try {
       const cfg = requireFreshConfig();
       const client = getNanoClient(args.rpcUrl);
-      return toToolSuccess(
-        await rpcAccountBalance(client, args.address, { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS }),
-      );
+      const options = { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS };
+      if (args.addresses && args.address === undefined) {
+        return toToolSuccess(await rpcAccountsBalances(client, [...new Set(args.addresses)], options));
+      }
+      if (args.address === undefined || args.addresses) throw new Error('Provide exactly one of address or addresses');
+      return toToolSuccess(await rpcAccountBalance(client, args.address, options));
     } catch (error) {
       return toToolError(error);
     }
@@ -1034,9 +1044,10 @@ mcpServer.registerTool(
   'rpc_receivable',
   {
     title: 'List Receivable (RPC)',
-    description: 'List pending receivable blocks for a Nano account via RPC.',
+    description: 'List pending receivable blocks via RPC. Prefer addresses for multiple Nano accounts.',
     inputSchema: {
-      address: z.string().describe('Nano address to query'),
+      address: z.string().optional().describe('Nano address to query'),
+      addresses: z.array(z.string()).min(1).optional().describe('Nano addresses to query together'),
       count: z.number().default(10).describe('Max blocks to return'),
       rpcUrl: rpcUrlParam,
     },
@@ -1046,9 +1057,12 @@ mcpServer.registerTool(
     try {
       const cfg = requireFreshConfig();
       const client = getNanoClient(args.rpcUrl);
-      return toToolSuccess(
-        await rpcReceivable(client, args.address, args.count, { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS }),
-      );
+      const options = { timeoutMs: cfg.timeoutMs || DEFAULT_TIMEOUT_MS };
+      if (args.addresses && args.address === undefined) {
+        return toToolSuccess(await rpcAccountsReceivable(client, [...new Set(args.addresses)], args.count, options));
+      }
+      if (args.address === undefined || args.addresses) throw new Error('Provide exactly one of address or addresses');
+      return toToolSuccess(await rpcReceivable(client, args.address, args.count, options));
     } catch (error) {
       return toToolError(error);
     }

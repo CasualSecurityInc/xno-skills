@@ -3,7 +3,16 @@ import { workDifficultyToThreshold, type NanoClient as CoreNanoClient } from '@o
 import { getEffectiveLocalPowRecommended } from './meta.js';
 import { DEFAULT_RPC_URLS, redactUrlForLog, resolveEffectiveRpcUrls, resolveEffectiveWorkUrls } from './config.js';
 import { DEFAULT_TIMEOUT_MS, type NanoReaders } from './nano-actions.js';
-import { nanoRpcCall, rpcAccountBalance, rpcAccountHistory, rpcAccountInfo, rpcProcess, rpcReceivable } from './rpc.js';
+import {
+  nanoRpcCall,
+  rpcAccountBalance,
+  rpcAccountsBalances,
+  rpcAccountsReceivable,
+  rpcAccountHistory,
+  rpcAccountInfo,
+  rpcProcess,
+  rpcReceivable,
+} from './rpc.js';
 import type { XnoConfig } from './state-store.js';
 
 export type NanoRuntimeOptions = {
@@ -63,6 +72,8 @@ export function createNanoRuntime(options: NanoRuntimeOptions): {
     return {
       accountInfo: (address) => rpcAccountInfo(client, address, { timeoutMs }),
       accountBalance: (address) => rpcAccountBalance(client, address, { timeoutMs }),
+      accountsBalances: async (addresses) => (await rpcAccountsBalances(client, addresses, { timeoutMs })).balances,
+      accountsReceivable: (addresses, count) => rpcAccountsReceivable(client, addresses, count, { timeoutMs }),
       receivable: (address, count) => rpcReceivable(client, address, count, { timeoutMs }),
       accountHistory: (address, count) => rpcAccountHistory(client, address, count, { timeoutMs }),
       workGenerate: async (hash, difficulty) => {

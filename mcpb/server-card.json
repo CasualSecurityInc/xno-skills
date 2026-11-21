@@ -213,7 +213,7 @@
     {
       "name": "wallet_balance",
       "title": "Get Wallet Balance",
-      "description": "Show the confirmed balance and pending receivable amount for an OWS wallet. Also lists pending receivable blocks.",
+      "description": "Show balances and pending blocks for OWS wallets. Prefer wallets for multiple names in one batch.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -221,6 +221,15 @@
           "wallet": {
             "type": "string",
             "description": "OWS wallet name"
+          },
+          "wallets": {
+            "description": "Wallet names to query together",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "OWS wallet name"
+            }
           },
           "index": {
             "default": 0,
@@ -236,10 +245,7 @@
             "description": "Override RPC URL",
             "type": "string"
           }
-        },
-        "required": [
-          "wallet"
-        ]
+        }
       },
       "annotations": {
         "readOnlyHint": true,
@@ -844,23 +850,28 @@
     {
       "name": "rpc_account_balance",
       "title": "Get Account Balance (RPC)",
-      "description": "Fetch the confirmed balance and pending amount for any Nano account via RPC.",
+      "description": "Fetch confirmed balances and pending amounts via RPC. Prefer addresses for multiple Nano accounts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "address": {
-            "type": "string",
-            "description": "Nano address to query"
+            "description": "Nano address to query",
+            "type": "string"
+          },
+          "addresses": {
+            "description": "Nano addresses to query together",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "rpcUrl": {
             "description": "Override RPC URL",
             "type": "string"
           }
-        },
-        "required": [
-          "address"
-        ]
+        }
       },
       "annotations": {
         "readOnlyHint": true,
@@ -906,14 +917,22 @@
     {
       "name": "rpc_receivable",
       "title": "List Receivable (RPC)",
-      "description": "List pending receivable blocks for a Nano account via RPC.",
+      "description": "List pending receivable blocks via RPC. Prefer addresses for multiple Nano accounts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "address": {
-            "type": "string",
-            "description": "Nano address to query"
+            "description": "Nano address to query",
+            "type": "string"
+          },
+          "addresses": {
+            "description": "Nano addresses to query together",
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "count": {
             "default": 10,
@@ -924,10 +943,7 @@
             "description": "Override RPC URL",
             "type": "string"
           }
-        },
-        "required": [
-          "address"
-        ]
+        }
       },
       "annotations": {
         "readOnlyHint": true,

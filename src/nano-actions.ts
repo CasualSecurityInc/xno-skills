@@ -85,6 +85,8 @@ export type NanoActionContext = {
 export type NanoReaders = {
   accountInfo: (address: string) => Promise<AccountInfoResponse | NanoRpcErrorResponse>;
   accountBalance: (address: string) => Promise<{ balance: string; pending: string }>;
+  accountsBalances?: (addresses: string[]) => Promise<Record<string, { balance: string; pending: string }>>;
+  accountsReceivable?: (addresses: string[], count: number) => Promise<Record<string, ReceivableItem[]>>;
   receivable: (address: string, count: number) => Promise<ReceivableItem[]>;
   accountHistory: (address: string, count: number) => Promise<AccountHistoryEntry[]>;
   workGenerate?: (hash: string, difficulty: string | WorkDifficulty) => Promise<string>;
@@ -402,6 +404,39 @@ export async function getNanoBalance(
       true,
     );
   }
+}
+
+export async function getNanoBalances(
+  wallets: string[],
+  readers: NanoReaders,
+  ctx: NanoActionContext,
+  index = 0,
+  count = 10,
+): Promise<(BalanceSummary & { wallet: string })[]> {
+  if (wallets.length === 0) throw new Error('At least one wallet is required');
+  if (wallets.length === 1) {
+    return [{ wallet: wallets[0], ...(await getNanoBalance(wallets[0], readers, ctx, index, count)) }];
+  }
+  const accounts = await Promise.all(wallets.map((wallet) => resolveNanoWalletAccount(wallet, index)));
+  const addresses = [...new Set(accounts.map((account) => account.address))];
+  if (!readers.accountsBalances || !readers.accountsReceivable) throw new Error('Batch RPC readers are unavailable');
+  const balances = await readers.accountsBalances(addresses);
+  const pending = await readers.accountsReceivable(
+    addresses.filter((address) => balances[address]?.pending && balances[address].pending !== '0'),
+    count,
+  );
+  return accounts.map(({ walletName, address }) => {
+    const { balance, pending: pendingRaw } = balances[address] ?? { balance: '0', pending: '0' };
+    return {
+      wallet: walletName,
+      address,
+      balanceRaw: balance,
+      pendingRaw,
+      balanceXno: rawToNano(balance),
+      pendingXno: rawToNano(pendingRaw),
+      pendingBlocks: pending[address] ?? [],
+    };
+  });
 }
 
 export async function getNanoHistory(

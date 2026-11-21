@@ -85,7 +85,7 @@ npm install -g xno-skills@5.1.1 && npx -y skills add CasualSecurityInc/xno-skill
 | -------------------------------------- | ------------------------------------------- |
 | `wallet create --name <name> [--json]` | Create a Nano wallet in the local OWS vault |
 | `wallets [options]`                    | List wallets that have Nano accounts        |
-| `balance [options]`                    | Show balance and pending amount             |
+| `balance [options]`                    | Show balances and pending amounts           |
 | `receive [options]`                    | Receive pending blocks                      |
 | `send [options]`                       | Send Nano                                   |
 | `change-rep [options]`                 | Submit a change representative block        |
@@ -124,6 +124,8 @@ npm install -g xno-skills@5.1.1 && npx -y skills add CasualSecurityInc/xno-skill
 | ------- | ------------------------------------------------------------------------------------------------------- |
 | `diag`  | Show version, environment, effective RPC/work URLs, and local PoW recommendation without network probes |
 | `mcp`   | Start the MCP server or view configuration instructions                                                 |
+
+Batch independent balance and receivable reads with `balance --wallet A --wallet B`, `rpc account-balance <address1> <address2>`, or `rpc receivable <address1> <address2>`. The corresponding MCP tools accept `wallets` or `addresses` arrays.
 
 All commands support `-j` / `--json` for machine-readable output.
 

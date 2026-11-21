@@ -1,12 +1,12 @@
 # xno-skills rpc account-balance
 
 ```
-Usage: xno-skills rpc account-balance [options] <address>
+Usage: xno-skills rpc account-balance [options] <address...>
 
-Fetch account balance and pending amount
+Fetch account balances and pending amounts
 
 Arguments:
-  address            Nano address
+  address            One or more Nano addresses
 
 Options:
   --url <url>        RPC URL override

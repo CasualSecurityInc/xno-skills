@@ -17,6 +17,8 @@ describe('MCP Server Integration', () => {
   let transport: StdioClientTransport;
   let rpcServer: Server;
   let rpcUrl: string;
+  const balanceBatchRequests: string[][] = [];
+  const receivableBatchRequests: string[][] = [];
   let mockAccountInfo: any = { error: 'Account not found' };
   let mockReceivableBlocks: Record<string, { amount: string; source?: string }> = {};
   let mockProcessResponse: any = { error: 'Block work is less than threshold' };
@@ -69,6 +71,20 @@ describe('MCP Server Integration', () => {
           response = { work: 'f'.repeat(16) };
         } else if (action === 'account_history') {
           response = { history: [] };
+        } else if (action === 'accounts_balances') {
+          balanceBatchRequests.push(payload.accounts);
+          response = {
+            balances: Object.fromEntries(
+              payload.accounts.map((account: string) => [account, { balance: '20', pending: '5' }]),
+            ),
+          };
+        } else if (action === 'accounts_receivable') {
+          receivableBatchRequests.push(payload.accounts);
+          response = {
+            blocks: Object.fromEntries(
+              payload.accounts.map((account: string) => [account, { ['a'.repeat(64)]: { amount: '5' } }]),
+            ),
+          };
         } else if (action === 'account_balance') {
           response = { balance: '0', pending: '0' };
         } else if (action === 'account_info') {
@@ -142,6 +158,34 @@ describe('MCP Server Integration', () => {
     expect(toolNames).toContain('wallet_send');
     expect(toolNames).toContain('config_get');
     expect(toolNames).toContain('config_set');
+  });
+
+  it('deduplicates wallet balance reads for names sharing an account', async () => {
+    const created = await client.callTool({ name: 'wallet_create', arguments: { name: 'batch-test-wallet' } });
+    expect(created.isError).not.toBe(true);
+    const wallets = ['A', 'batch-test-wallet'];
+    const result = await client.callTool({ name: 'wallet_balance', arguments: { wallets } });
+    expect(result.isError).not.toBe(true);
+    const data = JSON.parse((result.content as { text: string }[])[0].text);
+    expect(data.map((item: { wallet: string }) => item.wallet)).toEqual(wallets);
+    expect(data[0].balanceRaw).toBe('20');
+    expect(balanceBatchRequests.splice(0)).toEqual([[data[0].address]]);
+  });
+
+  it('uses one plural RPC per multi-account read', async () => {
+    const addresses = [
+      'nano_3i1aq1cchnmbn9x5rsbap8b15akfh7wj7pwskuzi7ahz8oq6cobd99d4r3b7',
+      'nano_1pu7p5n3ghq1i1p4rhmek41f5add1uh34xpb94nkbxe8g4a6x1p69emk8y1d',
+    ];
+    const balances = await client.callTool({ name: 'rpc_account_balance', arguments: { addresses } });
+    expect(balances.isError).not.toBe(true);
+    const receivable = await client.callTool({ name: 'rpc_receivable', arguments: { addresses } });
+    expect(receivable.isError).not.toBe(true);
+    expect(balanceBatchRequests.splice(0)).toEqual([addresses]);
+    expect(receivableBatchRequests.splice(0)).toEqual([addresses]);
+    expect(JSON.parse((receivable.content as { text: string }[])[0].text)).toEqual(
+      Object.fromEntries(addresses.map((address) => [address, [{ hash: 'a'.repeat(64), amount: '5' }]])),
+    );
   });
 
   it('should convert units via util_convert tool', async () => {

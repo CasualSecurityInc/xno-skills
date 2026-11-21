@@ -190,6 +190,8 @@ To **create** a new wallet on request, use `wallet_create` as described above.
 
 **Via MCP tools:**
 
+For multiple independent reads, prefer one batch when the RPC supports it. Pass `wallets` to `wallet_balance` for several OWS wallet names, or `addresses` to `rpc_account_balance` or `rpc_receivable` for several public accounts. With the CLI, repeat `--wallet` on `balance` or pass multiple addresses to `rpc account-balance` or `rpc receivable`. Keep dependent reads and wallet mutations in sequence.
+
 ```json
 { "name": "wallet_balance", "arguments": { "wallet": "my-wallet" } }
 { "name": "rpc_account_balance", "arguments": { "address": "nano_..." } }

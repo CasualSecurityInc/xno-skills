@@ -135,7 +135,18 @@ export async function rpcAccountsBalances(
     const v = validateAddress(a);
     if (!v.valid) throw new Error(`Invalid address: ${a} (${v.error})`);
   }
-  return nanoRpcCall<AccountsBalancesResponse>(client, { action: 'accounts_balances', accounts: addresses }, options);
+  const response = await nanoRpcCall<AccountsBalancesResponse>(
+    client,
+    { action: 'accounts_balances', accounts: addresses },
+    options,
+  );
+  const balances = Object.fromEntries(
+    addresses.map((address) => {
+      const result = response.balances?.[address] ?? response.balances?.[address.replace(/^xrb_/, 'nano_')];
+      return [address, result ?? { balance: '0', pending: '0' }];
+    }),
+  );
+  return { ...response, balances };
 }
 
 export async function rpcAccountsFrontiers(
@@ -524,4 +535,41 @@ export async function rpcReceivable(
     const blocksForAccount = (res as any)?.blocks?.[address];
     return normalizeReceivableBlocks(blocksForAccount);
   }
+}
+
+/** Query receivable blocks per account, using a plural RPC for multiple accounts. */
+export async function rpcAccountsReceivable(
+  client: NanoClient,
+  addresses: string[],
+  count: number,
+  options: RpcCallOptions = {},
+): Promise<Record<string, ReceivableItem[]>> {
+  if (addresses.length === 0) return {};
+  if (addresses.length === 1) {
+    return { [addresses[0]]: await rpcReceivable(client, addresses[0], count, options) };
+  }
+  const n = Math.max(1, Math.min(1000, Math.floor(count || 10)));
+  for (const address of addresses) {
+    const validation = validateAddress(address);
+    if (!validation.valid) throw new Error(`Invalid address: ${address} (${validation.error})`);
+  }
+  const request = { accounts: addresses, count: String(n), source: 'true' };
+  let response: AccountsPendingResponse;
+  try {
+    response = await nanoRpcCall<AccountsPendingResponse>(
+      client,
+      { action: 'accounts_receivable', ...request },
+      options,
+    );
+  } catch (error) {
+    if (!(error instanceof Error) || !/unknown|unsupported|not supported|invalid action/i.test(error.message))
+      throw error;
+    response = await nanoRpcCall<AccountsPendingResponse>(client, { action: 'accounts_pending', ...request }, options);
+  }
+  return Object.fromEntries(
+    addresses.map((address) => [
+      address,
+      normalizeReceivableBlocks(response.blocks?.[address] ?? response.blocks?.[address.replace(/^xrb_/, 'nano_')]),
+    ]),
+  );
 }
