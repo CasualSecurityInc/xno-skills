@@ -167,6 +167,20 @@ describe('convertUnits', () => {
 
   it('rejects unsupported units', () => {
     expect(() => convertUnits('1', 'btc', 'xno')).toThrow('Unsupported unit: btc');
+    expect(() => convertUnits('1', 'btc', 'btc')).toThrow('Unsupported unit: btc');
+    expect(() => convertUnits('1', 'xno', 'btc')).toThrow('Unsupported unit: btc');
+  });
+
+  it('validates same-unit conversions instead of returning malformed or negative inputs untouched', () => {
+    expect(() => convertUnits('1.5', 'raw', 'raw')).toThrow(/digits only/);
+    expect(() => convertUnits('1.0', 'raw', 'raw')).toThrow(/digits only/);
+    expect(() => convertUnits('-1', 'raw', 'raw')).toThrow('convertUnits: negative values not supported');
+    expect(() => convertUnits(-1, 'raw', 'raw')).toThrow('convertUnits: negative values not supported');
+    expect(() => convertUnits(-1, 'raw', 'xno')).toThrow('convertUnits: negative values not supported');
+    expect(() => convertUnits('1.2.3', 'xno', 'xno')).toThrow(/not a decimal number/);
+    expect(() => convertUnits('-1', 'xno', 'xno')).toThrow('nanoToRaw: negative values not supported');
+    expect(convertUnits('1.5', 'xno', 'xno')).toBe('1.5');
+    expect(convertUnits('00042', 'raw', 'raw')).toBe('42');
   });
 });
 describe('fractional raw input (regression: silent truncation)', () => {
