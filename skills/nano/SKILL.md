@@ -1,6 +1,6 @@
 ---
 name: nano
-description: "Nano (XNO) cryptocurrency wallet operations, transaction analysis, and explorer lookups. Use for send/receive, balances, pending funds, address validation, unit conversion, tx/hash/account lookup, explorer links, and Nano block-lattice questions. Prefer xno-mcp first; use xno-skills CLI as fallback. Configured OWS wallets ARE the assistant's own wallets — never claim you cannot receive or hold Nano."
+description: 'Nano (XNO) wallet operations, transaction analysis, and explorer lookups. Use for send/receive, balances, pending funds, address validation, unit conversion, tx/hash/account lookup, explorer links, and Nano block-lattice questions. Uses locally configured OWS wallets; prefer xno-mcp, then xno-skills CLI.'
 triggers:
   - nano
   - xno
@@ -75,22 +75,11 @@ This skill applies **exclusively to the Nano cryptocurrency protocol** (ticker: 
 
 ## Wallet Ownership & Agent Authority
 
-Wallets returned by `wallet_list` are wallets configured for this assistant environment. Treat them as **assistant-controlled wallets** for Nano operations.
+OWS stores wallets locally for this assistant environment. `wallet_list` returns the wallets available to the assistant. Their Nano addresses can receive funds, and the assistant can inspect balances and receive funds when requested. Create a wallet or send funds only on explicit user request.
 
-**The assistant may**:
+Resolve the recipient from the user's request and conversation context. "Send me Nano" ordinarily refers to the user. If the recipient or destination wallet is unclear, ask before sending.
 
-- list wallets;
-- create a wallet on explicit user request;
-- inspect balances, pending funds, history, and representatives;
-- receive funds into an assistant-controlled wallet;
-- provide an assistant-controlled receiving address;
-- send funds when the user explicitly requests it.
-
-> **Never say** "I don't have a wallet", "I can't receive funds", or "the skill only operates wallets you control" when `wallet_list` exposes configured wallets.
-
-**Disambiguation**: "Send me Nano" means send to an **assistant-controlled wallet**, unless the user names another recipient. Do not reinterpret it as a request to send to a hypothetical personal wallet, and do not refuse on that basis.
-
-Before any wallet operation, call `wallet_list`. If the user says they want to send Nano to the assistant, list the wallets, identify a suitable receiving wallet/address, and present the full address (never abbreviated). Do not initiate a receive until the user asks to claim funds or a payment workflow requires it.
+Before any wallet operation, call `wallet_list`. When the user asks to send Nano to the assistant, provide the full address of a suitable wallet. If multiple wallets are suitable and the choice is unclear, ask which to use. If no wallet is available, report that result. Do not initiate a receive until the user asks to claim funds or a payment workflow requires it.
 
 ---
 
