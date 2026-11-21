@@ -76,7 +76,7 @@ xno-skills --help
 To pin to the current stable release instead:
 
 ```bash
-npm install -g xno-skills@5.2.0 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
+npm install -g xno-skills@6.0.0 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
 ### Wallet Operations
@@ -144,7 +144,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 **Preferred** (global install — avoids `npx` concurrency handshake failures):
 
 ```bash
-npm install -g xno-skills@5.2.0
+npm install -g xno-skills@6.0.0
 ```
 
 ```json
@@ -165,7 +165,7 @@ npm install -g xno-skills@5.2.0
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@5.2.0", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills@6.0.0", "xno-mcp"]
     }
   }
 }
@@ -177,7 +177,7 @@ npm install -g xno-skills@5.2.0
 <summary>Codex</summary>
 
 ```bash
-# Preferred (after npm install -g xno-skills@5.2.0):
+# Preferred (after npm install -g xno-skills@6.0.0):
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
@@ -187,7 +187,7 @@ codex mcp add nano \
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
-  -- npx -y -p xno-skills@5.2.0 xno-mcp
+  -- npx -y -p xno-skills@6.0.0 xno-mcp
 ```
 
 </details>
