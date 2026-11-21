@@ -135,6 +135,8 @@ Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://gi
 
 ## MCP Server
 
+The MCP server requires Node.js 20 or newer and supports the 2026-07-28 protocol alongside legacy stdio clients.
+
 The Nano wallet MCP server runs on your machine over stdio and uses your local OWS wallet. There is no hosted endpoint. Use the npm setup below and see [skill installation](#agent-skills) for the GitHub install command.
 
 Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Codex, etc.). MCP resources (`xno-wallet://` URIs) are served but require client-side `resources/read` support — not yet available in OpenCode ([#15535](https://github.com/anomalyco/opencode/issues/15535)).

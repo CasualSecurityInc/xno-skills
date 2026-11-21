@@ -305,7 +305,11 @@ export function isRpcError(resp: NanoRpcErrorResponse | AccountInfoResponse): re
 async function report(ctx: NanoActionContext, progress: number, total: number, message: string): Promise<void> {
   process.stderr.write(`[${getLogScope(ctx)}] ${message}\n`);
   if (ctx.reportProgress) {
-    await ctx.reportProgress(progress, total, message);
+    try {
+      await ctx.reportProgress(progress, total, message);
+    } catch {
+      // Progress delivery is advisory. The RPC result determines the transaction outcome.
+    }
   }
 }
 

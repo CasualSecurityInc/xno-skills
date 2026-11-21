@@ -18,7 +18,7 @@ cat > "$context/Dockerfile" <<'DOCKERFILE'
 FROM node:22-bookworm-slim
 WORKDIR /acceptance
 COPY runtime.tgz test-wallet-create.mjs ./
-RUN npm install --no-audit --no-fund ./runtime.tgz \
+RUN npm install --no-audit --no-fund ./runtime.tgz @modelcontextprotocol/client@2.4.0 \
     && ln -s /acceptance/node_modules/.bin/xno-skills /usr/local/bin/xno-skills
 ENV HOME=/tmp/acceptance-home XNO_MCP_HOME=/tmp/acceptance-xno
 DOCKERFILE

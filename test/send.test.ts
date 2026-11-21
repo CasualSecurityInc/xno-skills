@@ -32,6 +32,35 @@ function makeReaders(): NanoReaders {
 }
 
 describe('executeSend', () => {
+  it('returns the broadcast hash when progress delivery fails', async () => {
+    const { executeSend } = await import('../src/nano-actions.js');
+    const readers = makeReaders();
+    const hash = 'c'.repeat(64);
+    vi.mocked(readers.accountInfo).mockResolvedValue({
+      frontier: 'b'.repeat(64),
+      balance: '1000000000000000000000000000000',
+    });
+    vi.mocked(readers.workGenerate!).mockResolvedValue('f'.repeat(16));
+    vi.mocked(readers.process!).mockResolvedValue({ hash });
+    const ctx: NanoActionContext = {
+      config: {},
+      appendTransaction: vi.fn(),
+      reportProgress: vi.fn().mockRejectedValue(new Error('notification pipe closed')),
+    };
+    await expect(
+      executeSend(
+        'A',
+        undefined,
+        ctx,
+        readers,
+        'nano_3arg3asgtigae3xckabaaewkx3bzsh7nwz7jkmjos79ihyaxwphhm6qgjps4',
+        '0.5',
+      ),
+    ).resolves.toMatchObject({ hash });
+    expect(ctx.reportProgress).toHaveBeenCalled();
+    expect(readers.process).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects zero XNO before any account RPC or block work', async () => {
     const { executeSend } = await import('../src/nano-actions.js');
     const readers = makeReaders();
