@@ -113,11 +113,15 @@ export function buildNanoStateBlockHex(input: StateBlockHashInput): string {
  * Layout: [32 preamble][32 accountPublicKey][32 previous][32 representativePublicKey][16 balance][32 link]
  */
 export function parseNanoStateBlockHex(hex: string): StateBlockHashInput & { balanceRaw: string } {
-  if (typeof hex !== 'string' || hex.length !== 352) {
+  if (typeof hex !== 'string' || hex.length !== 352 || !/^[0-9a-fA-F]{352}$/.test(hex)) {
     throw new Error(`State block hex must be 352 hex characters (176 bytes), got ${hex?.length ?? 'undefined'}`);
   }
   const bytes = hexToBytes(hex);
-  // skip 32-byte preamble
+  for (let i = 0; i < 32; i++) {
+    if (bytes[i] !== STATE_BLOCK_PREAMBLE[i]) {
+      throw new Error('Invalid state block preamble: expected 31 zero bytes followed by 0x06');
+    }
+  }
   const accountPublicKey = bytesToHex(bytes.slice(32, 64));
   const previous = bytesToHex(bytes.slice(64, 96));
   const representativePublicKey = bytesToHex(bytes.slice(96, 128));

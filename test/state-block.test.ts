@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { hashNanoStateBlockHex, buildNanoStateBlockHex, type StateBlockHashInput } from '../src/state-block';
+import {
+  hashNanoStateBlockHex,
+  buildNanoStateBlockHex,
+  parseNanoStateBlockHex,
+  type StateBlockHashInput,
+} from '../src/state-block';
 import { decodeNanoAddress } from '../src/nano-address';
 import { nanoToRaw } from '../src/convert';
 
@@ -148,5 +153,34 @@ describe('buildNanoStateBlockHex', () => {
     expect(hex.slice(64, 128)).toBe(sender.publicKey);
     // Link field should be recipient's pubkey
     expect(hex.slice(288, 352)).toBe(recipient.publicKey);
+  });
+});
+
+describe('parseNanoStateBlockHex', () => {
+  it('round-trips a built state block', () => {
+    const input: StateBlockHashInput = {
+      accountPublicKey: ZERO_SEED_PUBKEY,
+      previous: 'ab'.repeat(32),
+      representativePublicKey: ZERO_SEED_PUBKEY,
+      balanceRaw: nanoToRaw('1.5'),
+      link: 'cd'.repeat(32),
+    };
+    const hex = buildNanoStateBlockHex(input);
+    expect(parseNanoStateBlockHex(hex)).toEqual(input);
+  });
+
+  it('rejects a 352-char hex string whose 32-byte preamble is not the canonical state block preamble', () => {
+    const valid = buildNanoStateBlockHex(DEFAULT_INPUT);
+    const badFinalByte = '0'.repeat(62) + '07' + valid.slice(64);
+    const badLeadingByte = '01' + '0'.repeat(60) + '06' + valid.slice(64);
+
+    expect(() => parseNanoStateBlockHex(badFinalByte)).toThrow(/preamble/i);
+    expect(() => parseNanoStateBlockHex(badLeadingByte)).toThrow(/preamble/i);
+  });
+
+  it('rejects non-hex characters or wrong length', () => {
+    const valid = buildNanoStateBlockHex(DEFAULT_INPUT);
+    expect(() => parseNanoStateBlockHex(valid.slice(0, 350) + 'zz')).toThrow(/352 hex characters/i);
+    expect(() => parseNanoStateBlockHex(valid.slice(0, 350))).toThrow(/352 hex characters/i);
   });
 });
