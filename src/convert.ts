@@ -144,6 +144,12 @@ export function rawToNano(raw: string | number, decimals: number = 30): string {
   if (typeof raw === 'number') raw = coerceRawNumber(raw, 'rawToNano');
   if (!raw || raw === '') return '0';
   if (raw.startsWith('-')) throw new Error('rawToNano: negative values not supported');
+  // A raw amount has 30 decimal places. Asking for more pads zeros onto a fraction that already ends
+  // there, and asking for fewer silently drops digits the caller passed: rawToNano('1', 0) answered '0'
+  // and rawToNano('1999999999999999999999999999999', 0) answered '1'. A negative value returned 29
+  // digits labelled as if 30 had been requested. Only 0..30 describes the amount the caller passed.
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 30)
+    throw new Error('rawToNano: decimals must be an integer from 0 to 30 (raw has 30 decimal places), got ' + decimals);
 
   // raw is the smallest indivisible unit, so a raw string is digits and nothing
   // else: no decimal point, not even "1.0". Rejecting it prevents a silent,
@@ -161,6 +167,18 @@ export function rawToNano(raw: string | number, decimals: number = 30): string {
   // Format with exact decimal places
   const remainderStr = remainder.toString().padStart(30, '0');
   const rawDecimalPart = remainderStr.slice(0, decimals);
+  // nanoToRaw refuses a nonzero amount that rounds to 0 raw ("nonzero value rounds to 0 raw"). The
+  // same rule in this direction: a nonzero raw that prints as 0 XNO tells a caller that money they hold
+  // is worth nothing. Refuse instead of dropping the digits decimals cannot show.
+  const dropped = remainderStr.slice(decimals);
+  if ((rawBigInt !== 0n && nanoBigInt === 0n && !rawDecimalPart.replace(/0+$/, '')) || /[1-9]/.test(dropped))
+    throw new Error(
+      'rawToNano: ' +
+        raw +
+        ' raw needs more than ' +
+        decimals +
+        ' decimals to print without dropping digits; ask for more decimals or read the raw value',
+    );
 
   // Use default behavior (trim trailing zeros) when decimals=30
   const decimalPart = decimals === 30 ? rawDecimalPart.replace(/0+$/, '') : rawDecimalPart.padEnd(decimals, '0');
