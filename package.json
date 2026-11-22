@@ -94,9 +94,9 @@
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "@open-wallet-standard/core": "^1.4.5",
-    "@openrai/nano-core": "^3.6.0",
+    "@openrai/nano-core": "^3.6.1",
     "commander": "^15.1.0",
-    "nano-rspow-node": "^0.17.1",
+    "nano-rspow-node": "^0.18.1",
     "qrcode-svg": "^1.1.0",
     "qrcode-terminal": "^0.12.0",
     "zod": "^4.6.7"
