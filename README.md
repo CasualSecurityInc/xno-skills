@@ -83,6 +83,20 @@ npm install -g xno-skills@6.2.1 && npx -y skills add CasualSecurityInc/xno-skill
 
 Install `xno-skills@6.2.1` with the pinned command above, reinstall the Nano skill, then restart any MCP clients using `xno-skills mcp`. Existing OWS wallet data stays in the local vault and needs no migration. Use a supported Node.js LTS release such as 22, 24, or 26.
 
+#### Linux compatibility
+
+The native proof-of-work binding ships separate builds for glibc and musl Linux:
+
+| Distribution                           | Requirement                                        |
+| :------------------------------------- | :------------------------------------------------- |
+| Ubuntu 22.04+, Debian 12+, RHEL 9+     | glibc 2.34 or newer                                |
+| Alpine, or any other musl-based distro | musl build, no glibc dependency                    |
+| RHEL 8 / Rocky 8, Ubuntu 20.04         | use the musl build (Alpine, or a musl-based image) |
+
+The package manager selects the right variant automatically. See
+[nano-rspow's GLIBC_COMPAT.md](https://github.com/CasualSecurityInc/nano-rspow/blob/HEAD/GLIBC_COMPAT.md)
+for the full support matrix and verification commands.
+
 ### Wallet Operations
 
 | Command                                | Description                                 |
