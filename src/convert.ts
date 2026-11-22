@@ -92,6 +92,7 @@ function coerceRawNumber(value: number, fn: string): string {
   if (!Number.isFinite(value)) {
     throw new Error(`${fn}: expected a finite amount, got ${value}. Pass it as a decimal string.`);
   }
+  if (value < 0) throw new Error(`${fn}: negative values not supported`);
   if (!Number.isInteger(value)) {
     throw new Error(
       `${fn}: raw is the smallest indivisible unit, so a raw amount must be a whole number. Pass it as a string.`,
@@ -218,7 +219,7 @@ export function convertUnits(amount: string | number, from: string, to: string):
   const f = from.toLowerCase();
   const t = to.toLowerCase();
 
-  // Coerce before the pass-through below, so raw -> raw still yields a string.
+  // Coerce before the switch below, so raw -> raw still yields a validated string.
   // An unsupported `from` keeps the number as-is and throws in the switch below,
   // exactly as a string did.
   const value: string =
@@ -230,13 +231,19 @@ export function convertUnits(amount: string | number, from: string, to: string):
           : String(amount)
       : amount;
 
-  if (f === t) return value;
-
-  // Step 1: Convert from → raw
+  // Step 1: Convert from → raw (always runs, even when f === t, so unsupported units
+  // and malformed/negative/fractional inputs are never returned unvalidated).
   let raw: string;
   switch (f) {
     case 'raw':
-      raw = value;
+      if (!value || value === '') {
+        raw = '0';
+        break;
+      }
+      if (value.startsWith('-')) throw new Error('convertUnits: negative values not supported');
+      if (!/^\d+$/.test(value))
+        throw new Error('convertUnits: raw must be a string of digits only (raw is the smallest indivisible unit)');
+      raw = stripLeadingZeros(value);
       break;
     case 'xno':
       raw = nanoToRaw(value);
