@@ -79,6 +79,10 @@ To pin to the current stable release instead:
 npm install -g xno-skills@6.0.0 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 ```
 
+#### Upgrading from 5.x
+
+Install `xno-skills@6.0.0` with the pinned command above, reinstall the Nano skill, then restart any MCP clients using `xno-skills mcp`. Existing OWS wallet data stays in the local vault and needs no migration. Use a supported Node.js LTS release such as 22, 24, or 26.
+
 ### Wallet Operations
 
 | Command                                | Description                                 |
