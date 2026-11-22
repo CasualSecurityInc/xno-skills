@@ -85,4 +85,46 @@ describe('executeSend stale-account retry', () => {
     expect(readers.process).toHaveBeenCalledTimes(1);
     expect(readers.workGenerate).toHaveBeenCalledTimes(1);
   });
+
+  it('does not broadcast a second send when the first block already landed and is the refreshed frontier', async () => {
+    const { executeSend } = await import('../src/nano-actions.js');
+    const { hashNanoStateBlockHex } = await import('../src/state-block.js');
+    const { decodeNanoAddress } = await import('../src/nano-address.js');
+
+    const firstHash = hashNanoStateBlockHex({
+      accountPublicKey: decodeNanoAddress(ACCOUNT).publicKey,
+      previous: 'a'.repeat(64),
+      representativePublicKey: decodeNanoAddress(REP_A).publicKey,
+      balanceRaw: XNO.toString(),
+      link: decodeNanoAddress(DESTINATION).publicKey,
+    }).toUpperCase();
+
+    const readers = readersWithFreshInfo({
+      frontier: firstHash,
+      representative: REP_A,
+      balance: XNO.toString(),
+      block_count: '6',
+    });
+
+    const result = await executeSend('A', undefined, ctx(), readers, DESTINATION, '1');
+
+    expect(result.hash).toBe(firstHash);
+    expect(readers.process).toHaveBeenCalledTimes(1);
+    expect(readers.workGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it('executeReceive refuses non-Account-not-found RPC errors instead of building an open block with zero balance', async () => {
+    const { executeReceive } = await import('../src/nano-actions.js');
+    const readers: NanoReaders = {
+      accountInfo: vi.fn().mockResolvedValue({ error: 'Internal server error' }),
+      accountBalance: vi.fn().mockResolvedValue({ balance: '0', pending: '0' }),
+      receivable: vi.fn().mockResolvedValue([{ hash: 'd'.repeat(64), amount: XNO.toString(), source: DESTINATION }]),
+      accountHistory: vi.fn().mockResolvedValue([]),
+      workGenerate: vi.fn().mockResolvedValue('0000000000000000'),
+      process: vi.fn().mockResolvedValue({ hash: 'e'.repeat(64) }),
+    };
+
+    await expect(executeReceive('A', undefined, ctx(), readers)).rejects.toThrow(/Internal server error/i);
+    expect(readers.process).not.toHaveBeenCalled();
+  });
 });
