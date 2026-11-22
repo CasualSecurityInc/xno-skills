@@ -1,4 +1,4 @@
-import { blake2b } from '@noble/hashes/blake2b.js';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 
 export type Hex64 = string; // 32 bytes hex

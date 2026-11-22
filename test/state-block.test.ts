@@ -108,7 +108,7 @@ describe('buildNanoStateBlockHex', () => {
     const expectedHash = hashNanoStateBlockHex(input);
 
     // Manually hash the built block bytes using the same blake2b
-    const { blake2b } = await import('@noble/hashes/blake2b.js');
+    const { blake2b } = await import('@noble/hashes/blake2.js');
     const { hexToBytes, bytesToHex } = await import('@noble/hashes/utils.js');
     const hash = bytesToHex(blake2b(hexToBytes(blockHex), { dkLen: 32 }));
     expect(hash).toBe(expectedHash);

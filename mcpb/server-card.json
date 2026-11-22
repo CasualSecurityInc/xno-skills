@@ -50,68 +50,44 @@
         "properties": {
           "rpcUrl": {
             "description": "Primary Nano RPC endpoint URL (set to \"\" or null to reset)",
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "workUrl": {
             "description": "Remote PoW endpoint URL (set to \"\" or null to reset)",
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "timeoutMs": {
             "description": "Request timeout in milliseconds (default: 15000)",
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "number",
+              "null"
             ]
           },
           "powTimeoutMs": {
             "description": "Proof-of-work timeout in milliseconds (default: max(timeoutMs * 4, 30000))",
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "number",
+              "null"
             ]
           },
           "defaultRepresentative": {
             "description": "Default representative nano_ address for new accounts (set to \"\" or null to reset)",
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           },
           "maxSendXno": {
             "description": "Maximum XNO allowed per send transaction (default: 1.0, set to \"\" or null to reset)",
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "type": [
+              "string",
+              "null"
             ]
           }
         }

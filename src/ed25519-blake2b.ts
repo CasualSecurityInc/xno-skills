@@ -1,4 +1,4 @@
-import { blake2b } from '@noble/hashes/blake2b.js';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { ed25519 } from '@noble/curves/ed25519.js';
 

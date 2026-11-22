@@ -1,5 +1,5 @@
 // Blake2b hash functions using @noble/hashes
-import { blake2b } from '@noble/hashes/blake2b.js';
+import { blake2b } from '@noble/hashes/blake2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 /**
