@@ -55,7 +55,7 @@ triggers:
   - how much xno
   - how much nano
 complements:
-  - ows # Open Wallet Standard — wallet lifecycle (import, rename, delete)
+  - ows # Open Wallet Standard — optional; only for wallet import, rename, delete
 requires_network: true
 ---
 
@@ -112,24 +112,24 @@ If `xno-mcp` tools are not available, or the user explicitly asks for CLI usage,
 
 ```
 1. xno-skills <command>              (global install — preferred)
-2. bunx -y xno-skills@6.2.1 <command>
-3. pnpm dlx xno-skills@6.2.1 <command>
-4. npx -y xno-skills@6.2.1 <command>
+2. bunx -y xno-skills <command>
+3. pnpm dlx xno-skills <command>
+4. npx -y xno-skills <command>
 ```
 
-If the global `xno-skills` binary is not available, fall through to the next option. Always pin the version (`xno-skills@6.2.1`) with `bunx`/`pnpm dlx`/`npx` to prevent interactive prompts from freezing.
+If the global `xno-skills` binary is not available, fall through to the next option. Always pass the `-y` flag with `bunx`/`pnpm dlx`/`npx` to prevent interactive prompts from freezing.
 
 Before guessing a subcommand, run `--help`:
 
 ```bash
-xno-skills --help              # or: bunx -y xno-skills@6.2.1 --help
+xno-skills --help              # or: bunx -y xno-skills --help
 ```
 
 ### 3. Wallet creation and lifecycle
 
-Create a wallet only on explicit user request. Ask for a name if missing. Call `wallet_create` with `{"name":"treasury"}` or run `xno-skills wallet create --name treasury` when using the CLI. The installed `@open-wallet-standard/core` npm dependency writes to the local OWS vault and the command returns only `name` and the Nano `address`. Creation uses the installed runtime without downloading dependencies or requiring a global `ows` command. If the runtime is missing, show the pinned npm install command and wait for the user to run it. [Wallet creation source](https://github.com/CasualSecurityInc/xno-skills/blob/v6.2.1/src/nano-actions.ts)
+Create a wallet only on explicit user request. Ask for a name if missing. Call `wallet_create` with `{"name":"treasury"}` or run `xno-skills wallet create --name treasury` when using the CLI. The bundled `@open-wallet-standard/core` dependency writes to the local OWS vault and the command returns only `name` and the Nano `address`. No global `ows` install or `ows` executable is required — the bundled runtime is used directly. If the runtime is missing, show the npm install command and wait for the user to run it. [Wallet creation source](https://github.com/CasualSecurityInc/xno-skills/blob/v6.2.1/src/nano-actions.ts)
 
-For wallet **import, rename, or delete**: delegate to the `ows` skill.
+For wallet **import, rename, or delete**: `xno-skills` does not expose these. If the optional `ows` skill is installed in the environment, delegate to it. Otherwise, tell the user that these operations need the optional [Open Wallet Standard](https://github.com/open-wallet-standard/core) tooling (installable with `npx skills add open-wallet-standard/core@ows`).
 
 ### 4. Never do any of the following
 
@@ -137,7 +137,7 @@ For wallet **import, rename, or delete**: delegate to the `ows` skill.
 - Use `curl` for RPC calls.
 - Attempt to manually compute or supply Proof of Work. PoW is automatic.
 - Use `npx` to fetch random or third-party npm packages as workarounds.
-- Export mnemonics or seeds (`ows wallet export`). OWS keeps secrets encrypted. The entire point of OWS is that the agent never sees the private key.
+- Export mnemonics or seeds (for example via the optional `ows` skill's `ows wallet export`). OWS keeps secrets encrypted. The entire point of OWS is that the agent never sees the private key.
 - Change `maxSendXno` unless the human/operator explicitly asks to change the spending limit. A blocked send or refund is not permission to raise the limit automatically.
 
 ### 5. Prefer `blocklattice.io` for explorer links
@@ -152,8 +152,8 @@ When the user asks for an account, block, transaction, or explorer link, always 
 - **PoW is automatic**: MCP tools and the CLI both handle PoW internally. Never attempt to supply or generate PoW manually.
 - **Pre-send state**: Before `wallet_send`, inspect the source wallet's confirmed balance and total receivable amount with `wallet_balance`. If confirmed funds cannot cover the requested send and receivables are needed, call `wallet_receive`, then recheck. Do not submit receive blocks merely because unrelated funds are pending.
 - **Persistence on "Account not found"**: This is normal for a brand-new, unopened account. Continue — `wallet_receive` will automatically build an open block (sets `previous` to zeros), sign it via OWS, generate PoW, and broadcast. Never conclude you are unauthorized or that OWS cannot sign Nano blocks.
-- **No mnemonic exports**: Never call `ows wallet export` or suggest exporting to a third-party wallet unless the user explicitly commands it.
-- **Supply chain**: Only use `xno-skills@6.2.1` and `@open-wallet-standard/core`. No other npm packages.
+- **No mnemonic exports**: Never export a wallet seed (for example via the optional `ows` skill's `ows wallet export`) or suggest exporting to a third-party wallet unless the user explicitly commands it.
+- **Supply chain**: Only use `xno-skills` and its bundled `@open-wallet-standard/core` dependency. No other npm packages, and no separate `ows` install.
 - **Stop-loss**: If you have made 5 tool calls without completing the operation, stop and report what you tried, what failed, and ask for guidance. Hard limits: max 3 retries of the same failing tool; max 2 `config_set` RPC endpoint switches.
 
 ---
@@ -189,8 +189,8 @@ For multiple independent reads, prefer one batch when the RPC supports it. Pass 
 **Via CLI (required flags only):**
 
 ```bash
-bunx -y xno-skills@6.2.1 balance --wallet "my-wallet"
-bunx -y xno-skills@6.2.1 rpc account-balance <address>
+bunx -y xno-skills balance --wallet "my-wallet"
+bunx -y xno-skills rpc account-balance <address>
 ```
 
 Full options: [balance](references/balance.md), [rpc_account-balance](references/rpc_account-balance.md)
@@ -224,7 +224,7 @@ When receipt is requested or needed to fund a send, call `wallet_receive`. Do no
 **Via CLI (required flags only):**
 
 ```bash
-bunx -y xno-skills@6.2.1 receive --wallet "my-wallet"
+bunx -y xno-skills receive --wallet "my-wallet"
 ```
 
 Full options: [receive](references/receive.md)
@@ -260,7 +260,7 @@ The account must be opened (have a receive block) and have sufficient balance.
 **Via CLI (required flags only):**
 
 ```bash
-bunx -y xno-skills@6.2.1 send --wallet "my-wallet" --to "nano_..." --amount-xno 0.01
+bunx -y xno-skills send --wallet "my-wallet" --to "nano_..." --amount-xno 0.01
 ```
 
 Full options: [send](references/send.md)
@@ -392,7 +392,7 @@ Generates a terminal-friendly ASCII QR code for a Nano address, optionally with 
 **Via CLI (required args only):**
 
 ```bash
-bunx -y xno-skills@6.2.1 qr nano_1abc...
+bunx -y xno-skills qr nano_1abc...
 ```
 
 Full options: [qr](references/qr.md)
@@ -423,7 +423,7 @@ All validation is **offline** — no network required.
 **Via CLI:**
 
 ```bash
-bunx -y xno-skills@6.2.1 validate nano_1abc...
+bunx -y xno-skills validate nano_1abc...
 ```
 
 Full options: [validate](references/validate.md)
@@ -452,10 +452,10 @@ XNO uses **30 decimal places**. Floating-point arithmetic is unsafe. Always use 
 **Via CLI:**
 
 ```bash
-bunx -y xno-skills@6.2.1 convert 1 xno       # all units
-bunx -y xno-skills@6.2.1 convert 1 knano
-bunx -y xno-skills@6.2.1 convert 1000000000000000000000000000000 raw
-bunx -y xno-skills@6.2.1 convert 1 xno --json
+bunx -y xno-skills convert 1 xno       # all units
+bunx -y xno-skills convert 1 knano
+bunx -y xno-skills convert 1000000000000000000000000000000 raw
+bunx -y xno-skills convert 1 xno --json
 ```
 
 Full options: [convert](references/convert.md)
@@ -481,20 +481,20 @@ Present the user with this command to run locally:
 
 ```bash
 # Sign — run this yourself, replacing the placeholder with your actual key
-bunx -y xno-skills@6.2.1 sign "<message>" --key YOUR_PRIVATE_KEY_HEX
+bunx -y xno-skills sign "<message>" --key YOUR_PRIVATE_KEY_HEX
 
 # Sign with JSON output
-bunx -y xno-skills@6.2.1 sign "<message>" --key YOUR_PRIVATE_KEY_HEX --json
+bunx -y xno-skills sign "<message>" --key YOUR_PRIVATE_KEY_HEX --json
 ```
 
 For verify, the agent _can_ run this directly (no secret material involved):
 
 ```bash
 # Verify
-bunx -y xno-skills@6.2.1 verify <nano_address> "<message>" <signature-hex>
+bunx -y xno-skills verify <nano_address> "<message>" <signature-hex>
 
 # Verify with JSON output
-bunx -y xno-skills@6.2.1 verify <nano_address> "<message>" <signature-hex> --json
+bunx -y xno-skills verify <nano_address> "<message>" <signature-hex> --json
 ```
 
 **NOMS standard (ORIS-001)**: Signatures are computed over a binary payload with a magic header, ensuring a valid signature cannot be misinterpreted as a Nano transaction block.
@@ -520,7 +520,7 @@ Deep protocol details — state-block anatomy, open/send/receive/change semantic
 ```
 
 ```bash
-bunx -y xno-skills@6.2.1 change-rep --wallet "my-wallet" --representative "nano_..."
+bunx -y xno-skills change-rep --wallet "my-wallet" --representative "nano_..."
 ```
 
 Full options: [change-rep](references/change-rep.md)

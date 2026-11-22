@@ -16,8 +16,16 @@ if (existing !== content) {
   writeFileSync(targetPath, content, 'utf8');
 }
 
-// Pin xno-skills@latest / xno-skills@x.y.z to current version in SKILL.md and README.md
-const versionPin = (src) => src.replace(/xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
+// Keep the version-pinned references in sync with package.json.
+// Only the "current release" markers are rewritten; plain `xno-skills`
+// references are left alone so docs never hardcode a version.
+const versionPin = (src) =>
+  src
+    .replace(
+      /xno-skills@(?:latest|\d+\.\d+\.\d+)(?=\s+xno-mcp|["']?,\s*["']mcp["']|\s+mcp\b)/g,
+      `xno-skills@${packageJson.version}`,
+    )
+    .replace(/(?<=npm install -g )xno-skills@(?:latest|\d+\.\d+\.\d+)/g, `xno-skills@${packageJson.version}`);
 
 for (const rel of ['skills/nano/SKILL.md', 'README.md', 'src/cli.ts']) {
   const filePath = resolve(__dirname, '..', rel);

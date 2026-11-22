@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on top of [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core) for secure key custody.
+A CLI, MCP server, and AI skills for [Nano](https://nano.org/) (XNO). Built on top of [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/core) for secure key custody — OWS ships as a bundled dependency, so there is nothing extra to install.
 
 ![xno-skills CLI preview](assets/xno-skills-cli.png)
 
@@ -62,26 +62,26 @@ Available skills:
 
 - `nano`: Wallet ops, balance, send/receive, QR codes, address validation, unit conversion, payment requests, refunds, block-lattice protocol expertise, and more — all in one skill. Uses `xno-mcp` MCP tools first, falls back to `xno-skills` CLI.
 
+No separate `ows` install is required. `xno-skills` ships `@open-wallet-standard/core` as a dependency and uses its local vault directly, so wallet listing, creation, and signing work out of the box.
+
+The optional [Open Wallet Standard](https://github.com/open-wallet-standard/core) skill adds wallet lifecycle operations that `xno-skills` does not expose (import, rename, delete). Install it only if you need those:
+
+```bash
+npx skills add open-wallet-standard/core@ows
+```
+
 ## CLI
 
-### Installation & Upgrades
+### Installation
 
-To install or upgrade the CLI, AI agent skills, and wallet dependencies to the latest version, run:
+To install the CLI, AI agent skills, and wallet dependencies, run:
 
 ```bash
 npm install -g xno-skills && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
 xno-skills --help
 ```
 
-To pin to the current stable release instead:
-
-```bash
-npm install -g xno-skills@6.2.1 && npx -y skills add CasualSecurityInc/xno-skills -g -y --all
-```
-
-#### Upgrading from 5.x
-
-Install `xno-skills@6.2.1` with the pinned command above, reinstall the Nano skill, then restart any MCP clients using `xno-skills mcp`. Existing OWS wallet data stays in the local vault and needs no migration. Use a supported Node.js LTS release such as 22, 24, or 26.
+To upgrade an existing installation, rerun the same command. Reinstall the Nano skill and restart any MCP clients that use `xno-skills mcp` afterwards. Existing OWS wallet data stays in the local vault and needs no migration. Use a supported Node.js LTS release such as 22, 24, or 26.
 
 #### Linux compatibility
 
@@ -149,7 +149,13 @@ All commands support `-j` / `--json` for machine-readable output.
 
 Use `diag` for local configuration diagnostics. Use `rpc probe-caps <effective-work-url>` when you need live endpoint capability checks, including `work_generate` support.
 
-Wallet lifecycle (create, import, rename, delete) is managed by [OWS](https://github.com/open-wallet-standard/core). `xno-skills` bundles OWS as a dependency — no separate install needed. See the [OWS quick-start](https://openwallet.sh/#quickstart) for terminal usage, or install OWS agent skills with `npx skills add open-wallet-standard/core@ows`.
+Wallet lifecycle is managed by [OWS](https://github.com/open-wallet-standard/core), which `xno-skills` bundles as a dependency — **no separate `ows` install and no global `ows` executable are needed**. Listing, creating, and signing wallets all go through the bundled runtime against the local OWS vault.
+
+`xno-skills` exposes wallet listing and creation directly (`wallet_list`, `wallet_create`, `xno-skills wallet create`). Import, rename, and delete are not exposed by `xno-skills`; use the optional OWS tooling for those — either the [OWS quick-start](https://openwallet.sh/#quickstart) for terminal usage, or the optional OWS agent skill:
+
+```bash
+npx skills add open-wallet-standard/core@ows
+```
 
 ## MCP Server
 
@@ -162,7 +168,7 @@ Exposes Nano wallet functions as tools for AI agents (Claude Desktop, Cursor, Co
 **Preferred** (global install — avoids `npx` concurrency handshake failures):
 
 ```bash
-npm install -g xno-skills@6.2.1
+npm install -g xno-skills
 ```
 
 ```json
@@ -183,7 +189,7 @@ npm install -g xno-skills@6.2.1
   "mcpServers": {
     "nano": {
       "command": "npx",
-      "args": ["-y", "-p", "xno-skills@6.2.1", "xno-mcp"]
+      "args": ["-y", "-p", "xno-skills", "xno-mcp"]
     }
   }
 }
@@ -195,7 +201,7 @@ npm install -g xno-skills@6.2.1
 <summary>Codex</summary>
 
 ```bash
-# Preferred (after npm install -g xno-skills@6.2.1):
+# Preferred (after npm install -g xno-skills):
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
@@ -205,7 +211,7 @@ codex mcp add nano \
 codex mcp add nano \
   -c sandbox_mode="danger-full-access" \
   -c 'sandbox_permissions=["network-access"]' \
-  -- npx -y -p xno-skills@6.2.1 xno-mcp
+  -- npx -y -p xno-skills xno-mcp
 ```
 
 </details>
